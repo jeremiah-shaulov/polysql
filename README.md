@@ -22,7 +22,7 @@ This library provides the following functions:
 Usually you need to import only one of these functions into your project.
 
 ```ts
-import {mysqlQuote as sqlQuote} from './mod.ts';
+import {mysqlQuote as sqlQuote} from 'https://deno.land/x/polysql/mod.ts';
 
 console.log(sqlQuote(import.meta.url));
 ```
@@ -43,7 +43,7 @@ The "value" parameter can be one of the following types:
 - other types will be converted to strings and printed as an SQL string literal
 
 ```ts
-import {mysqlQuote as sqlQuote} from './mod.ts';
+import {mysqlQuote as sqlQuote} from 'https://deno.land/x/polysql/mod.ts';
 
 console.log(sqlQuote(null)); // prints: NULL
 console.log(sqlQuote(false)); // prints: FALSE
@@ -67,7 +67,7 @@ This library provides the following string-template functions:
 Usually you need to import only one of these functions into your project.
 
 ```ts
-import {mysql as sql} from './mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
 
 let message = `It's the message`;
 let number = 0.1;
@@ -109,7 +109,7 @@ Identifier cannot contain ASCII 0 characters (required for PostgreSQL).
 Square brackets will be replaced with parentheses. The parameter must be iterable. If items in the collection are also iterable, this will generate multidimensional collection.
 
 ```ts
-import {mysql as sql} from './mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
 
 const ids = [10, 11, 12];
 let s = sql`SELECT * FROM articles WHERE id IN [${ids}]`;
@@ -117,7 +117,7 @@ console.log('' + s); // prints: SELECT * FROM articles WHERE id IN (10,11,12)
 ```
 
 ```ts
-import {mysql as sql} from './mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
 
 const list = [[10, 1], [11, 3], [12, 8]];
 let s = sql
@@ -136,7 +136,7 @@ The inserted SQL fragment will be validated, so it doesn't contain the following
 Strings in the SQL fragment are always treated as `mysqlNoBackslashEscapes` (backslash is regular character), so to represent a string with a new line, you need `const expr = "Char_length('Line\n')"`, not `const expr = "Char_length('Line\\n')"`.
 
 ```ts
-import {mysql as sql} from './mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
 
 const expr = "Char_length('Line\n')";
 let s = sql`SELECT (${expr})`;
@@ -146,7 +146,7 @@ console.log('' + s);
 It's possible to prefix all unqualified identifiers in the SQL fragment with a parent qualifier:
 
 ```ts
-import {mysql as sql} from './mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
 
 const expr = "article_id = 10 AND `article_version` = 1 AND a.name <> ''";
 let s = sql
@@ -161,7 +161,7 @@ console.log('' + s); // prints ...WHERE (`av`.article_id = 10 AND `av`.`article_
 ### 5. `${param}` or `parent_name.${param}` (not enclosed) - Like `(${param})`, but allows commas on top level.
 
 ```ts
-import {mysql as sql} from './mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
 
 const columns = "name, value";
 let s = sql`SELECT ${columns} FROM something WHERE id=1`;
@@ -173,7 +173,7 @@ console.log('' + s); // prints: SELECT `name`, `value` FROM something WHERE id=1
 The first form throws exception, if there are no fields in the param. The Second form doesn't complain, and prints comma after the last field.
 
 ```ts
-import {mysql as sql} from './mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
 
 const row = {name: 'About all', author: 'Johnny'};
 let s = sql`UPDATE articles AS a SET {a.${row}} WHERE id=1`;
@@ -181,7 +181,7 @@ console.log('' + s); // prints: UPDATE articles AS a SET `a`.`name`='About all',
 ```
 
 ```ts
-import {mysql as sql} from './mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
 
 const row = {name: 'About all', author: 'Johnny'};
 let s = sql`UPDATE articles AS a SET {a.${row},} article_date=Now() WHERE id=1`;
@@ -191,7 +191,7 @@ console.log('' + s); // prints: UPDATE articles AS a SET `a`.`name`='About all',
 If a value is an `Sql` object, it's expression will be used.
 
 ```ts
-import {mysql as sql} from './mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
 
 const row = {name: 'About all', author: sql`Get_author(id)`};
 let s = sql`UPDATE articles AS a SET {a.${row}} WHERE id=1`;
@@ -203,7 +203,7 @@ console.log('' + s); // prints: UPDATE articles AS a SET `a`.`name`='About all',
 Converts braces to parentheses. If the `param` contains no fields, this will be converted to a `FALSE` literal.
 
 ```ts
-import {mysql as sql} from './mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
 
 const row = {name: 'About all', author: sql`Get_author(id)`};
 let s = sql`SELECT * FROM articles AS a WHERE {a.${row}&}`;
@@ -215,7 +215,7 @@ console.log('' + s); // prints: SELECT * FROM articles AS a WHERE (`a`.`name`='A
 Converts braces to parentheses. If the `param` contains no fields, this will be converted to a `TRUE` literal.
 
 ```ts
-import {mysql as sql} from './mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
 
 const row = {name: 'About all', author: sql`Get_author(id)`};
 let s = sql`SELECT * FROM articles AS a WHERE {a.${row}|}`;
@@ -227,7 +227,7 @@ console.log('' + s); // prints: SELECT * FROM articles AS a WHERE (`a`.`name`='A
 In [6], [7] and [8], you can specify 2 parent qualifiers: one for the left-hand side of the equation, and one for the right. Any of the names can be empty.
 
 ```ts
-import {mysql as sql} from './mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
 
 const row = {name: 'About all', author: sql`Get_author(id)`};
 let s = sql`SELECT * FROM articles AS a INNER JOIN article_content AS ac ON a.id = ac.article_id WHERE {a.ac.${row}&}`;
@@ -237,7 +237,7 @@ console.log('' + s); // prints: SELECT * FROM articles AS a INNER JOIN article_c
 Example of left name empty:
 
 ```ts
-import {mysql as sql} from './mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
 
 const row = {name: 'About all', author: sql`Get_author(id)`};
 let s = sql`UPDATE articles AS a SET {.a.${row}} WHERE id=1`;
@@ -249,7 +249,7 @@ console.log('' + s); // prints: UPDATE articles AS a SET `name`='About all', `au
 Parameter must be iterable object that contains rows to insert. Will print column names from the first row. On following rows, only columns from the first row will be used.
 
 ```ts
-import {mysql as sql} from './mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
 
 let rows =
 [	{value: 10, name: 'text 1'},
@@ -273,7 +273,7 @@ In [4], [5], [6], [7], [8] and [9] the parent qualifier name can be taken from a
 The `sql` template function returns object of `Sql` class.
 
 ```ts
-import {mysql as sql, Sql} from './mod.ts';
+import {mysql as sql, Sql} from 'https://deno.land/x/polysql/mod.ts';
 
 let s: Sql = sql`SELECT 2*2`;
 ```
@@ -281,7 +281,7 @@ let s: Sql = sql`SELECT 2*2`;
 The `Sql` objects can be concatenated:
 
 ```ts
-import {mysql as sql} from './mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
 
 const id = 10;
 let s = sql`SELECT * FROM articles WHERE id='${id}'`;
@@ -314,7 +314,7 @@ The quoting policy has either a whitelist or a blacklist of allowed identifiers,
 There're 2 separate lists for functions (any identifier that is followed by a parenthesis is considered a function name), and for other identifiers.
 
 ```ts
-import {mysql as sql, SqlSettings, SqlMode} from './mod.ts';
+import {mysql as sql, SqlSettings, SqlMode} from 'https://deno.land/x/polysql/mod.ts';
 
 const value1 = "The string is: 'name'. The backslash is: \\";
 const value2 = 123.4;
@@ -349,7 +349,7 @@ For `functions` is: `! FROM JOIN ON SELECT WHERE`.
 To print the default policy, you can do:
 
 ```ts
-import {SqlSettings, SqlMode} from './mod.ts';
+import {SqlSettings, SqlMode} from 'https://deno.land/x/polysql/mod.ts';
 
 let settings = new SqlSettings(SqlMode.MYSQL);
 
@@ -368,7 +368,7 @@ You can pass an array to the `putParamsTo` parameter, so long strings and long t
 and their SQL representation will be produced as `?` character.
 
 ```ts
-import {mysql as sql} from './mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
 
 let message = 'a'.repeat(100);
 let params: any[] = [];
@@ -408,7 +408,7 @@ This library provides the following constant objects:
 Usually you need to import only one of these into your project.
 
 ```ts
-import {mysqlTables as sqlTables} from './mod.ts';
+import {mysqlTables as sqlTables} from 'https://deno.land/x/polysql/mod.ts';
 
 console.log('' + sqlTables.messages.where("id=1").select()); // prints: SELECT * FROM `messages` WHERE (`id`=1)
 ```
@@ -449,7 +449,7 @@ This method can be called multiple times.
 The method returns a new `SqlTable` object that has everything from the original object, plus the new join.
 
 ```ts
-import {mysqlTables as sqlTables} from './mod.ts';
+import {mysqlTables as sqlTables} from 'https://deno.land/x/polysql/mod.ts';
 
 console.log('' + sqlTables.messages.join('content', 'c', 'content_id = c.id').where("id=1").select("c.*"));
 // prints: SELECT `c`.* FROM `messages` AS `b` INNER JOIN `content` AS `c` ON (`b`.content_id = `c`.id) WHERE (`b`.id=1)
