@@ -2,3 +2,4 @@
 .directory
 tests/coverage
 main.ts
+*.sql

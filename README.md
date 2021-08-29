@@ -386,7 +386,7 @@ Remember that the value of this parameter can change during server session, if u
 If `useBuffer` parameter is provided, and there's enough space in this buffer, this buffer will be used and a `useBuffer.subarray()` of it will be returned from `sql.encode()`.
 If it's not big enough, a new buffer will be allocated, as usual.
 
-If `useBufferFromPos` parameter is provided together wil the `useBuffer`, so the produced query will be appended after that position in the buffer, and the contents of `useBuffer` before this position will be the part of returned query (event if a new buffer was used).
+If `useBufferFromPos` parameter is provided together wil the `useBuffer`, so the produced query will be appended after that position in the buffer, and the contents of `useBuffer` before this position will be the part of returned query (even if a new buffer was used).
 
 ### Sql.toString() function
 
@@ -413,7 +413,7 @@ import {mysqlTables as sqlTables} from 'https://deno.land/x/polysql/mod.ts';
 console.log('' + sqlTables.messages.where("id=1").select()); // prints: SELECT * FROM `messages` WHERE (`id`=1)
 ```
 
-`*OnlyTables` allows you to use all the supported features for that SQL dialect, event those that are not supported for other dialects.
+`*OnlyTables` allows you to use all the supported features for that SQL dialect, even those that are not supported for other dialects.
 
 `*Tables` (without `Only`) throw exception if you ask a feature that is not supported by all of MySQL, PostgreSQL, Sqlite and Microsoft SQL Server.
 So you can switch to different dialect later (e.g. from `mysqlTables` to `mssqlTables`).

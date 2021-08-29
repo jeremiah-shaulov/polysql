@@ -24,6 +24,7 @@ const C_LF = '\n'.charCodeAt(0);
 const C_MINUS = '-'.charCodeAt(0);
 const C_DOT = '.'.charCodeAt(0);
 const C_ZERO = '0'.charCodeAt(0);
+const C_ONE = '1'.charCodeAt(0);
 const C_NINE = '9'.charCodeAt(0);
 const C_X = 'x'.charCodeAt(0);
 const C_A_CAP = 'A'.charCodeAt(0);
@@ -448,13 +449,25 @@ class Serializer
 			return Want.REMOVE_APOS_OR_BRACE_CLOSE_OR_GT;
 		}
 		if (param === false)
-		{	this.pos--; // backspace '
-			this.append_raw_bytes(LIT_FALSE);
+		{	const alt_booleans = this.sql_settings.mode == SqlMode.MSSQL || this.sql_settings.mode == SqlMode.MSSQL_ONLY;
+			this.pos--; // backspace '
+			if (alt_booleans)
+			{	this.append_raw_char(C_ZERO);
+			}
+			else
+			{	this.append_raw_bytes(LIT_FALSE);
+			}
 			return Want.REMOVE_APOS_OR_BRACE_CLOSE_OR_GT;
 		}
 		if (param === true)
-		{	this.pos--; // backspace '
-			this.append_raw_bytes(LIT_TRUE);
+		{	const alt_booleans = this.sql_settings.mode == SqlMode.MSSQL || this.sql_settings.mode == SqlMode.MSSQL_ONLY;
+			this.pos--; // backspace '
+			if (alt_booleans)
+			{	this.append_raw_char(C_ONE);
+			}
+			else
+			{	this.append_raw_bytes(LIT_TRUE);
+			}
 			return Want.REMOVE_APOS_OR_BRACE_CLOSE_OR_GT;
 		}
 		if (typeof(param)=='number' || typeof(param)=='bigint')
@@ -714,7 +727,13 @@ class Serializer
 		}
 		else if (n_items_added == 0)
 		{	this.pos--; // backspace
-			this.append_raw_bytes(param_type_descriminator==C_AMP ? LIT_TRUE : LIT_FALSE);
+			const alt_booleans = this.sql_settings.mode == SqlMode.MSSQL || this.sql_settings.mode == SqlMode.MSSQL_ONLY;
+			if (alt_booleans)
+			{	this.append_raw_char(param_type_descriminator==C_AMP ? C_ONE : C_ZERO);
+			}
+			else
+			{	this.append_raw_bytes(param_type_descriminator==C_AMP ? LIT_TRUE : LIT_FALSE);
+			}
 			return Want.REMOVE_A_CHAR_AND_BRACE_CLOSE;
 		}
 		else
