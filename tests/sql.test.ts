@@ -1,4 +1,4 @@
-import {mysql, pgsql, sqlite, mssql, INLINE_STRING_MAX_LEN} from '../sql.ts';
+import {mysql, pgsql, sqlite, mssql, INLINE_STRING_MAX_LEN, INLINE_BLOB_MAX_LEN} from '../sql.ts';
 import {mysqlQuote, pgsqlQuote, sqliteQuote, mssqlQuote} from '../quote.ts';
 import {SqlSettings, SqlMode} from '../sql_settings.ts';
 import {assert, assertEquals} from "https://deno.land/std@0.97.0/testing/asserts.ts";
@@ -23,6 +23,9 @@ Deno.test
 		assertEquals(mysql`'${true}'` + '', `TRUE`);
 		assertEquals(mysql`'${false}'` + '', `FALSE`);
 
+		assertEquals(mssql`'${true}'` + '', `1`);
+		assertEquals(mssql`'${false}'` + '', `0`);
+
 		assertEquals(mysql`'${new Uint8Array([1, 2, 3, 4])}'` + '', `x'01020304'`);
 
 		assertEquals(mysql`'${new Date(2000, 0, 3)}'` + '', `'2000-01-03'`);
@@ -39,6 +42,10 @@ Deno.test
 		assertEquals(mysql`"${null}"` + '', '`null`');
 		assertEquals(mysql`"${'One"Two"'}"` + '', '`One"Two"`');
 		assertEquals(mysql`"${'One`Two`'}"` + '', '`One``Two```');
+
+		assertEquals(sqlite`\`${null}\`` + '', '"null"');
+		assertEquals(sqlite`\`${'One"Two"'}\`` + '', '"One""Two"""');
+		assertEquals(sqlite`\`${'One`Two`'}\`` + '', '"One`Two`"');
 
 		assertEquals(mysql`"${'ф'.repeat(100)}"` + '', '`'+'ф'.repeat(100)+'`'); // many 2-byte chars cause buffer of guessed size to realloc
 
@@ -96,16 +103,25 @@ Deno.test
 		{	error = e;
 		}
 		assertEquals(error?.message, `Inappropriately quoted parameter`);
+
+		error = undefined;
+		try
+		{	mysql`"${'\0'}"`.toString();
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, `Quoted identifier cannot contain 0-char`);
 	}
 );
 
 Deno.test
 (	'SQL (${param})',
 	async () =>
-	{	let expr = `The string: 'It''s string \\'`;
+	{	let expr = `The string - 'It''s string \\'`;
 		let s = mysql`A.(${expr}).B`;
-		assertEquals(s+'', `A.(\`The\` \`string\`: 'It''s string \\\\').B`);
-		assertEquals(s.toString(undefined, true), `A.(\`The\` \`string\`: 'It''s string \\').B`);
+		assertEquals(s+'', `A.(\`The\` \`string\` - 'It''s string \\\\').B`);
+		assertEquals(s.toString(undefined, true), `A.(\`The\` \`string\` - 'It''s string \\').B`);
 
 		expr = `EXISTS(SELECT 1)`;
 		s = mysql`SELECT (${expr})`;
@@ -292,6 +308,42 @@ Deno.test
 
 		error = undefined;
 		try
+		{	'' + mysql`SELECT (${`$$Hello$$`})`;
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, `Invalid character in SQL fragment: $$Hello$$`);
+
+		error = undefined;
+		try
+		{	'' + mysql`SELECT (${`\0`})`;
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, `Invalid character in SQL fragment: \0`);
+
+		error = undefined;
+		try
+		{	'' + mysql`SELECT (${`?`})`;
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, `Invalid character in SQL fragment: ?`);
+
+		error = undefined;
+		try
+		{	'' + mysql`SELECT (${`:par`})`;
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, `Invalid character in SQL fragment: :par`);
+
+		error = undefined;
+		try
 		{	'' + mysql`SELECT (${`Count(* + 1`})`;
 		}
 		catch (e)
@@ -421,16 +473,24 @@ Deno.test
 		alias = '';
 		s = mysql`SELECT (${alias}.${expr})`;
 		assertEquals(s+'', "SELECT (`a``b`)");
+
+		expr = `"a\`b"`;
+		s = mysql`SELECT (${null}.${expr})`;
+		assertEquals(s+'', "SELECT (`a``b`)");
+
+		let expr2 = mysql`a || 'фффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффф'`;
+		s = mysql`S (${expr2})`;
+		assertEquals(s+'', "S (`a` || 'фффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффф')");
 	}
 );
 
 Deno.test
 (	'SQL ${param}',
 	async () =>
-	{	let expr = `The string: 'It''s string \\'`;
+	{	let expr = `The string - 'It''s string \\'`;
 		let s = mysql`A-${expr}-B`;
-		assertEquals(s+'', `A-\`The\` \`string\`: 'It''s string \\\\'-B`);
-		assertEquals(s.toString(undefined, true), `A-\`The\` \`string\`: 'It''s string \\'-B`);
+		assertEquals(s+'', `A-\`The\` \`string\` - 'It''s string \\\\'-B`);
+		assertEquals(s.toString(undefined, true), `A-\`The\` \`string\` - 'It''s string \\'-B`);
 
 		expr = "col1, `col2`, 3.0";
 		s = mysql`A-${expr}-B`;
@@ -491,11 +551,30 @@ Deno.test
 		assertEquals(s.toString(put_params_to, false), `A?B`);
 		assertEquals(put_params_to, [value]);
 
-		value = "*".repeat(INLINE_STRING_MAX_LEN);
+		value = value.slice(1);
 		s = mysql`A'${value}'B`;
 		put_params_to = [];
 		assertEquals(s.toString(put_params_to, false), `A'${value}'B`);
 		assertEquals(put_params_to, []);
+
+		let data = new Uint8Array(INLINE_BLOB_MAX_LEN+1);
+		data.fill('a'.charCodeAt(0));
+		s = mysql`A'${data}'B`;
+		put_params_to = [];
+		assertEquals(s.toString(put_params_to, false), `A?B`);
+		assertEquals(put_params_to, [data]);
+
+		data = data.subarray(1);
+		s = mysql`A'${data}'B`;
+		put_params_to = [];
+		assertEquals(s.toString(put_params_to, false), `Ax'${data[0].toString(16).repeat(data.length)}'B`);
+		assertEquals(put_params_to, []);
+
+		let reader = {read() {}};
+		s = mysql`A'${reader}'B`;
+		put_params_to = [];
+		assertEquals(s.toString(put_params_to, false), `A?B`);
+		assertEquals(put_params_to, [reader]);
 	}
 );
 
@@ -583,6 +662,14 @@ Deno.test
 		row_2 = {};
 		s = mysql`SET {ta.${row_2}|}`;
 		assertEquals(s+'', "SET FALSE");
+
+		row_2 = {};
+		s = mssql`SET {ta.${row_2}&}`;
+		assertEquals(s+'', "SET 1");
+
+		row_2 = {};
+		s = mssql`SET {ta.${row_2}|}`;
+		assertEquals(s+'', "SET 0");
 
 		let row_3 = {one: 1.1, two: mysql`a + f(b)`};
 		s = mysql`SET {t1.${row_3}}`;

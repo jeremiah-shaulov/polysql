@@ -131,7 +131,7 @@ console.log('' + s); // prints: ...WHERE (av.article_id, av.article_version) IN 
 
 ### 4. `(${param})` or `(parent_name.${param})` - Embed a safe SQL expression.
 
-The inserted SQL fragment will be validated, so it doesn't contain the following characters (unless quoted): `@ $ # [ ] { } ;`, `\0`-char, commas except in parentheses, comments, unterminated literals, unbalanced parentheses. Identifiers in this SQL fragment will be quoted according to chosen policy (see below).
+The inserted SQL fragment will be validated, so it doesn't contain the following characters (unless quoted): `@ $ # ? : [ ] { } ;`, `\0`-char, commas except in parentheses, comments, unterminated literals, unbalanced parentheses. Identifiers in this SQL fragment will be quoted according to chosen policy (see below).
 
 Strings in the SQL fragment are always treated as `mysqlNoBackslashEscapes` (backslash is regular character), so to represent a string with a new line, you need `const expr = "Char_length('Line\n')"`, not `const expr = "Char_length('Line\\n')"`.
 

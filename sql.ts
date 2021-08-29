@@ -43,6 +43,7 @@ const C_AMP = '&'.charCodeAt(0);
 const C_PIPE = '|'.charCodeAt(0);
 const C_EQ = '='.charCodeAt(0);
 const C_QUEST = '?'.charCodeAt(0);
+const C_COLON = ':'.charCodeAt(0);
 const C_PAREN_OPEN = '('.charCodeAt(0);
 const C_PAREN_CLOSE = ')'.charCodeAt(0);
 const C_SQUARE_OPEN = '['.charCodeAt(0);
@@ -385,7 +386,7 @@ class Serializer
 			case Want.CONVERT_CLOSE_TO_PAREN_CLOSE:
 			{	let from = this.pos;
 				this.append_raw_string(s);
-				debug_assert(this.result[from]==C_SQUARE_CLOSE || this.result[from]==C_BRACE_CLOSE || this.result[from]==C_GT);
+				debug_assert(this.result[from] == C_SQUARE_CLOSE);
 				this.result[from] = C_PAREN_CLOSE;
 				break;
 			}
@@ -780,6 +781,8 @@ L:		for (let j=from; j<pos; j++)
 				case C_AT:
 				case C_DOLLAR:
 				case C_HASH:
+				case C_QUEST:
+				case C_COLON:
 				case C_SQUARE_OPEN:
 				case C_SQUARE_CLOSE:
 				case C_BRACE_OPEN:
