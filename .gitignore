@@ -1,0 +1,4 @@
+.vscode
+.directory
+tests/coverage
+main.ts

@@ -1,2 +1,522 @@
 # polysql
-Queries generator for MySQL, PostgreSQL, SQLite and Microsoft SQL Server
+
+This library assists developers to generate SQL queries for MySQL, PostgreSQL, SQLite and Microsoft SQL Server.
+It's designed for those who interested in utilizing the true power of relational databases (not a "non-SQL" SQL).
+It tries to make queries safe, and migration to different database engine easier.
+
+This library can:
+
+- Quote SQL literals (string, blob, date, ...)
+- Form certain parts in an SQL query, like names-values in INSERT, in UPDATE, to generate "WHERE" expressions, etc.
+- Generate SELECT, INSERT, UPDATE and DELETE queries from parts
+
+## Quote SQL literals
+
+This library provides the following functions:
+
+- mysqlQuote(value: any, noBackslashEscapes=false)
+- pgsqlQuote(value: any, unused=false)
+- sqliteQuote(value: any, unused=false)
+- mssqlQuote(value: any, unused=false)
+
+Usually you need to import only one of these functions into your project.
+
+```ts
+import {mysqlQuote as sqlQuote} from './mod.ts';
+
+console.log(sqlQuote(import.meta.url));
+```
+Function `mysqlQuote()` has second parameter called `noBackslashEscapes`.
+If it's true, backslashes in SQL string literals will be assumed not to have special meaning, so `mysqlQuote()` will not double backslashes.
+It's important to provide the correct value to this parameter.
+Remember that the value of this parameter can change during server session, if user executes a query like `SET sql_mode='no_backslash_escapes'`.
+
+The "value" parameter can be one of the following types:
+
+- null, undefined, Javascript functions and Symbol objects produce `NULL` literal
+- boolean produces `FALSE` or `TRUE` literals (`0` or `1` for Microsoft SQL Server)
+- number and bigint is printed as is
+- Date produces string like `2021-08-26` or `2021-08-26 10:00:00` or `2021-08-26 10:00:00.123`
+- typed arrays (like Uint8Array) produce literals like `x'00112233'` (`0x00112233` for Microsoft SQL Server)
+- Sql object will print a string with it's query
+- Deno.Reader will be rejected with exception
+- other types will be converted to strings and printed as an SQL string literal
+
+```ts
+import {mysqlQuote as sqlQuote} from './mod.ts';
+
+console.log(sqlQuote(null)); // prints: NULL
+console.log(sqlQuote(false)); // prints: FALSE
+console.log(sqlQuote(123)); // prints: 123
+console.log(sqlQuote('Message')); // prints: 'Message'
+console.log(sqlQuote('It\'s another message')); // prints: 'It''s another message'
+console.log(sqlQuote(new Date(2000, 0, 1))); // prints: '2000-01-01'
+console.log(sqlQuote(new Uint8Array([1, 2, 3]))); // prints: x'010203'
+console.log(sqlQuote({id: 1, value: 1.5})); // prints: '{"id":1,"value":1.5}'
+```
+
+## Produce parts of SQL query
+
+This library provides the following string-template functions:
+
+- mysql
+- pgsql
+- sqlite
+- mssql
+
+Usually you need to import only one of these functions into your project.
+
+```ts
+import {mysql as sql} from './mod.ts';
+
+let message = `It's the message`;
+let number = 0.1;
+let column = 'The number';
+console.log('' + sql`SELECT '${message}', '${number}' AS "${column}"`); // prints: SELECT 'It''s the message', 0.1 AS `The number`
+```
+
+You can mark backtick-quoted Javascript strings with the `sql` tag, as in example above, and dollar-brace parameters in this string will be escaped.
+
+How each parameter is escaped depends on quotes that you used in your SQL string, to quote this parameter (in the example above i quoted `message` and `number` with apostrophes, and `column` with double-quotes).
+
+### 1. `'${param}'` - Escape an SQL value.
+
+If the parameter is a string, characters inside it will be properly escaped (if you use `mysql`, a mysqlNoBackslashEscapes argument of `toString()` or `encode()` will be respected - see below).
+
+If the value is a number, quotes around it will be removed.
+
+If it's a `null`, or an `undefined`, a Javascript function or a Symbol, it will be substituted with `NULL` literal.
+
+If it's boolean `false` or `true`, it will be substituted with `FALSE` or `TRUE` (`0` or `1` on Microsoft SQL Server).
+
+`Date` objects will be printed as SQL dates.
+
+Typed arrays will be printed like `x'0102...'` (`0x0102...` on Microsoft SQL Server).
+
+`Deno.Reader` objects will be put to `putParamsTo` array, if it's provided to `toString()` or `encode()` - see below, and the value will be replaced with '?' character.
+If `putParamsTo` not provided, exception will be thrown.
+
+Objects will be JSON-stringified.
+
+### 2. `"${param}"` or `` \`${param}\` `` - Escape an identifiers (column, table or routine name, etc.).
+
+For MySQL double quotes will be replaced with backticks. For others, backticks (if you used them) will be converted to quotes.
+
+Identifier cannot contain ASCII 0 characters (required for PostgreSQL).
+
+### 3. `[${param}]` - Generate list of SQL values.
+
+Square brackets will be replaced with parentheses. The parameter must be iterable. If items in the collection are also iterable, this will generate multidimensional collection.
+
+```ts
+import {mysql as sql} from './mod.ts';
+
+const ids = [10, 11, 12];
+let s = sql`SELECT * FROM articles WHERE id IN [${ids}]`;
+console.log('' + s); // prints: SELECT * FROM articles WHERE id IN (10,11,12)
+```
+
+```ts
+import {mysql as sql} from './mod.ts';
+
+const list = [[10, 1], [11, 3], [12, 8]];
+let s = sql
+`	SELECT *
+	FROM articles AS a
+	INNER JOIN article_versions AS av ON a.id = av.article_id
+	WHERE (av.article_id, av.article_version) IN [${list}]
+`;
+console.log('' + s); // prints: ...WHERE (av.article_id, av.article_version) IN ((10,1),(11,3),(12,8))
+```
+
+### 4. `(${param})` or `(parent_name.${param})` - Embed a safe SQL expression.
+
+The inserted SQL fragment will be validated, so it doesn't contain the following characters (unless quoted): `@ $ # [ ] { } ;`, `\0`-char, commas except in parentheses, comments, unterminated literals, unbalanced parentheses. Identifiers in this SQL fragment will be quoted according to chosen policy (see below).
+
+Strings in the SQL fragment are always treated as `mysqlNoBackslashEscapes` (backslash is regular character), so to represent a string with a new line, you need `const expr = "Char_length('Line\n')"`, not `const expr = "Char_length('Line\\n')"`.
+
+```ts
+import {mysql as sql} from './mod.ts';
+
+const expr = "Char_length('Line\n')";
+let s = sql`SELECT (${expr})`;
+console.log('' + s);
+```
+
+It's possible to prefix all unqualified identifiers in the SQL fragment with a parent qualifier:
+
+```ts
+import {mysql as sql} from './mod.ts';
+
+const expr = "article_id = 10 AND `article_version` = 1 AND a.name <> ''";
+let s = sql
+`	SELECT a.name, av.*
+	FROM articles AS a
+	INNER JOIN article_versions AS av ON a.id = av.article_id
+	WHERE (av.${expr})
+`;
+console.log('' + s); // prints ...WHERE (`av`.article_id = 10 AND `av`.`article_version` = 1 AND `a`.name <> '')
+```
+
+### 5. `${param}` or `parent_name.${param}` (not enclosed) - Like `(${param})`, but allows commas on top level.
+
+```ts
+import {mysql as sql} from './mod.ts';
+
+const columns = "name, value";
+let s = sql`SELECT ${columns} FROM something WHERE id=1`;
+console.log('' + s); // prints: SELECT `name`, `value` FROM something WHERE id=1
+```
+
+### 6. `{parent_name.${param}}`, `{parent_name.${param},}` - Generate equations separated with commas (the `parent_name` is optional).
+
+The first form throws exception, if there are no fields in the param. The Second form doesn't complain, and prints comma after the last field.
+
+```ts
+import {mysql as sql} from './mod.ts';
+
+const row = {name: 'About all', author: 'Johnny'};
+let s = sql`UPDATE articles AS a SET {a.${row}} WHERE id=1`;
+console.log('' + s); // prints: UPDATE articles AS a SET `a`.`name`='About all', `a`.`author`='Johnny' WHERE id=1
+```
+
+```ts
+import {mysql as sql} from './mod.ts';
+
+const row = {name: 'About all', author: 'Johnny'};
+let s = sql`UPDATE articles AS a SET {a.${row},} article_date=Now() WHERE id=1`;
+console.log('' + s); // prints: UPDATE articles AS a SET `a`.`name`='About all', `a`.`author`='Johnny', article_date=Now() WHERE id=1
+```
+
+If a value is an `Sql` object, it's expression will be used.
+
+```ts
+import {mysql as sql} from './mod.ts';
+
+const row = {name: 'About all', author: sql`Get_author(id)`};
+let s = sql`UPDATE articles AS a SET {a.${row}} WHERE id=1`;
+console.log('' + s); // prints: UPDATE articles AS a SET `a`.`name`='About all', `a`.`author`=Get_author(`a`.id) WHERE id=1
+```
+
+### 7. `{parent_name.${param}&}` - Generate equations separated with "AND" operations (the `parent_name` is optional).
+
+Converts braces to parentheses. If the `param` contains no fields, this will be converted to a `FALSE` literal.
+
+```ts
+import {mysql as sql} from './mod.ts';
+
+const row = {name: 'About all', author: sql`Get_author(id)`};
+let s = sql`SELECT * FROM articles AS a WHERE {a.${row}&}`;
+console.log('' + s); // prints: SELECT * FROM articles AS a WHERE (`a`.`name`='About all' AND `a`.`author`=Get_author(`a`.id))
+```
+
+### 8. `{parent_name.${param}|}` - Generate equations separated with "OR" operations (the `parent_name` is optional).
+
+Converts braces to parentheses. If the `param` contains no fields, this will be converted to a `TRUE` literal.
+
+```ts
+import {mysql as sql} from './mod.ts';
+
+const row = {name: 'About all', author: sql`Get_author(id)`};
+let s = sql`SELECT * FROM articles AS a WHERE {a.${row}|}`;
+console.log('' + s); // prints: SELECT * FROM articles AS a WHERE (`a`.`name`='About all' OR `a`.`author`=Get_author(`a`.id))
+```
+
+### 9. `{left_parent_name.right_parent_name.${param}}`
+
+In [6], [7] and [8], you can specify 2 parent qualifiers: one for the left-hand side of the equation, and one for the right. Any of the names can be empty.
+
+```ts
+import {mysql as sql} from './mod.ts';
+
+const row = {name: 'About all', author: sql`Get_author(id)`};
+let s = sql`SELECT * FROM articles AS a INNER JOIN article_content AS ac ON a.id = ac.article_id WHERE {a.ac.${row}&}`;
+console.log('' + s); // prints: SELECT * FROM articles AS a INNER JOIN article_content AS ac ON a.id = ac.article_id WHERE (`a`.`name`='About all' AND `a`.`author`=Get_author(`ac`.id))
+```
+
+Example of left name empty:
+
+```ts
+import {mysql as sql} from './mod.ts';
+
+const row = {name: 'About all', author: sql`Get_author(id)`};
+let s = sql`UPDATE articles AS a SET {.a.${row}} WHERE id=1`;
+console.log('' + s); // prints: UPDATE articles AS a SET `name`='About all', `author`=Get_author(`a`.id) WHERE id=1
+```
+
+### 10. `<${param}>` - Generate names and values for INSERT statement.
+
+Parameter must be iterable object that contains rows to insert. Will print column names from the first row. On following rows, only columns from the first row will be used.
+
+```ts
+import {mysql as sql} from './mod.ts';
+
+let rows =
+[	{value: 10, name: 'text 1'},
+	{value: 11, name: 'text 2'},
+];
+console.log('' + sql`INSERT INTO t_log <${rows}> AS excluded ON DUPLICATE KEY UPDATE t_log.name = excluded.name`);
+
+/* prints:
+	INSERT INTO t_log (`value`, `name`) VALUES
+	(10,'text 1'),
+	(11,'text 2') AS excluded ON DUPLICATE KEY UPDATE t_log.name = excluded.name
+ */
+```
+
+### 11. `(${parent_name}.${param})`, `${parent_name}.${param}`, `{${parent_name}.${param}}` - Takes the `parent_name` from a variable.
+
+In [4], [5], [6], [7], [8] and [9] the parent qualifier name can be taken from a variable.
+
+## About `Sql` object
+
+The `sql` template function returns object of `Sql` class.
+
+```ts
+import {mysql as sql, Sql} from './mod.ts';
+
+let s: Sql = sql`SELECT 2*2`;
+```
+
+The `Sql` objects can be concatenated:
+
+```ts
+import {mysql as sql} from './mod.ts';
+
+const id = 10;
+let s = sql`SELECT * FROM articles WHERE id='${id}'`;
+
+const where = `name <> ''`;
+s = s.concat(sql` AND (${where})`);
+
+console.log('' + s); // prints: SELECT * FROM articles WHERE id=10 AND (`name` <> '')
+```
+
+Also the `Sql` objects can be stringified, or converted to bytes.
+
+```ts
+Sql.toString(putParamsTo?: any[], mysqlNoBackslashEscapes=false: string
+
+Sql.encode(putParamsTo?: any[], mysqlNoBackslashEscapes=false, useBuffer?: Uint8Array, useBufferFromPos=0): Uint8Array
+```
+
+Also they have public property called `sqlSettings`, that contains the chosen SQL dialect (SqlMode) and quoting policy, that allows to whitelist identifiers in SQL fragments.
+
+```ts
+Sql.sqlSettings: SqlSettings
+```
+
+If you create the `Sql` object using `mysql` template function, it's `sqlSettings.mode` will be `SqlMode.MYSQL`, for `pgsql` it will be `SqlMode.PGSQL`, etc.
+
+If you assign a different `SqlSettings` object before calling `toString()` or `encode()`, that different SQL dialict and policy will be used.
+
+The quoting policy has either a whitelist or a blacklist of allowed identifiers, that can remain unquoted.
+There're 2 separate lists for functions (any identifier that is followed by a parenthesis is considered a function name), and for other identifiers.
+
+```ts
+import {mysql as sql, SqlSettings, SqlMode} from './mod.ts';
+
+const value1 = "The string is: 'name'. The backslash is: \\";
+const value2 = 123.4;
+const value3 = null;
+const expr1 = "id=10 AND value IS NOT NULL"; // we have 6 raw identifiers here: id, AND, value, IS, NOT, NULL
+
+let select = sql`SELECT '${value1}', '${value2}', '${value3}' FROM t WHERE (${expr1})`;
+
+console.log(select+'');                        // SELECT 'The string is: ''name''. The backslash is: \\', 123.4, NULL FROM t WHERE (`id`=10 AND `value` IS NOT NULL)
+console.log(select.toString(undefined, true)); // SELECT 'The string is: ''name''. The backslash is: \', 123.4, NULL FROM t WHERE (`id`=10 AND `value` IS NOT NULL)
+
+select.sqlSettings = new SqlSettings(SqlMode.MYSQL, 'id not'); // in expr1 will quote: AND, value, IS, NULL
+console.log(select+'');                        // SELECT 'The string is: ''name''. The backslash is: \\', 123.4, NULL FROM t WHERE (id=10 `AND` `value` `IS` NOT `NULL`)
+
+select.sqlSettings = new SqlSettings(SqlMode.PGSQL, '!id not'); // in expr1 will quote: id, NOT
+console.log(select+'');                        // SELECT 'The string is: ''name''. The backslash is: \', 123.4, NULL FROM t WHERE ("id"=10 AND value IS "NOT" NULL)
+```
+
+To create a new `SqlSettings` object, that can be assigned to `Sql.sqlSettings` property, provide the SQL dialect (SqlMode), the whitelist/blacklist of `idents`, and the same for `functions`.
+If the list starts with `!`-char - it's the blacklist. Identifiers in the list are separated with spaces.
+
+```ts
+SqlSettings.constructor(mode: SqlMode, idents?: string, functions?: string)
+```
+
+If `idents` and/or `functions` argument is omitted or `undefined`, the default value is used.
+
+For `idents` the default value is: `AGAINST AND AS ASC BETWEEN CASE CHAR DAY DESC DISTINCT ELSE END HOUR INTERVAL IS LIKE MATCH MICROSECOND MINUTE MONTH NOT NULL OR SECOND SEPARATOR THEN WEEK WHEN XOR YEAR`.
+
+For `functions` is: `! FROM JOIN ON SELECT WHERE`.
+
+To print the default policy, you can do:
+
+```ts
+import {SqlSettings, SqlMode} from './mod.ts';
+
+let settings = new SqlSettings(SqlMode.MYSQL);
+
+console.log('Identifiers: ', settings.idents);
+console.log('Functions: ', settings.functions);
+```
+
+### Sql.encode() function
+
+```ts
+Sql.encode(putParamsTo?: any[], mysqlNoBackslashEscapes=false, useBuffer?: Uint8Array, useBufferFromPos=0): Uint8Array
+```
+This function converts the SQL query to `Uint8Array`, that you probably need to pass to your SQL driver.
+
+You can pass an array to the `putParamsTo` parameter, so long strings and long typed arrays, and `Deno.Reader` objects, that appear in quoted `'${value}'` parameters, will be put to this array,
+and their SQL representation will be produced as `?` character.
+
+```ts
+import {mysql as sql} from './mod.ts';
+
+let message = 'a'.repeat(100);
+let params: any[] = [];
+console.log(sql`SELECT '${message}'`.toString(params)); // prints: SELECT ?
+console.log(params); // prints: ['aaa...']
+```
+
+If `putParamsTo` is not provided, `Deno.Reader` objects will be rejected with exception.
+
+The `mysqlNoBackslashEscapes` parameter is only respected when using MySQL dialect.
+If it's true, backslashes in SQL string literals will be assumed not to have special meaning, so `` mysql`'${value}'` `` will not double backslashes.
+It's important to provide the correct value to this parameter.
+Remember that the value of this parameter can change during server session, if user executes a query like `SET sql_mode='no_backslash_escapes'`.
+
+If `useBuffer` parameter is provided, and there's enough space in this buffer, this buffer will be used and a `useBuffer.subarray()` of it will be returned from `sql.encode()`.
+If it's not big enough, a new buffer will be allocated, as usual.
+
+If `useBufferFromPos` parameter is provided together wil the `useBuffer`, so the produced query will be appended after that position in the buffer, and the contents of `useBuffer` before this position will be the part of returned query (event if a new buffer was used).
+
+### Sql.toString() function
+
+```ts
+Sql.toString(putParamsTo?: any[], mysqlNoBackslashEscapes=false: string
+```
+
+It calls `Sql.encode()`, and then converts the result to string.
+
+## Generate SELECT, INSERT, UPDATE and DELETE queries from parts
+
+This library provides the following constant objects:
+
+- mysqlTables and mysqlOnlyTables
+- pgsqlTables and pgsqlOnlyTables
+- sqliteTables and sqliteOnlyTables
+- mssqlTables and mssqlOnlyTables
+
+Usually you need to import only one of these into your project.
+
+```ts
+import {mysqlTables as sqlTables} from './mod.ts';
+
+console.log('' + sqlTables.messages.where("id=1").select()); // prints: SELECT * FROM `messages` WHERE (`id`=1)
+```
+
+`*OnlyTables` allows you to use all the supported features for that SQL dialect, event those that are not supported for other dialects.
+
+`*Tables` (without `Only`) throw exception if you ask a feature that is not supported by all of MySQL, PostgreSQL, Sqlite and Microsoft SQL Server.
+So you can switch to different dialect later (e.g. from `mysqlTables` to `mssqlTables`).
+
+All the provided `*Tables` (and `*OnlyTables`) objects are opaque `Proxy` objects. Every property you ask from them becomes a table name, and it's resolved to a `SqlTable` object.
+
+```ts
+let table: SqlTable = sqlTables[tableName];
+```
+
+The `SqlTable` class has the following methods:
+
+- join(): SqlTable
+- leftJoin(): SqlTable
+- where(): SqlTable
+- groupBy(): SqlTable
+- select(): Sql
+- update(): Sql
+- delete(): Sql
+- insert(): Sql
+
+The 4 latter methods return `Sql` objects, with the final query.
+
+### SqlTable.join()
+
+```ts
+SqlTable.join(tableName: string, alias='', onExpr: string|Sql=''): SqlTable
+```
+
+Adds an INNER (if `onExpr` is given) or a CROSS join (if `onExpr` is blank).
+
+This method can be called multiple times.
+The method returns a new `SqlTable` object that has everything from the original object, plus the new join.
+
+```ts
+import {mysqlTables as sqlTables} from './mod.ts';
+
+console.log('' + sqlTables.messages.join('content', 'c', 'content_id = c.id').where("id=1").select("c.*"));
+// prints: SELECT `c`.* FROM `messages` AS `b` INNER JOIN `content` AS `c` ON (`b`.content_id = `c`.id) WHERE (`b`.id=1)
+```
+
+### SqlTable.leftJoin()
+
+```ts
+SqlTable.leftJoin(tableName: string, alias: string, on_expr: string|Sql): SqlTable
+```
+
+Like `join()`, but adds a LEFT JOIN.
+
+### SqlTable.where()
+
+```ts
+SqlTable.where(whereExpr: string|Sql): SqlTable
+```
+
+Adds WHERE condition for SELECT, UPDATE and DELETE queries.
+
+You can call `sqlTable.select()`, `sqlTable.update()` or `sqlTable.delete()` only after calling `sqlTable.where()`, or an exception will be thrown.
+To explicitly allow working on the whole table, call `sqlTable.where('')` (with empty condition).
+
+### SqlTable.groupBy()
+
+```ts
+SqlTable.groupBy(groupByExprs: string|Sql, havingExpr: string|Sql=''): SqlTable
+```
+
+Adds GROUP BY expressions, and optionally HAVING expression to the SELECT query.
+
+### SqlTable.select()
+
+```ts
+SqlTable.select(columns: string|Sql='', orderBy: string|Sql='', offset=0, limit=0): Sql
+```
+
+Generates a SELECT query.
+
+### SqlTable.update()
+
+```ts
+SqlTable.update(row: Record<string, any>): Sql
+```
+
+Generates an UPDATE query. You can update with joins, but if the first join is a LEFT JOIN, such query is not supported by PostgreSQL.
+Columns of the base table (not joined) will be updated.
+
+### SqlTable.delete()
+
+```ts
+SqlTable.delete(): Sql
+```
+
+Generates a DELETE query. You can delete with joins, but if the first join is a LEFT JOIN, such query is not supported by PostgreSQL.
+Will delete from the base table (not joined).
+
+### SqlTable.insert()
+
+```ts
+SqlTable.insert(rows: Iterable<Record<string, any>>, onConflictDo: ''|'nothing'|'update'|'patch'|'replace' = ''): Sql
+```
+
+Generates an INSERT query.
+
+- `onConflictDo=='nothing'` is only supported for MySQL, PostgreSQL and SQLite. Ignores (doesn't insert) conflicting rows (if unique constraint fails).
+- `onConflictDo=='update'` is only supported for MySQL. If duplicate key, updates the existing record with the new values.
+- `onConflictDo=='patch'` is only supported for MySQL If duplicate key, updates **empty** (null, 0 or '') columns of the existing record with the new values.
+- `onConflictDo=='replace'` is only supported for MySQL and SQLite.
