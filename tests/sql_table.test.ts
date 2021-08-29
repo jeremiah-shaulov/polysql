@@ -259,10 +259,10 @@ Deno.test
 		assertEquals(s+'', `UPDATE "t_log" AS "b" SET "message"='Message 1' FROM "more" WHERE ("b".id=1) AND ("b".more_id = "more".id)`);
 
 		s = sqliteTables.t_log.join('more', 'm', 'more_id = m.id').where("id=1").update({message: "Message 1"});
-		assertEquals(s+'', `UPDATE "t_log" AS "b" SET "message"='Message 1' FROM "more" AS "m" WHERE ("b".id=1) AND ("b".more_id = "m".id)`);
+		assertEquals(s+'', `UPDATE "t_log" AS "b" SET "message"='Message 1' FROM "more" AS "m" WHERE ("b"."id"=1) AND ("b"."more_id" = "m"."id")`);
 
 		s = mssqlTables.t_log.join('more', '', 'more_id = more.id').where("id=1").update({message: "Message 1"});
-		assertEquals(s+'', `UPDATE "t_log" SET "message"='Message 1' FROM "t_log" AS "b" INNER JOIN "more" ON ("b".more_id = "more".id) WHERE ("b".id=1)`);
+		assertEquals(s+'', `UPDATE "t_log" SET "message"='Message 1' FROM "t_log" AS "b" INNER JOIN "more" ON ("b"."more_id" = "more"."id") WHERE ("b"."id"=1)`);
 
 		// One LEFT JOIN:
 
@@ -270,22 +270,22 @@ Deno.test
 		assertEquals(s+'', "UPDATE `t_log` AS `b` LEFT JOIN `more` ON (`b`.more_id = `more`.id) SET `b`.`message`='Message 1' WHERE (`b`.id=1)");
 
 		s = sqliteOnlyTables.t_log.leftJoin('more', 'm', 'more_id = m.id').where("id=1").update({message: "Message 1"});
-		assertEquals(s+'', `UPDATE "t_log" AS "s" SET "message"='Message 1' FROM "t_log" AS "b" LEFT JOIN "more" AS "m" ON ("b".more_id = "m".id) WHERE ("b".id=1) AND "s".ROWID = "b".ROWID`);
+		assertEquals(s+'', `UPDATE "t_log" AS "s" SET "message"='Message 1' FROM "t_log" AS "b" LEFT JOIN "more" AS "m" ON ("b"."more_id" = "m"."id") WHERE ("b"."id"=1) AND "s".ROWID = "b".ROWID`);
 
 		s = sqliteOnlyTables.t_log.leftJoin('more', 'm', 'more_id = m.id').where('').update({message: "Message 1"});
-		assertEquals(s+'', `UPDATE "t_log" AS "s" SET "message"='Message 1' FROM "t_log" AS "b" LEFT JOIN "more" AS "m" ON ("b".more_id = "m".id) WHERE "s".ROWID = "b".ROWID`);
+		assertEquals(s+'', `UPDATE "t_log" AS "s" SET "message"='Message 1' FROM "t_log" AS "b" LEFT JOIN "more" AS "m" ON ("b"."more_id" = "m"."id") WHERE "s".ROWID = "b".ROWID`);
 
 		s = sqliteOnlyTables.t_log.leftJoin('more', 'm', 'more_id = m.id').join('s').where("id=1").update({message: "Message 1"});
-		assertEquals(s+'', `UPDATE "t_log" AS "subj" SET "message"='Message 1' FROM "t_log" AS "b" LEFT JOIN "more" AS "m" ON ("b".more_id = "m".id) CROSS JOIN "s" WHERE ("b".id=1) AND "subj".ROWID = "b".ROWID`);
+		assertEquals(s+'', `UPDATE "t_log" AS "subj" SET "message"='Message 1' FROM "t_log" AS "b" LEFT JOIN "more" AS "m" ON ("b"."more_id" = "m"."id") CROSS JOIN "s" WHERE ("b"."id"=1) AND "subj".ROWID = "b".ROWID`);
 
 		s = sqliteOnlyTables.t_log.leftJoin('more', 'm', 'more_id = m.id').join('s').join('subj').where("id=1").update({message: "Message 1"});
-		assertEquals(s+'', `UPDATE "t_log" AS "subj_table" SET "message"='Message 1' FROM "t_log" AS "b" LEFT JOIN "more" AS "m" ON ("b".more_id = "m".id) CROSS JOIN "s" CROSS JOIN "subj" WHERE ("b".id=1) AND "subj_table".ROWID = "b".ROWID`);
+		assertEquals(s+'', `UPDATE "t_log" AS "subj_table" SET "message"='Message 1' FROM "t_log" AS "b" LEFT JOIN "more" AS "m" ON ("b"."more_id" = "m"."id") CROSS JOIN "s" CROSS JOIN "subj" WHERE ("b"."id"=1) AND "subj_table".ROWID = "b".ROWID`);
 
 		s = sqliteOnlyTables.t_log.leftJoin('more', 'm', 'more_id = m.id').join('s').join('subj').join('subj_table').where("id=1").update({message: "Message 1"});
-		assertEquals(s+'', `UPDATE "t_log" AS "_subj_table" SET "message"='Message 1' FROM "t_log" AS "b" LEFT JOIN "more" AS "m" ON ("b".more_id = "m".id) CROSS JOIN "s" CROSS JOIN "subj" CROSS JOIN "subj_table" WHERE ("b".id=1) AND "_subj_table".ROWID = "b".ROWID`);
+		assertEquals(s+'', `UPDATE "t_log" AS "_subj_table" SET "message"='Message 1' FROM "t_log" AS "b" LEFT JOIN "more" AS "m" ON ("b"."more_id" = "m"."id") CROSS JOIN "s" CROSS JOIN "subj" CROSS JOIN "subj_table" WHERE ("b"."id"=1) AND "_subj_table".ROWID = "b".ROWID`);
 
 		s = mssqlOnlyTables.t_log.leftJoin('more', '', 'more_id = more.id').where("id=1").update({message: "Message 1"});
-		assertEquals(s+'', `UPDATE "t_log" SET "message"='Message 1' FROM "t_log" AS "b" LEFT JOIN "more" ON ("b".more_id = "more".id) WHERE ("b".id=1)`);
+		assertEquals(s+'', `UPDATE "t_log" SET "message"='Message 1' FROM "t_log" AS "b" LEFT JOIN "more" ON ("b"."more_id" = "more"."id") WHERE ("b"."id"=1)`);
 
 		// One LEFT JOIN and one INNER:
 
@@ -293,10 +293,10 @@ Deno.test
 		assertEquals(s+'', "UPDATE `t_log` AS `b` LEFT JOIN `more` ON (`b`.more_id = `more`.id) INNER JOIN `more2` AS `m2` ON (`more`.more2_id = `m2`.id) SET `b`.`message`='Message 1' WHERE (`b`.id=1)");
 
 		s = sqliteOnlyTables.t_log.leftJoin('more', '', 'more_id = more.id').join('more2', 'm2', 'more.more2_id = m2.id').where("id=1").update({message: "Message 1"});
-		assertEquals(s+'', `UPDATE "t_log" AS "s" SET "message"='Message 1' FROM "t_log" AS "b" LEFT JOIN "more" ON ("b".more_id = "more".id) INNER JOIN "more2" AS "m2" ON ("more".more2_id = "m2".id) WHERE ("b".id=1) AND "s".ROWID = "b".ROWID`);
+		assertEquals(s+'', `UPDATE "t_log" AS "s" SET "message"='Message 1' FROM "t_log" AS "b" LEFT JOIN "more" ON ("b"."more_id" = "more"."id") INNER JOIN "more2" AS "m2" ON ("more"."more2_id" = "m2"."id") WHERE ("b"."id"=1) AND "s".ROWID = "b".ROWID`);
 
 		s = mssqlOnlyTables.t_log.leftJoin('more', '', 'more_id = more.id').join('more2', 'm2', 'more.more2_id = m2.id').where("id=1").update({message: "Message 1"});
-		assertEquals(s+'', `UPDATE "t_log" SET "message"='Message 1' FROM "t_log" AS "b" LEFT JOIN "more" ON ("b".more_id = "more".id) INNER JOIN "more2" AS "m2" ON ("more".more2_id = "m2".id) WHERE ("b".id=1)`);
+		assertEquals(s+'', `UPDATE "t_log" SET "message"='Message 1' FROM "t_log" AS "b" LEFT JOIN "more" ON ("b"."more_id" = "more"."id") INNER JOIN "more2" AS "m2" ON ("more"."more2_id" = "m2"."id") WHERE ("b"."id"=1)`);
 
 		// Two INNER JOINs:
 
@@ -307,13 +307,13 @@ Deno.test
 		assertEquals(s+'', `UPDATE "t_log" AS "b" SET "message"='Message 1' FROM "more" INNER JOIN "more2" AS "m2" ON ("more".more2_id = "m2".id) WHERE ("b".id=1) AND ("b".more_id = "more".id)`);
 
 		s = sqliteTables.t_log.join('more', '', 'more_id = more.id').join('more2', 'm2', 'more.more2_id = m2.id').where("id=1").update({message: "Message 1"});
-		assertEquals(s+'', `UPDATE "t_log" AS "b" SET "message"='Message 1' FROM "more" INNER JOIN "more2" AS "m2" ON ("more".more2_id = "m2".id) WHERE ("b".id=1) AND ("b".more_id = "more".id)`);
+		assertEquals(s+'', `UPDATE "t_log" AS "b" SET "message"='Message 1' FROM "more" INNER JOIN "more2" AS "m2" ON ("more"."more2_id" = "m2"."id") WHERE ("b"."id"=1) AND ("b"."more_id" = "more"."id")`);
 
 		s = sqliteTables.t_log.join('more', '', 'more_id = more.id').join('more2', 'm2', 'more.more2_id = m2.id').where("").update({message: "Message 1"});
-		assertEquals(s+'', `UPDATE "t_log" AS "b" SET "message"='Message 1' FROM "more" INNER JOIN "more2" AS "m2" ON ("more".more2_id = "m2".id) WHERE ("b".more_id = "more".id)`);
+		assertEquals(s+'', `UPDATE "t_log" AS "b" SET "message"='Message 1' FROM "more" INNER JOIN "more2" AS "m2" ON ("more"."more2_id" = "m2"."id") WHERE ("b"."more_id" = "more"."id")`);
 
 		s = mssqlTables.t_log.join('more', '', 'more_id = more.id').join('more2', 'm2', 'more.more2_id = m2.id').where("id=1").update({message: "Message 1"});
-		assertEquals(s+'', `UPDATE "t_log" SET "message"='Message 1' FROM "t_log" AS "b" INNER JOIN "more" ON ("b".more_id = "more".id) INNER JOIN "more2" AS "m2" ON ("more".more2_id = "m2".id) WHERE ("b".id=1)`);
+		assertEquals(s+'', `UPDATE "t_log" SET "message"='Message 1' FROM "t_log" AS "b" INNER JOIN "more" ON ("b"."more_id" = "more"."id") INNER JOIN "more2" AS "m2" ON ("more"."more2_id" = "m2"."id") WHERE ("b"."id"=1)`);
 
 		// One INNER JOIN, one LEFT and one CROSS (and maybe one more INNER):
 
@@ -324,10 +324,10 @@ Deno.test
 		assertEquals(s+'', `UPDATE "t_log" AS "b" SET "message"='Message 1' FROM "more" LEFT JOIN "more2" AS "m2" ON ("more".more2_id = "m2".id) CROSS JOIN "more3" WHERE ("b".id=1) AND ("b".more_id = "more".id)`);
 
 		s = sqliteTables.t_log.join('more', '', 'more_id = more.id').leftJoin('more2', '', 'more.more2_id = more2.id').join('more3', 'm3').join('more4', '', 'more3.more4_id = more4.id').where("id=1").update({message: "Message 1"});
-		assertEquals(s+'', `UPDATE "t_log" AS "b" SET "message"='Message 1' FROM "more" LEFT JOIN "more2" ON ("more".more2_id = "more2".id) CROSS JOIN "more3" AS "m3" INNER JOIN "more4" ON ("more3".more4_id = "more4".id) WHERE ("b".id=1) AND ("b".more_id = "more".id)`);
+		assertEquals(s+'', `UPDATE "t_log" AS "b" SET "message"='Message 1' FROM "more" LEFT JOIN "more2" ON ("more"."more2_id" = "more2"."id") CROSS JOIN "more3" AS "m3" INNER JOIN "more4" ON ("more3"."more4_id" = "more4"."id") WHERE ("b"."id"=1) AND ("b"."more_id" = "more"."id")`);
 
 		s = mssqlTables.t_log.join('more', '', 'more_id = more.id').leftJoin('more2', 'm2', 'more.more2_id = m2.id').join('more3').where("id=1").update({message: "Message 1"});
-		assertEquals(s+'', `UPDATE "t_log" SET "message"='Message 1' FROM "t_log" AS "b" INNER JOIN "more" ON ("b".more_id = "more".id) LEFT JOIN "more2" AS "m2" ON ("more".more2_id = "m2".id) CROSS JOIN "more3" WHERE ("b".id=1)`);
+		assertEquals(s+'', `UPDATE "t_log" SET "message"='Message 1' FROM "t_log" AS "b" INNER JOIN "more" ON ("b"."more_id" = "more"."id") LEFT JOIN "more2" AS "m2" ON ("more"."more2_id" = "m2"."id") CROSS JOIN "more3" WHERE ("b"."id"=1)`);
 
 		// Errors:
 
@@ -418,10 +418,10 @@ Deno.test
 		assertEquals(s+'', `DELETE FROM "t_log" AS "b" USING "more" WHERE ("b".more_id = "more".id)`);
 
 		s = sqliteTables.t_log.join('more', 'm', 'more_id = m.id').where("id=1").delete();
-		assertEquals(s+'', `DELETE FROM "t_log" AS "s" WHERE ROWID IN (SELECT "b".ROWID FROM "t_log" AS "b" INNER JOIN "more" AS "m" ON ("b".more_id = "m".id) WHERE ("b".id=1))`);
+		assertEquals(s+'', `DELETE FROM "t_log" AS "s" WHERE ROWID IN (SELECT "b".ROWID FROM "t_log" AS "b" INNER JOIN "more" AS "m" ON ("b"."more_id" = "m"."id") WHERE ("b"."id"=1))`);
 
 		s = mssqlTables.t_log.join('more', '', 'more_id = more.id').where("id=1").delete();
-		assertEquals(s+'', `DELETE "b" FROM "t_log" AS "b" INNER JOIN "more" ON ("b".more_id = "more".id) WHERE ("b".id=1)`);
+		assertEquals(s+'', `DELETE "b" FROM "t_log" AS "b" INNER JOIN "more" ON ("b"."more_id" = "more"."id") WHERE ("b"."id"=1)`);
 
 		// One LEFT JOIN:
 
@@ -429,7 +429,7 @@ Deno.test
 		assertEquals(s+'', "DELETE `b` FROM `t_log` AS `b` LEFT JOIN `more` ON (`b`.more_id = `more`.id) WHERE (`b`.id=1)");
 
 		s = sqliteOnlyTables.t_log.leftJoin('more', 'm', 'more_id = m.id').where("id=1").delete();
-		assertEquals(s+'', `DELETE FROM "t_log" AS "s" WHERE ROWID IN (SELECT "b".ROWID FROM "t_log" AS "b" LEFT JOIN "more" AS "m" ON ("b".more_id = "m".id) WHERE ("b".id=1))`);
+		assertEquals(s+'', `DELETE FROM "t_log" AS "s" WHERE ROWID IN (SELECT "b".ROWID FROM "t_log" AS "b" LEFT JOIN "more" AS "m" ON ("b"."more_id" = "m"."id") WHERE ("b"."id"=1))`);
 
 		// One LEFT JOIN and one INNER:
 
@@ -437,10 +437,10 @@ Deno.test
 		assertEquals(s+'', "DELETE `b` FROM `t_log` AS `b` LEFT JOIN `more` ON (`b`.more_id = `more`.id) INNER JOIN `more2` AS `m2` ON (`more`.more2_id = `m2`.id) WHERE (`b`.id=1)");
 
 		s = sqliteOnlyTables.t_log.leftJoin('more', '', 'more_id = more.id').join('more2', 'm2', 'more.more2_id = m2.id').where("id=1").delete();
-		assertEquals(s+'', `DELETE FROM "t_log" AS "s" WHERE ROWID IN (SELECT "b".ROWID FROM "t_log" AS "b" LEFT JOIN "more" ON ("b".more_id = "more".id) INNER JOIN "more2" AS "m2" ON ("more".more2_id = "m2".id) WHERE ("b".id=1))`);
+		assertEquals(s+'', `DELETE FROM "t_log" AS "s" WHERE ROWID IN (SELECT "b".ROWID FROM "t_log" AS "b" LEFT JOIN "more" ON ("b"."more_id" = "more"."id") INNER JOIN "more2" AS "m2" ON ("more"."more2_id" = "m2"."id") WHERE ("b"."id"=1))`);
 
 		s = mssqlOnlyTables.t_log.leftJoin('more', '', 'more_id = more.id').join('more2', 'm2', 'more.more2_id = m2.id').where("id=1").delete();
-		assertEquals(s+'', `DELETE "b" FROM "t_log" AS "b" LEFT JOIN "more" ON ("b".more_id = "more".id) INNER JOIN "more2" AS "m2" ON ("more".more2_id = "m2".id) WHERE ("b".id=1)`);
+		assertEquals(s+'', `DELETE "b" FROM "t_log" AS "b" LEFT JOIN "more" ON ("b"."more_id" = "more"."id") INNER JOIN "more2" AS "m2" ON ("more"."more2_id" = "m2"."id") WHERE ("b"."id"=1)`);
 
 		// Errors:
 

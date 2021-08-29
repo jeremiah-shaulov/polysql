@@ -57,8 +57,8 @@ Deno.test
 
 		assertEquals('' + mysql`(t1.${'a * "t2".b'})`, '(`t1`.a * `t2`.b)');
 		assertEquals('' + pgsql`(t1.${'a * "t2".b'})`, '("t1".a * "t2".b)');
-		assertEquals('' + sqlite`(t1.${'a * "t2".b'})`, '("t1".a * "t2".b)');
-		assertEquals('' + mssql`(t1.${'a * "t2".b'})`, '("t1".a * "t2".b)');
+		assertEquals('' + sqlite`(t1.${'a * "t2".b'})`, '("t1"."a" * "t2"."b")');
+		assertEquals('' + mssql`(t1.${'a * "t2".b'})`, '("t1"."a" * "t2"."b")');
 
 		assertEquals('' + mysql`(t1.${'`my "quoted" ``backticked`` name`'})`, '(`t1`.`my "quoted" ``backticked`` name`)');
 		assertEquals('' + mysql`(t1.${'"my ""quoted"" `backticked` name"'})`, '(`t1`.`my "quoted" ``backticked`` name`)');
@@ -130,7 +130,7 @@ Deno.test
 
 		s.sqlSettings = new SqlSettings(SqlMode.MYSQL, undefined, '!EXISTS');
 		assertEquals(s+'', `SELECT (\`EXISTS\`(\`SELECT\` 1))`);
-		s.sqlSettings = new SqlSettings(SqlMode.MYSQL, 'on select', '!EXISTS');
+		s.sqlSettings = new SqlSettings(SqlMode.MYSQL, 'on select', '! EXISTS');
 		assertEquals(s+'', `SELECT (\`EXISTS\`(SELECT 1))`);
 
 		expr = `EXISTS(SELECT (1))`;
@@ -481,6 +481,12 @@ Deno.test
 		let expr2 = mysql`a || 'фффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффф'`;
 		s = mysql`S (${expr2})`;
 		assertEquals(s+'', "S (`a` || 'фффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффф')");
+
+		expr = 'a + b.c + d.e.f';
+		s = mysql`SELECT (p.${expr})`;
+		assertEquals(s+'', "SELECT (`p`.a + `b`.c + `d`.e.f)");
+		s = mssql`SELECT (p.${expr})`;
+		assertEquals(s+'', `SELECT ("p"."a" + "b"."c" + "d"."e"."f")`);
 	}
 );
 

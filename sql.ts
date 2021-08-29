@@ -297,6 +297,7 @@ class Serializer
 {	private result: Uint8Array;
 	private pos: number;
 	private qt_id: number;
+	private always_quote_idents: boolean;
 	private buffer_for_parent_name = EMPTY_ARRAY;
 	private parent_name = EMPTY_ARRAY;
 	private parent_name_left = EMPTY_ARRAY;
@@ -311,6 +312,7 @@ class Serializer
 			this.pos = 0;
 		}
 		this.qt_id = sql_settings.mode==SqlMode.MYSQL || sql_settings.mode==SqlMode.MYSQL_ONLY ? C_BACKTICK : C_QUOT;
+		this.always_quote_idents = sql_settings.mode==SqlMode.SQLITE || sql_settings.mode==SqlMode.SQLITE_ONLY || sql_settings.mode==SqlMode.MSSQL || sql_settings.mode==SqlMode.MSSQL_ONLY;
 	}
 
 	private append_raw_string(s: string)
@@ -769,7 +771,7 @@ class Serializer
 		}
 		// Escape chars in param
 		// 1. Find how many bytes to add
-		let {result, pos, qt_id, parent_name} = this;
+		let {result, pos, qt_id, always_quote_idents, parent_name} = this;
 		let paren_level = 0;
 		let changes: {change: Change, change_from: number, change_to: number}[] = [];
 		let n_add = 0;
@@ -880,18 +882,25 @@ L:		for (let j=from; j<pos; j++)
 					}
 					break;
 				case C_DOT:
-					while (++j < pos)
-					{	c = result[j];
-						if (c!=C_SPACE && c!=C_TAB && c!=C_CR && c!=C_LF)
-						{	// skip identifier that follows this dot
-							j--;
-							while (++j < pos)
-							{	c = result[j];
-								if (!(c>=C_A && c<=C_Z || c>=C_A_CAP && c<=C_Z_CAP || c>=C_ZERO && c<=C_NINE || c==C_UNDERSCORE || c>=0x80))
-								{	break;
+					while (c == C_DOT)
+					{	while (++j < pos)
+						{	c = result[j];
+							if (c!=C_SPACE && c!=C_TAB && c!=C_CR && c!=C_LF)
+							{	// skip identifier that follows this dot
+								let change_from = j;
+								j--;
+								while (++j < pos)
+								{	c = result[j];
+									if (!(c>=C_A && c<=C_Z || c>=C_A_CAP && c<=C_Z_CAP || c>=C_ZERO && c<=C_NINE || c==C_UNDERSCORE || c>=0x80))
+									{	break;
+									}
 								}
+								if (always_quote_idents && j!=change_from)
+								{	changes[changes.length] = {change: Change.QUOTE_IDENT, change_from, change_to: j-1};
+									n_add += 2; // ``
+								}
+								break;
 							}
-							break;
 						}
 					}
 					j--; // will j++ on next iter
@@ -942,7 +951,7 @@ L:		for (let j=from; j<pos; j++)
 							else
 							{	if (!this.sql_settings.isIdentAllowed(name))
 								{	changes[changes.length] = {change: Change.QUOTE_COLUMN_NAME, change_from, change_to: j_after_ident-1};
-									n_add += !parent_name.length ? 2 : parent_name.length+3; // no parent_name ? `` : ``.
+									n_add += !parent_name.length ? 2 : !always_quote_idents ? parent_name.length+3 : parent_name.length+5; // no parent_name ? `` : !always_quote_idents ? ``. : ``.``
 								}
 							}
 						}
@@ -1002,8 +1011,14 @@ L:		for (let j=from; j<pos; j++)
 								result[k] = qt_id;
 							}
 							else
-							{	while (j >= change_from)
+							{	if (always_quote_idents)
+								{	result[k--] = qt_id;
+								}
+								while (j >= change_from)
 								{	result[k--] = result[j--];
+								}
+								if (always_quote_idents)
+								{	result[k--] = qt_id;
 								}
 								result[k--] = C_DOT;
 								result[k--] = qt_id;
