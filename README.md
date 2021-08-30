@@ -125,7 +125,7 @@ If items in the collection are also iterable, this will generate multidimensiona
 More than 2 dimensions are only supported by MySQL.
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
+import {mysqlOnly as sql} from 'https://deno.land/x/polysql/mod.ts';
 
 const list = [[10, 1], [11, 3], [12, 8]];
 let s = sql

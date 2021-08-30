@@ -6,10 +6,10 @@ export
 } from './quote.ts';
 
 export
-{	mysql,
-	pgsql,
-	sqlite,
-	mssql,
+{	mysql, mysqlOnly,
+	pgsql, pgsqlOnly,
+	sqlite, sqliteOnly,
+	mssql, mssqlOnly,
 	Sql
 } from './sql.ts';
 
