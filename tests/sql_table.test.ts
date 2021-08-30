@@ -6,7 +6,7 @@ import
 	sqliteTables, sqliteOnlyTables,
 	mssqlTables, mssqlOnlyTables,
 } from '../sql_table.ts';
-import {assert, assertEquals} from "https://deno.land/std@0.97.0/testing/asserts.ts";
+import {assert, assertEquals} from "https://deno.land/std@0.106.0/testing/asserts.ts";
 
 Deno.test
 (	'Table name must be a string',

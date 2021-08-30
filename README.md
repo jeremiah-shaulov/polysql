@@ -55,14 +55,14 @@ console.log(sqlQuote(new Uint8Array([1, 2, 3]))); // prints: x'010203'
 console.log(sqlQuote({id: 1, value: 1.5})); // prints: '{"id":1,"value":1.5}'
 ```
 
-## Produce parts of SQL query
+## Produce parts of SQL queries
 
 This library provides the following string-template functions:
 
-- mysql
-- pgsql
-- sqlite
-- mssql
+- mysql and mysqlOnly
+- pgsql and pgsqlOnly
+- sqlite and sqliteOnly
+- mssql and mssqlOnly
 
 Usually you need to import only one of these functions into your project.
 
@@ -74,6 +74,10 @@ let number = 0.1;
 let column = 'The number';
 console.log('' + sql`SELECT '${message}', '${number}' AS "${column}"`); // prints: SELECT 'It''s the message', 0.1 AS `The number`
 ```
+
+`*Only` allows you to use all the supported features for that SQL dialect, even those that are not supported for other dialects.
+
+Tags without `*Only` throw exception if you ask a feature that is not supported by all of MySQL, PostgreSQL, Sqlite and Microsoft SQL Server. So you can switch to different dialect later (e.g. from `mysql` to `mssql`).
 
 You can mark backtick-quoted Javascript strings with the `sql` tag, as in example above, and dollar-brace parameters in this string will be escaped.
 
@@ -106,7 +110,7 @@ Identifier cannot contain ASCII 0 characters (required for PostgreSQL).
 
 ### 3. `[${param}]` - Generate list of SQL values.
 
-Square brackets will be replaced with parentheses. The parameter must be iterable. If items in the collection are also iterable, this will generate multidimensional collection.
+Square brackets will be replaced with parentheses. The parameter must be iterable.
 
 ```ts
 import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
@@ -115,6 +119,10 @@ const ids = [10, 11, 12];
 let s = sql`SELECT * FROM articles WHERE id IN [${ids}]`;
 console.log('' + s); // prints: SELECT * FROM articles WHERE id IN (10,11,12)
 ```
+
+If items in the collection are also iterable, this will generate multidimensional list.
+2-Dimensional lists are only supported by MySQL and PostgreSQL.
+More than 2 dimensions are only supported by MySQL.
 
 ```ts
 import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
@@ -257,7 +265,7 @@ let rows =
 ];
 console.log('' + sql`INSERT INTO t_log <${rows}> AS excluded ON DUPLICATE KEY UPDATE t_log.name = excluded.name`);
 
-/* prints:
+/*	prints:
 	INSERT INTO t_log (`value`, `name`) VALUES
 	(10,'text 1'),
 	(11,'text 2') AS excluded ON DUPLICATE KEY UPDATE t_log.name = excluded.name
@@ -295,7 +303,7 @@ console.log('' + s); // prints: SELECT * FROM articles WHERE id=10 AND (`name` <
 Also the `Sql` objects can be stringified, or converted to bytes.
 
 ```ts
-Sql.toString(putParamsTo?: any[], mysqlNoBackslashEscapes=false: string
+Sql.toString(putParamsTo?: any[], mysqlNoBackslashEscapes=false): string
 
 Sql.encode(putParamsTo?: any[], mysqlNoBackslashEscapes=false, useBuffer?: Uint8Array, useBufferFromPos=0): Uint8Array
 ```
@@ -308,7 +316,7 @@ Sql.sqlSettings: SqlSettings
 
 If you create the `Sql` object using `mysql` template function, it's `sqlSettings.mode` will be `SqlMode.MYSQL`, for `pgsql` it will be `SqlMode.PGSQL`, etc.
 
-If you assign a different `SqlSettings` object before calling `toString()` or `encode()`, that different SQL dialict and policy will be used.
+If you assign a different `SqlSettings` object before calling `toString()` or `encode()`, that different SQL dialect and policy will be used.
 
 The quoting policy has either a whitelist or a blacklist of allowed identifiers, that can remain unquoted.
 There're 2 separate lists for functions (any identifier that is followed by a parenthesis is considered a function name), and for other identifiers.
@@ -386,12 +394,12 @@ Remember that the value of this parameter can change during server session, if u
 If `useBuffer` parameter is provided, and there's enough space in this buffer, this buffer will be used and a `useBuffer.subarray()` of it will be returned from `sql.encode()`.
 If it's not big enough, a new buffer will be allocated, as usual.
 
-If `useBufferFromPos` parameter is provided together wil the `useBuffer`, so the produced query will be appended after that position in the buffer, and the contents of `useBuffer` before this position will be the part of returned query (even if a new buffer was used).
+If `useBufferFromPos` parameter is provided together with the `useBuffer`, so the produced query will be appended after that position in the buffer, and the contents of `useBuffer` before this position will be the part of returned query (even if a new buffer was used).
 
 ### Sql.toString() function
 
 ```ts
-Sql.toString(putParamsTo?: any[], mysqlNoBackslashEscapes=false: string
+Sql.toString(putParamsTo?: any[], mysqlNoBackslashEscapes=false): string
 ```
 
 It calls `Sql.encode()`, and then converts the result to string.
@@ -418,7 +426,7 @@ console.log('' + sqlTables.messages.where("id=1").select()); // prints: SELECT *
 `*Tables` (without `Only`) throw exception if you ask a feature that is not supported by all of MySQL, PostgreSQL, Sqlite and Microsoft SQL Server.
 So you can switch to different dialect later (e.g. from `mysqlTables` to `mssqlTables`).
 
-All the provided `*Tables` (and `*OnlyTables`) objects are opaque `Proxy` objects. Every property you ask from them becomes a table name, and it's resolved to a `SqlTable` object.
+All the provided `*Tables` (and `*OnlyTables`) objects are `Proxy` objects. Every property you ask from them becomes a table name, and it's resolved to a `SqlTable` object.
 
 ```ts
 let table: SqlTable = sqlTables[tableName];
@@ -458,7 +466,7 @@ console.log('' + sqlTables.messages.join('content', 'c', 'content_id = c.id').wh
 ### SqlTable.leftJoin()
 
 ```ts
-SqlTable.leftJoin(tableName: string, alias: string, on_expr: string|Sql): SqlTable
+SqlTable.leftJoin(tableName: string, alias: string, onExpr: string|Sql): SqlTable
 ```
 
 Like `join()`, but adds a LEFT JOIN.
@@ -511,12 +519,12 @@ Will delete from the base table (not joined).
 ### SqlTable.insert()
 
 ```ts
-SqlTable.insert(rows: Iterable<Record<string, any>>, onConflictDo: ''|'nothing'|'update'|'patch'|'replace' = ''): Sql
+SqlTable.insert(rows: Iterable<Record<string, any>>, onConflictDo: ''|'nothing'|'replace'|'update'|'patch' = ''): Sql
 ```
 
 Generates an INSERT query.
 
 - `onConflictDo=='nothing'` is only supported for MySQL, PostgreSQL and SQLite. Ignores (doesn't insert) conflicting rows (if unique constraint fails).
+- `onConflictDo=='replace'` is only supported for MySQL and SQLite.
 - `onConflictDo=='update'` is only supported for MySQL. If duplicate key, updates the existing record with the new values.
 - `onConflictDo=='patch'` is only supported for MySQL If duplicate key, updates **empty** (null, 0 or '') columns of the existing record with the new values.
-- `onConflictDo=='replace'` is only supported for MySQL and SQLite.

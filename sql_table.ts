@@ -425,7 +425,7 @@ export class SqlTable
 		return stmt;
 	}
 
-	insert(rows: Iterable<Record<string, any>>, on_conflict_do: ''|'nothing'|'update'|'patch'|'replace' = '')
+	insert(rows: Iterable<Record<string, any>>, on_conflict_do: ''|'nothing'|'replace'|'update'|'patch' = '')
 	{	if (this.joins.length)
 		{	throw new Error(`Cannot INSERT with JOIN`);
 		}

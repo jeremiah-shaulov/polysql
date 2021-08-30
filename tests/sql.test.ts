@@ -1,7 +1,7 @@
-import {mysql, pgsql, sqlite, mssql, INLINE_STRING_MAX_LEN, INLINE_BLOB_MAX_LEN} from '../sql.ts';
+import {mysql, pgsql, sqlite, mssql, mysqlOnly, pgsqlOnly, sqliteOnly, mssqlOnly, INLINE_STRING_MAX_LEN, INLINE_BLOB_MAX_LEN} from '../sql.ts';
 import {mysqlQuote, pgsqlQuote, sqliteQuote, mssqlQuote} from '../quote.ts';
 import {SqlSettings, SqlMode} from '../sql_settings.ts';
-import {assert, assertEquals} from "https://deno.land/std@0.97.0/testing/asserts.ts";
+import {assert, assertEquals} from "https://deno.land/std@0.106.0/testing/asserts.ts";
 
 Deno.test
 (	'Basic',
@@ -536,15 +536,78 @@ Deno.test
 		assertEquals(s+'', `A(12.5,'ABC''D''EF','2000-01-01')B`);
 
 		let list_2 = [[12.5, 13], ['ABC\'D\'EF'], new Date(2000, 0, 1)];
-		s = mysql`A[${list_2}]B`;
+		s = mysqlOnly`A[${list_2}]B`;
 		assertEquals(s+'', `A((12.5,13),('ABC''D''EF'),'2000-01-01')B`);
 
 		s = mysql`A[${[]}]B`;
 		assertEquals(s+'', `A(NULL)B`);
 
 		let list_3 = [[1, {}, () => {}]];
-		s = mysql`A[${list_3}]B`;
+		s = mysqlOnly`A[${list_3}]B`;
 		assertEquals(s+'', `A((1,NULL,NULL))B`);
+
+		let error;
+		try
+		{	'' + mysql`A[${list_3}]B`
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, "Multidimensional [${param}] lists are not supported across all engines. Please use mysqlOnly`...`");
+
+		error = undefined;
+		try
+		{	'' + pgsql`A[${list_3}]B`
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, "Multidimensional [${param}] lists are not supported across all engines. Please use pgsqlOnly`...`");
+
+		error = undefined;
+		try
+		{	'' + sqlite`A[${list_3}]B`
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, "Multidimensional [${param}] lists are not supported on SQLite");
+
+		error = undefined;
+		try
+		{	'' + sqliteOnly`A[${list_3}]B`
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, "Multidimensional [${param}] lists are not supported on SQLite");
+
+		error = undefined;
+		try
+		{	'' + mssql`A[${list_3}]B`
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, "Multidimensional [${param}] lists are not supported on MS SQL");
+
+		error = undefined;
+		try
+		{	'' + mssqlOnly`A[${list_3}]B`
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, "Multidimensional [${param}] lists are not supported on MS SQL");
+
+		error = undefined;
+		try
+		{	'' + pgsqlOnly`A[${[list_3]}]B`
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, "More than 2-dimension [${param}] lists are not supported on PostgreSQL");
 	}
 );
 

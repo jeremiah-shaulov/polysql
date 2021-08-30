@@ -2,10 +2,10 @@ import {debug_assert} from './debug_assert.ts';
 import
 {	SqlMode,
 	SqlSettings,
-	DEFAULT_SETTINGS_MYSQL,
-	DEFAULT_SETTINGS_PGSQL,
-	DEFAULT_SETTINGS_SQLITE,
-	DEFAULT_SETTINGS_MSSQL,
+	DEFAULT_SETTINGS_MYSQL, DEFAULT_SETTINGS_MYSQL_ONLY,
+	DEFAULT_SETTINGS_PGSQL, DEFAULT_SETTINGS_PGSQL_ONLY,
+	DEFAULT_SETTINGS_SQLITE, DEFAULT_SETTINGS_SQLITE_ONLY,
+	DEFAULT_SETTINGS_MSSQL, DEFAULT_SETTINGS_MSSQL_ONLY,
 } from './sql_settings.ts';
 import {date_encode_into} from "./quote.ts";
 
@@ -293,6 +293,22 @@ export function mssql(strings: TemplateStringsArray, ...params: any[])
 {	return new Sql(strings, params, DEFAULT_SETTINGS_MSSQL);
 }
 
+export function mysqlOnly(strings: TemplateStringsArray, ...params: any[])
+{	return new Sql(strings, params, DEFAULT_SETTINGS_MYSQL_ONLY);
+}
+
+export function pgsqlOnly(strings: TemplateStringsArray, ...params: any[])
+{	return new Sql(strings, params, DEFAULT_SETTINGS_PGSQL_ONLY);
+}
+
+export function sqliteOnly(strings: TemplateStringsArray, ...params: any[])
+{	return new Sql(strings, params, DEFAULT_SETTINGS_SQLITE_ONLY);
+}
+
+export function mssqlOnly(strings: TemplateStringsArray, ...params: any[])
+{	return new Sql(strings, params, DEFAULT_SETTINGS_MSSQL_ONLY);
+}
+
 class Serializer
 {	private result: Uint8Array;
 	private pos: number;
@@ -557,7 +573,7 @@ class Serializer
 	/**	Append a [${param}].
 		I assume that i'm after opening '[' char, that was converted to '('.
 	 **/
-	append_iterable(param: Iterable<any>)
+	append_iterable(param: Iterable<any>, level=0)
 	{	let n_items_added = 0;
 		for (let p of param)
 		{	if (n_items_added++ != 0)
@@ -570,8 +586,24 @@ class Serializer
 				}
 			}
 			else if (Symbol.iterator in p)
-			{	this.append_raw_char(C_PAREN_OPEN);
-				this.append_iterable(p);
+			{	switch (this.sql_settings.mode)
+				{	case SqlMode.MYSQL:
+						throw new Error("Multidimensional [${param}] lists are not supported across all engines. Please use mysqlOnly`...`");
+					case SqlMode.PGSQL:
+						throw new Error("Multidimensional [${param}] lists are not supported across all engines. Please use pgsqlOnly`...`");
+					case SqlMode.SQLITE:
+					case SqlMode.SQLITE_ONLY:
+						throw new Error("Multidimensional [${param}] lists are not supported on SQLite");
+					case SqlMode.MSSQL:
+					case SqlMode.MSSQL_ONLY:
+						throw new Error("Multidimensional [${param}] lists are not supported on MS SQL");
+					case SqlMode.PGSQL_ONLY:
+						if (level > 0)
+						{	throw new Error("More than 2-dimension [${param}] lists are not supported on PostgreSQL");
+						}
+				}
+				this.append_raw_char(C_PAREN_OPEN);
+				this.append_iterable(p, level+1);
 				this.append_raw_char(C_PAREN_CLOSE);
 			}
 			else
