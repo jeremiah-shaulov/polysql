@@ -102,13 +102,51 @@ If `putParamsTo` not provided, exception will be thrown.
 
 Objects will be JSON-stringified.
 
-### 2. `"${param}"` or `` \`${param}\` `` - Escape an identifiers (column, table or routine name, etc.).
+### 2. `"${param}"` or `` \`${param}\` `` - Escape an identifier (column, table or routine name, etc.).
 
 For MySQL double quotes will be replaced with backticks. For others, backticks (if you used them) will be converted to quotes.
 
 Identifier cannot contain ASCII 0 characters (required for PostgreSQL).
 
-### 3. `[${param}]` - Generate list of SQL values.
+### 3. `"${param}*"`, `"${param}+"`, `"${param},"` - Escape a list of identifiers (also can use backticks instead of quotes).
+
+Generates comma-separated list of quoted identifiers from iterable collection "param".
+
+`"${param}*"` - if the collection is empty, generates `*` character (as in `SELECT * FROM ...`).
+
+`"${param}+"` - throws exception if the collection is empty.
+
+`"${param},"` - doesn't generate any output, if the collection is empty. If it's not empty, prints a comma after the last identifier.
+
+```ts
+import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
+
+let noNames: never[] = [];
+let names = ['one', 'two'];
+
+console.log(sql`SELECT "${noNames}*"` + ''); // prints: SELECT *
+console.log(sql`SELECT "${names}*"` + ''); // prints: SELECT `one`, `two`
+console.log(sql`SELECT "${noNames}," three` + ''); // prints: SELECT  three
+console.log(sql`SELECT "${names}," three` + ''); // prints: SELECT `one`, `two`, three
+```
+
+### 3b. `"parent_name.${param}*"`, `"parent_name.${param}+"`, `"parent_name.${param},"`
+
+The same as [3], but qualifies each identifier with specified parent name.
+
+```ts
+import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
+
+let noNames: never[] = [];
+let names = ['one', 'two'];
+
+console.log(sql`SELECT "t1.${noNames}*"` + ''); // prints: SELECT *
+console.log(sql`SELECT "t1.${names}*"` + ''); // prints: SELECT `t1`.`one`, `t1`.`two`
+console.log(sql`SELECT "t1.${noNames}," three` + ''); // prints: SELECT  three
+console.log(sql`SELECT "t1.${names}," three` + ''); // prints: SELECT `t1`.`one`, `t1`.`two`, three
+```
+
+### 4. `[${param}]` - Generate list of SQL values.
 
 Square brackets will be replaced with parentheses. The parameter must be iterable.
 
@@ -119,6 +157,8 @@ const ids = [10, 11, 12];
 let s = sql`SELECT * FROM articles WHERE id IN [${ids}]`;
 console.log('' + s); // prints: SELECT * FROM articles WHERE id IN (10,11,12)
 ```
+
+If there are no items in the collection, it generates `(NULL)`.
 
 If items in the collection are also iterable, this will generate multidimensional list.
 2-Dimensional lists are only supported by MySQL and PostgreSQL.
@@ -137,7 +177,7 @@ let s = sql
 console.log('' + s); // prints: ...WHERE (av.article_id, av.article_version) IN ((10,1),(11,3),(12,8))
 ```
 
-### 4. `(${param})` or `(parent_name.${param})` - Embed a safe SQL expression.
+### 5. `(${param})` or `(parent_name.${param})` - Embed a safe SQL expression.
 
 The inserted SQL fragment will be validated, so it doesn't contain the following characters (unless quoted): `@ $ # ? : [ ] { } ;`, `\0`-char, commas except in parentheses, comments, unterminated literals, unbalanced parentheses. Identifiers in this SQL fragment will be quoted according to chosen policy (see below).
 
@@ -166,7 +206,7 @@ let s = sql
 console.log('' + s); // prints ...WHERE (`av`.article_id = 10 AND `av`.`article_version` = 1 AND `a`.name <> '')
 ```
 
-### 5. `${param}` or `parent_name.${param}` (not enclosed) - Like `(${param})`, but allows commas on top level.
+### 6. `${param}` or `parent_name.${param}` (not enclosed) - Like `(${param})`, but allows commas on top level.
 
 ```ts
 import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
@@ -176,7 +216,7 @@ let s = sql`SELECT ${columns} FROM something WHERE id=1`;
 console.log('' + s); // prints: SELECT `name`, `value` FROM something WHERE id=1
 ```
 
-### 6. `{parent_name.${param}}`, `{parent_name.${param},}` - Generate equations separated with commas (the `parent_name` is optional).
+### 7. `{parent_name.${param}}`, `{parent_name.${param},}` - Generate equations separated with commas (the `parent_name` is optional).
 
 The first form throws exception, if there are no fields in the param. The Second form doesn't complain, and prints comma after the last field.
 
@@ -206,7 +246,7 @@ let s = sql`UPDATE articles AS a SET {a.${row}} WHERE id=1`;
 console.log('' + s); // prints: UPDATE articles AS a SET `a`.`name`='About all', `a`.`author`=Get_author(`a`.id) WHERE id=1
 ```
 
-### 7. `{parent_name.${param}&}` - Generate equations separated with "AND" operations (the `parent_name` is optional).
+### 8. `{parent_name.${param}&}` - Generate equations separated with "AND" operations (the `parent_name` is optional).
 
 Converts braces to parentheses. If the `param` contains no fields, this will be converted to a `FALSE` literal.
 
@@ -218,7 +258,7 @@ let s = sql`SELECT * FROM articles AS a WHERE {a.${row}&}`;
 console.log('' + s); // prints: SELECT * FROM articles AS a WHERE (`a`.`name`='About all' AND `a`.`author`=Get_author(`a`.id))
 ```
 
-### 8. `{parent_name.${param}|}` - Generate equations separated with "OR" operations (the `parent_name` is optional).
+### 9. `{parent_name.${param}|}` - Generate equations separated with "OR" operations (the `parent_name` is optional).
 
 Converts braces to parentheses. If the `param` contains no fields, this will be converted to a `TRUE` literal.
 
@@ -230,9 +270,9 @@ let s = sql`SELECT * FROM articles AS a WHERE {a.${row}|}`;
 console.log('' + s); // prints: SELECT * FROM articles AS a WHERE (`a`.`name`='About all' OR `a`.`author`=Get_author(`a`.id))
 ```
 
-### 9. `{left_parent_name.right_parent_name.${param}}`
+### 10. `{left_parent_name.right_parent_name.${param}}`
 
-In [6], [7] and [8], you can specify 2 parent qualifiers: one for the left-hand side of the equation, and one for the right. Any of the names can be empty.
+In [7], [8] and [9], you can specify 2 parent qualifiers: one for the left-hand side of the equation, and one for the right. Any of the names can be empty.
 
 ```ts
 import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
@@ -252,7 +292,7 @@ let s = sql`UPDATE articles AS a SET {.a.${row}} WHERE id=1`;
 console.log('' + s); // prints: UPDATE articles AS a SET `name`='About all', `author`=Get_author(`a`.id) WHERE id=1
 ```
 
-### 10. `<${param}>` - Generate names and values for INSERT statement.
+### 11. `<${param}>` - Generate names and values for INSERT statement.
 
 Parameter must be iterable object that contains rows to insert. Will print column names from the first row. On following rows, only columns from the first row will be used.
 
@@ -272,9 +312,9 @@ console.log('' + sql`INSERT INTO t_log <${rows}> AS excluded ON DUPLICATE KEY UP
  */
 ```
 
-### 11. `(${parent_name}.${param})`, `${parent_name}.${param}`, `{${parent_name}.${param}}` - Takes the `parent_name` from a variable.
+### 12. `"${parent_name}.${param}*"`, `(${parent_name}.${param})`, `${parent_name}.${param}`, `{${parent_name}.${param}}` - Takes the `parent_name` from a variable.
 
-In [4], [5], [6], [7], [8] and [9] the parent qualifier name can be taken from a variable.
+In [3b], [5], [6], [7], [8], [9] and [10] the parent qualifier name can be taken from a variable.
 
 ## About `Sql` object
 
@@ -442,8 +482,9 @@ The `SqlTable` class has the following methods:
 - update(): Sql
 - delete(): Sql
 - insert(): Sql
+- insertFrom(): Sql
 
-The 4 latter methods return `Sql` objects, with the final query.
+The 5 latter methods return `Sql` objects, with the final query.
 
 ### SqlTable.join()
 
@@ -485,18 +526,28 @@ To explicitly allow working on the whole table, call `sqlTable.where('')` (with 
 ### SqlTable.groupBy()
 
 ```ts
-SqlTable.groupBy(groupByExprs: string|Sql, havingExpr: string|Sql=''): SqlTable
+SqlTable.groupBy(groupByExprs: string|string[]|Sql, havingExpr: string|Sql=''): SqlTable
 ```
 
 Adds GROUP BY expressions, and optionally HAVING expression to the SELECT query.
 
+If `groupByExprs` is a string or an `Sql` object, it will represent a safe SQL fragment.
+
+If it's `string[]`, it will be treated as array of column names.
+
 ### SqlTable.select()
 
 ```ts
-SqlTable.select(columns: string|Sql='', orderBy: string|Sql='', offset=0, limit=0): Sql
+SqlTable.select(columns: string|string[]|Sql='', orderBy: string|Sql='', offset=0, limit=0): Sql
 ```
 
 Generates a SELECT query.
+
+If `columns` parameter is a string or an `Sql` object, it will represent columns as a safe SQL fragment.
+
+If it's `string[]`, it will be treated as array of column names.
+
+Empty string, Sql or array will cause selecting all columns.
 
 ### SqlTable.update()
 
@@ -528,3 +579,18 @@ Generates an INSERT query.
 - `onConflictDo=='replace'` is only supported for MySQL and SQLite.
 - `onConflictDo=='update'` is only supported for MySQL. If duplicate key, updates the existing record with the new values.
 - `onConflictDo=='patch'` is only supported for MySQL If duplicate key, updates **empty** (null, 0 or '') columns of the existing record with the new values.
+
+### SqlTable.insertFrom()
+
+```ts
+SqlTable.insertFrom(names: string[], select: Sql, on_conflict_do: ''|'nothing'|'replace' = ''): Sql
+```
+
+Generates "INSERT INTO (...) SELECT ..." query.
+
+```ts
+import {mysqlTables as sqlTables} from 'https://deno.land/x/polysql/mod.ts';
+
+let s = sqlTables.t_log.insertFrom(['c1', 'c2'], sqlTables.t_log_bak.where('id<=100').select('c1, c2'));
+console.log('' + s); // prints: INSERT INTO `t_log` (`c1`, `c2`) SELECT `c1`, `c2` FROM `t_log_bak` WHERE (`id`<=100)
+```

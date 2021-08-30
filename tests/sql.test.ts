@@ -49,6 +49,26 @@ Deno.test
 
 		assertEquals(mysql`"${'ф'.repeat(100)}"` + '', '`'+'ф'.repeat(100)+'`'); // many 2-byte chars cause buffer of guessed size to realloc
 
+		assertEquals(mysql`"${['a', 'b b']}*"` + '', '`a`, `b b`');
+		assertEquals(mysql`"${[]}*"` + '', '*');
+
+		assertEquals(mysql`"${['a', 'b b']}+"` + '', '`a`, `b b`');
+
+		assertEquals(mysql`"${['a', 'b b']},"` + '', '`a`, `b b`,');
+		assertEquals(mysql`"${[]},"` + '', '');
+
+		assertEquals(mysql`"par.${['a', 'b b']}*"` + '', '`par`.`a`, `par`.`b b`');
+		assertEquals(mysql`"par.${[]}*"` + '', '*');
+
+		assertEquals(mysql`"par.${['a', 'b b']}+"` + '', '`par`.`a`, `par`.`b b`');
+
+		assertEquals(mysql`"par.${['a', 'b b']},"` + '', '`par`.`a`, `par`.`b b`,');
+		assertEquals(mysql`"par.${[]},"` + '', '');
+		assertEquals(mysql`"par.${[]},"c` + '', 'c');
+
+		assertEquals(mysql`"${'par'}.${['a', 'b b']}*"` + '', '`par`.`a`, `par`.`b b`');
+		assertEquals(mysql`"${'par'}.${[]}*"` + '', '*');
+
 		let s = mysql`фффффффффффффффффффффффффффффффффффффф "${'``'}"`;
 		assertEquals(s+'', "фффффффффффффффффффффффффффффффффффффф ``````");
 
@@ -106,12 +126,49 @@ Deno.test
 
 		error = undefined;
 		try
+		{	mysql`"par.${1}/"`.toString();
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, `Inappropriately enclosed parameter`);
+
+		error = undefined;
+		try
+		{	mysql`"par.${1}`.toString();
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, `Inappropriately enclosed parameter`);
+
+		error = undefined;
+		try
 		{	mysql`"${'\0'}"`.toString();
 		}
 		catch (e)
 		{	error = e;
 		}
 		assertEquals(error?.message, `Quoted identifier cannot contain 0-char`);
+
+		error = undefined;
+		try
+		{	assertEquals(mysql`"${[]}+"` + '', '*');
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, 'No names for "${param}+"');
+
+		error = undefined;
+		try
+		{	assertEquals(mysql`"${null}+"` + '', '*');
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, 'Parameter for "${...}+" must be iterable');
+
 	}
 );
 
@@ -376,7 +433,7 @@ Deno.test
 		catch (e)
 		{	error = e;
 		}
-		assertEquals(error?.message, `Inappropriately quoted parameter`);
+		assertEquals(error?.message, `Inappropriately enclosed parameter`);
 
 		error = undefined;
 		try
@@ -385,7 +442,7 @@ Deno.test
 		catch (e)
 		{	error = e;
 		}
-		assertEquals(error?.message, `Inappropriately quoted parameter`);
+		assertEquals(error?.message, `Inappropriately enclosed parameter`);
 
 		error = undefined;
 		try

@@ -21,7 +21,10 @@ const C_SPACE = ' '.charCodeAt(0);
 const C_TAB = '\t'.charCodeAt(0);
 const C_CR = '\r'.charCodeAt(0);
 const C_LF = '\n'.charCodeAt(0);
+const C_PLUS = '+'.charCodeAt(0);
 const C_MINUS = '-'.charCodeAt(0);
+const C_SLASH = '/'.charCodeAt(0);
+const C_TIMES = '*'.charCodeAt(0);
 const C_DOT = '.'.charCodeAt(0);
 const C_ZERO = '0'.charCodeAt(0);
 const C_ONE = '1'.charCodeAt(0);
@@ -37,8 +40,6 @@ const C_SEMICOLON = ';'.charCodeAt(0);
 const C_COMMA = ','.charCodeAt(0);
 const C_AT = '@'.charCodeAt(0);
 const C_HASH = '#'.charCodeAt(0);
-const C_SLASH = '/'.charCodeAt(0);
-const C_TIMES = '*'.charCodeAt(0);
 const C_AMP = '&'.charCodeAt(0);
 const C_PIPE = '|'.charCodeAt(0);
 const C_EQ = '='.charCodeAt(0);
@@ -79,6 +80,7 @@ const enum Want
 	CONVERT_QT_ID,
 	CONVERT_CLOSE_TO_PAREN_CLOSE,
 	CONVERT_A_CHAR_AND_BRACE_CLOSE_TO_PAREN_CLOSE,
+	REMOVE_A_CHAR_AND_QUOT,
 }
 
 const enum Change
@@ -143,7 +145,7 @@ export class Sql
 			else
 			{	let prev_string = strings[i];
 				let param_type_descriminator = prev_string.charCodeAt(prev_string.length-1);
-				if (param_type_descriminator==C_APOS || param_type_descriminator==C_QUOT || param_type_descriminator==C_BACKTICK)
+				if (param_type_descriminator==C_APOS || (param_type_descriminator==C_QUOT || param_type_descriminator==C_BACKTICK) && strings[i+1]?.charCodeAt(0)==param_type_descriminator)
 				{	param = JSON.stringify(param);
 					len += param.length + GUESS_STRING_BYTE_LEN_LONGER; // if byte length of param is longer than param.length+GUESS_STRING_BYTE_LEN_LONGER, will realloc later
 					params[i] = param;
@@ -198,13 +200,6 @@ export class Sql
 				}
 				want = serializer.append_sql_value(param);
 			}
-			else if (qt==C_BACKTICK || qt==C_QUOT)
-			{	if (strings[i+1].charCodeAt(0) != qt)
-				{	throw new Error(`Inappropriately quoted parameter`);
-				}
-				serializer.append_quoted_ident(param+'');
-				want = Want.CONVERT_QT_ID;
-			}
 			else if (qt == C_SQUARE_OPEN)
 			{	if (strings[i+1].charCodeAt(0) != C_SQUARE_CLOSE)
 				{	throw new Error(`Inappropriately enclosed parameter`);
@@ -228,7 +223,7 @@ export class Sql
 				want = Want.REMOVE_APOS_OR_BRACE_CLOSE_OR_GT;
 			}
 			else
-			{	// {}, () or not enclosed
+			{	// ``, "", {}, () or not enclosed
 				// Have parent_name?
 				let var_parent_name_left: Uint8Array | undefined;
 				let var_parent_name: Uint8Array | undefined;
@@ -250,10 +245,25 @@ export class Sql
 				qt = serializer.get_char(-1);
 				if (qt == C_BRACE_OPEN)
 				{	let param_type_descriminator = strings[i+1].charCodeAt(0);
-					if (param_type_descriminator!=C_BRACE_CLOSE && param_type_descriminator!=C_COMMA && param_type_descriminator!=C_AMP && param_type_descriminator!=C_PIPE)
-					{	throw new Error(`Inappropriately enclosed parameter`);
+					if (param_type_descriminator != C_BRACE_CLOSE)
+					{	if (param_type_descriminator!=C_COMMA && param_type_descriminator!=C_AMP && param_type_descriminator!=C_PIPE || strings[i+1].charCodeAt(1)!=C_BRACE_CLOSE)
+						{	throw new Error(`Inappropriately enclosed parameter`);
+						}
 					}
 					want = serializer.append_eq_list(param, param_type_descriminator);
+				}
+				else if (qt==C_BACKTICK || qt==C_QUOT)
+				{	let param_type_descriminator = strings[i+1].charCodeAt(0);
+					if (param_type_descriminator == qt)
+					{	serializer.append_quoted_ident(param+'');
+						want = Want.CONVERT_QT_ID;
+					}
+					else
+					{	if (param_type_descriminator!=C_COMMA && param_type_descriminator!=C_TIMES && param_type_descriminator!=C_PLUS || strings[i+1].charCodeAt(1)!=qt)
+						{	throw new Error(`Inappropriately enclosed parameter`);
+						}
+						want = serializer.append_quoted_idents(param, param_type_descriminator);
+					}
 				}
 				else
 				{	let is_expression = false;
@@ -375,10 +385,11 @@ class Serializer
 	append_intermediate_sql_part(s: string, want: Want)
 	{	switch (want)
 		{	case Want.REMOVE_APOS_OR_BRACE_CLOSE_OR_GT:
-			{	let from = --this.pos;
+			{	debug_assert(this.pos > 0);
+				let from = --this.pos;
 				let c = this.result[from];
 				this.append_raw_string(s);
-				debug_assert(this.result[from]==C_APOS || this.result[from]==C_BRACE_CLOSE || this.result[from]==C_GT);
+				debug_assert(this.result[from]==C_APOS || this.result[from]==C_QUOT || this.result[from]==C_BRACE_CLOSE || this.result[from]==C_GT);
 				this.result[from] = c;
 				break;
 			}
@@ -409,12 +420,18 @@ class Serializer
 				break;
 			}
 			case Want.CONVERT_A_CHAR_AND_BRACE_CLOSE_TO_PAREN_CLOSE:
-			{	let from = --this.pos;
+			{	debug_assert(this.pos > 0);
+				let from = --this.pos;
 				let c = this.result[from];
 				this.append_raw_string(s);
 				debug_assert(this.result[from+1] == C_BRACE_CLOSE);
 				this.result[from + 1] = C_PAREN_CLOSE;
 				this.result[from] = c;
+				break;
+			}
+			case Want.REMOVE_A_CHAR_AND_QUOT:
+			{	debug_assert(s.charCodeAt(1) == C_QUOT);
+				this.append_raw_string(s.slice(2));
 				break;
 			}
 			default:
@@ -455,6 +472,53 @@ class Serializer
 			}
 			this.pos = pos + n_add;
 		}
+	}
+
+	/**	Append a "${param}*", "${param}+" or a `${param},`.
+		I assume that i'm after opening '"' or '`' char.
+	 **/
+	append_quoted_idents(param: any, param_type_descriminator: number)
+	{	if (param==null || typeof(param)!='object' || !(Symbol.iterator in param))
+		{	throw new Error('Parameter for "${...}' + String.fromCharCode(param_type_descriminator) + '" must be iterable');
+		}
+		let {qt_id, parent_name} = this;
+		let is_next = false;
+		this.pos--; // backspace "
+		for (let p of param)
+		{	if (!is_next)
+			{	is_next = true;
+			}
+			else
+			{	this.append_raw_char(C_COMMA);
+				this.append_raw_char(C_SPACE);
+			}
+			if (parent_name.length)
+			{	this.append_raw_char(qt_id);
+				this.append_raw_bytes(parent_name);
+				this.append_raw_char(qt_id);
+				this.append_raw_char(C_DOT);
+			}
+			this.append_raw_char(C_BACKTICK);
+			this.append_quoted_ident(p+'');
+			this.append_raw_char(qt_id);
+		}
+		if (param_type_descriminator == C_TIMES)
+		{	if (!is_next)
+			{	this.append_raw_char(C_TIMES);
+			}
+		}
+		else if (param_type_descriminator == C_PLUS)
+		{	if (!is_next)
+			{	throw new Error('No names for "${param}+"');
+			}
+		}
+		else
+		{	debug_assert(param_type_descriminator == C_COMMA);
+			if (is_next)
+			{	this.append_raw_char(C_COMMA);
+			}
+		}
+		return Want.REMOVE_A_CHAR_AND_QUOT;
 	}
 
 	/**	Append a '${param}'.

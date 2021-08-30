@@ -105,7 +105,7 @@ export class SqlTable
 		readonly table_name: string,
 		private joins: Join[] = [],
 		private where_exprs: (string | Sql)[] = [],
-		private group_by_exprs: string|Sql|undefined = undefined,
+		private group_by_exprs: string|string[]|Sql|undefined = undefined,
 		private having_expr: string|Sql = '',
 		private has_b = false,
 		private has_base = false,
@@ -257,7 +257,7 @@ export class SqlTable
 		return sql_table;
 	}
 
-	groupBy(group_by_exprs: string|Sql, having_expr: string|Sql='')
+	groupBy(group_by_exprs: string|string[]|Sql, having_expr: string|Sql='')
 	{	if (this.group_by_exprs != undefined)
 		{	throw new Error(`groupBy() can be called only once`);
 		}
@@ -267,13 +267,18 @@ export class SqlTable
 		return sql_table;
 	}
 
-	select(columns: string|Sql='', order_by: string|Sql='', offset=0, limit=0)
+	select(columns: string|string[]|Sql='', order_by: string|Sql='', offset=0, limit=0)
 	{	let base_table = this.get_base_table_alias();
-		let stmt = !columns ? mysql`SELECT * FROM` : mysql`SELECT ${base_table}.${columns} FROM`;
+		let stmt = !columns ? mysql`SELECT * FROM` : Array.isArray(columns) ? mysql`SELECT "${base_table}.${columns}*" FROM` : mysql`SELECT ${base_table}.${columns} FROM`;
 		stmt = this.concat_joins(stmt, base_table);
 		stmt = this.concat_where_exprs(stmt, base_table);
 		if (this.group_by_exprs)
-		{	stmt = stmt.concat(mysql` GROUP BY ${base_table}.${this.group_by_exprs}`);
+		{	if (!Array.isArray(this.group_by_exprs))
+			{	stmt = stmt.concat(mysql` GROUP BY ${base_table}.${this.group_by_exprs}`);
+			}
+			else if (this.group_by_exprs.length)
+			{	stmt = stmt.concat(mysql` GROUP BY "${base_table}.${this.group_by_exprs}+"`);
+			}
 			if (this.having_expr)
 			{	stmt = stmt.concat(mysql` HAVING (${this.having_expr})`);
 			}
@@ -529,6 +534,75 @@ export class SqlTable
 					}
 					break;
 				}
+			}
+		}
+		stmt.sqlSettings = this.sqlSettings;
+		return stmt;
+	}
+
+	insertFrom(names: string[], select: Sql, on_conflict_do: ''|'nothing'|'replace' = '')
+	{	if (this.joins.length)
+		{	throw new Error(`Cannot INSERT with JOIN`);
+		}
+		if (this.where_exprs.length)
+		{	throw new Error(`Cannot INSERT with WHERE`);
+		}
+		if (this.group_by_exprs != undefined)
+		{	throw new Error(`Cannot INSERT with GROUP BY`);
+		}
+		let stmt: Sql;
+		if (!on_conflict_do)
+		{	stmt = mysql`INSERT INTO "${this.table_name}" ("${names}+") `.concat(select);
+		}
+		else if (on_conflict_do == 'nothing')
+		{	let {mode} = this.sqlSettings;
+			switch (mode)
+			{	case SqlMode.MYSQL:
+					throw new Error("ON CONFLICT DO NOTHING is not supported across all engines. Please use mysqlOnly`...`");
+
+				case SqlMode.PGSQL:
+					throw new Error("ON CONFLICT DO NOTHING is not supported across all engines. Please use pgsqlOnly`...`");
+
+				case SqlMode.SQLITE:
+					throw new Error("ON CONFLICT DO NOTHING is not supported across all engines. Please use sqliteOnly`...`");
+
+				case SqlMode.MSSQL:
+				case SqlMode.MSSQL_ONLY:
+					throw new Error("ON CONFLICT DO NOTHING is not supported on MS SQL");
+
+				case SqlMode.MYSQL_ONLY:
+					stmt = mysql`INSERT INTO "${this.table_name}" ("${names}+") `.concat(select).concat(mysql` ON DUPLICATE KEY UPDATE "${names[0]}"="${names[0]}"`);
+					break;
+
+				default:
+					debug_assert(mode==SqlMode.PGSQL_ONLY || mode==SqlMode.SQLITE_ONLY);
+					stmt =  mysql`INSERT INTO "${this.table_name}" ("${names}+") `.concat(select).concat(mysql` ON CONFLICT DO NOTHING`);
+			}
+		}
+		else
+		{	debug_assert(on_conflict_do == 'replace');
+			switch (this.sqlSettings.mode)
+			{	case SqlMode.MYSQL:
+					throw new Error("REPLACE is not supported across all engines. Please use mysqlOnly`...`");
+
+				case SqlMode.SQLITE:
+					throw new Error("REPLACE is not supported across all engines. Please use sqliteOnly`...`");
+
+				case SqlMode.PGSQL:
+				case SqlMode.PGSQL_ONLY:
+					throw new Error("REPLACE is not supported on PostgreSQL");
+
+				case SqlMode.MSSQL:
+				case SqlMode.MSSQL_ONLY:
+					throw new Error("REPLACE is not supported on MS SQL");
+
+				case SqlMode.MYSQL_ONLY:
+					stmt = mysql`REPLACE "${this.table_name}" ("${names}+") `.concat(select);
+					break;
+
+				default:
+					debug_assert(this.sqlSettings.mode == SqlMode.SQLITE_ONLY);
+					stmt = mysql`REPLACE INTO "${this.table_name}" ("${names}+") `.concat(select);
 			}
 		}
 		stmt.sqlSettings = this.sqlSettings;

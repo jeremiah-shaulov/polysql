@@ -86,7 +86,7 @@ Deno.test
 );
 
 Deno.test
-(	'sqlTables SELECT',
+(	'Test sqlTables.select()',
 	async () =>
 	{	const TABLE = 'Hello `All`!';
 		assertEquals(mysqlTables[TABLE].table_name, TABLE);
@@ -99,6 +99,12 @@ Deno.test
 
 		s = mysqlTables[TABLE].where("").select(mysql`col1*2, Count(*)`);
 		assertEquals(s+'', "SELECT `col1`*2, Count(*) FROM `Hello ``All``!`");
+
+		s = mysqlTables[TABLE].where("").select(['a', 'b b']);
+		assertEquals(s+'', "SELECT `a`, `b b` FROM `Hello ``All``!`");
+
+		s = mysqlTables[TABLE].join('more').where("").select(['a', 'b b']);
+		assertEquals(s+'', "SELECT `b`.`a`, `b`.`b b` FROM `Hello ``All``!` AS `b` CROSS JOIN `more`");
 
 		let error;
 		try
@@ -219,6 +225,9 @@ Deno.test
 		s = mysqlTables.t_log.where("").groupBy('g1, g2').select();
 		assertEquals(s+'', "SELECT * FROM `t_log` GROUP BY `g1`, `g2`");
 
+		s = mysqlTables.t_log.where("").groupBy(['g1', 'g2']).select();
+		assertEquals(s+'', "SELECT * FROM `t_log` GROUP BY `g1`, `g2`");
+
 		s = mysqlTables.t_log.where("").groupBy('g1, g2', 'hello IS NULL').select();
 		assertEquals(s+'', "SELECT * FROM `t_log` GROUP BY `g1`, `g2` HAVING (`hello` IS NULL)");
 
@@ -243,7 +252,7 @@ Deno.test
 );
 
 Deno.test
-(	'SQL sqlTables UPDATE',
+(	'Test sqlTables.update()',
 	async () =>
 	{	// Simple:
 
@@ -399,7 +408,7 @@ Deno.test
 );
 
 Deno.test
-(	'SQL mysqlTables DELETE',
+(	'Test sqlTables.delete()',
 	async () =>
 	{	// Simple:
 
@@ -503,7 +512,7 @@ Deno.test
 );
 
 Deno.test
-(	'SQL mysqlTables INSERT',
+(	'Test sqlTables.insert()',
 	async () =>
 	{	const ROWS = [{a: 1, b: '2'}, {a: 10, b: '20'}];
 		function *it_rows(rows: Record<string, any>[])
@@ -699,5 +708,167 @@ Deno.test
 			}
 			assertEquals(error?.message, "ON CONFLICT DO UPDATE is not supported on MS SQL");
 		}
+	}
+);
+
+Deno.test
+(	'Test sqlTables.insertFrom()',
+	async () =>
+	{	let s = mysqlTables.t_log.insertFrom(['c1', 'c2'], mysqlTables.t_log_bak.where('').select('cb1, cb2'));
+		assertEquals(s+'', "INSERT INTO `t_log` (`c1`, `c2`) SELECT `cb1`, `cb2` FROM `t_log_bak`");
+
+		s = mysqlOnlyTables.t_log.insertFrom(['c1', 'c2'], mysqlTables.t_log_bak.where('id<=100').select('cb1, cb2'), 'nothing');
+		assertEquals(s+'', "INSERT INTO `t_log` (`c1`, `c2`) SELECT `cb1`, `cb2` FROM `t_log_bak` WHERE (`id`<=100) ON DUPLICATE KEY UPDATE `c1`=`c1`");
+
+		s = pgsqlOnlyTables.t_log.insertFrom(['c1', 'c2'], mysqlTables.t_log_bak.where('id<=100').select('cb1, cb2'), 'nothing');
+		assertEquals(s+'', `INSERT INTO "t_log" ("c1", "c2") SELECT "cb1", "cb2" FROM "t_log_bak" WHERE ("id"<=100) ON CONFLICT DO NOTHING`);
+
+		s = sqliteOnlyTables.t_log.insertFrom(['c1', 'c2'], mysqlTables.t_log_bak.where('id<=100').select('cb1, cb2'), 'nothing');
+		assertEquals(s+'', `INSERT INTO "t_log" ("c1", "c2") SELECT "cb1", "cb2" FROM "t_log_bak" WHERE ("id"<=100) ON CONFLICT DO NOTHING`);
+
+		s = mysqlOnlyTables.t_log.insertFrom(['c1', 'c2'], mysqlTables.t_log_bak.where('id<=100').select('cb1, cb2'), 'replace');
+		assertEquals(s+'', "REPLACE `t_log` (`c1`, `c2`) SELECT `cb1`, `cb2` FROM `t_log_bak` WHERE (`id`<=100)");
+
+		s = sqliteOnlyTables.t_log.insertFrom(['c1', 'c2'], mysqlTables.t_log_bak.where('id<=100').select('cb1, cb2'), 'replace');
+		assertEquals(s+'', `REPLACE INTO "t_log" ("c1", "c2") SELECT "cb1", "cb2" FROM "t_log_bak" WHERE ("id"<=100)`);
+
+		s = mysqlTables.t_log.insertFrom(['c1', 'c2'], mysql`HELLO ALL`);
+		assertEquals(s+'', "INSERT INTO `t_log` (`c1`, `c2`) HELLO ALL");
+
+		let error;
+		try
+		{	'' + mysqlTables.t_log.join('more').insertFrom(['c1', 'c2'], mysql`HELLO ALL`);
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, "Cannot INSERT with JOIN");
+
+		error = undefined;
+		try
+		{	'' + mysqlTables.t_log.where("id=1").insertFrom(['c1', 'c2'], mysql`HELLO ALL`);
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, "Cannot INSERT with WHERE");
+
+		error = undefined;
+		try
+		{	'' + mysqlTables.t_log.groupBy('').insertFrom(['c1', 'c2'], mysql`HELLO ALL`);
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, "Cannot INSERT with GROUP BY");
+
+		error = undefined;
+		try
+		{	'' + mysqlTables.t_log.insertFrom([], mysql`HELLO ALL`);
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, 'No names for "${param}+"');
+
+		error = undefined;
+		try
+		{	'' + mysqlTables.t_log.insertFrom(['c1', 'c2'], mysql`HELLO ALL`, 'nothing');
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, "ON CONFLICT DO NOTHING is not supported across all engines. Please use mysqlOnly`...`");
+
+		error = undefined;
+		try
+		{	'' + pgsqlTables.t_log.insertFrom(['c1', 'c2'], mysql`HELLO ALL`, 'nothing');
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, "ON CONFLICT DO NOTHING is not supported across all engines. Please use pgsqlOnly`...`");
+
+		error = undefined;
+		try
+		{	'' + sqliteTables.t_log.insertFrom(['c1', 'c2'], mysql`HELLO ALL`, 'nothing');
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, "ON CONFLICT DO NOTHING is not supported across all engines. Please use sqliteOnly`...`");
+
+		error = undefined;
+		try
+		{	'' + mssqlTables.t_log.insertFrom(['c1', 'c2'], mysql`HELLO ALL`, 'nothing');
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, "ON CONFLICT DO NOTHING is not supported on MS SQL");
+
+		error = undefined;
+		try
+		{	'' + mssqlOnlyTables.t_log.insertFrom(['c1', 'c2'], mysql`HELLO ALL`, 'nothing');
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, "ON CONFLICT DO NOTHING is not supported on MS SQL");
+
+		error = undefined;
+		try
+		{	'' + mysqlTables.t_log.insertFrom(['c1', 'c2'], mysql`HELLO ALL`, 'replace');
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, "REPLACE is not supported across all engines. Please use mysqlOnly`...`");
+
+		error = undefined;
+		try
+		{	'' + sqliteTables.t_log.insertFrom(['c1', 'c2'], mysql`HELLO ALL`, 'replace');
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, "REPLACE is not supported across all engines. Please use sqliteOnly`...`");
+
+		error = undefined;
+		try
+		{	'' + pgsqlTables.t_log.insertFrom(['c1', 'c2'], mysql`HELLO ALL`, 'replace');
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, "REPLACE is not supported on PostgreSQL");
+
+		error = undefined;
+		try
+		{	'' + pgsqlOnlyTables.t_log.insertFrom(['c1', 'c2'], mysql`HELLO ALL`, 'replace');
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, "REPLACE is not supported on PostgreSQL");
+
+		error = undefined;
+		try
+		{	'' + mssqlTables.t_log.insertFrom(['c1', 'c2'], mysql`HELLO ALL`, 'replace');
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, "REPLACE is not supported on MS SQL");
+
+		error = undefined;
+		try
+		{	'' + mssqlOnlyTables.t_log.insertFrom(['c1', 'c2'], mysql`HELLO ALL`, 'replace');
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, "REPLACE is not supported on MS SQL");
+
 	}
 );
