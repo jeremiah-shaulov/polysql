@@ -21,6 +21,8 @@ export
 	SqlTable
 } from './sql_table.ts';
 
+export type {OrderBy} from './sql_table.ts';
+
 export
 {	SqlSettings,
 	SqlMode

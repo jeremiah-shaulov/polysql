@@ -1,5 +1,4 @@
-import {mysql, pgsql, sqlite} from '../sql.ts';
-import {SqlSettings, SqlMode} from '../sql_settings.ts';
+import {mysql} from '../sql.ts';
 import
 {	mysqlTables, mysqlOnlyTables,
 	pgsqlTables, pgsqlOnlyTables,
@@ -240,14 +239,140 @@ Deno.test
 		s = mysqlTables.t_log.where("").select(mysql`col1*2, Count(*)`, mysql`position_major DESC, position_minor`);
 		assertEquals(s+'', "SELECT `col1`*2, Count(*) FROM `t_log` ORDER BY `position_major` DESC, `position_minor`");
 
-		s = mysqlTables.t_log.where("").select("", "", 0, 10);
-		assertEquals(s+'', "SELECT * FROM `t_log` LIMIT 1, 10");
+		s = mysqlTables.t_log.where("").select(mysql`col1*2, Count(*)`, {columns: ['position_major', 'position_minor']});
+		assertEquals(s+'', "SELECT `col1`*2, Count(*) FROM `t_log` ORDER BY `position_major`, `position_minor`");
 
-		s = mysqlTables.t_log.where("").select("", "", 1, 11);
-		assertEquals(s+'', "SELECT * FROM `t_log` LIMIT 2, 11");
+		s = mysqlTables.t_log.where("").select(mysql`col1*2, Count(*)`, {columns: ['position_major', 'position_minor'], desc: false});
+		assertEquals(s+'', "SELECT `col1`*2, Count(*) FROM `t_log` ORDER BY `position_major`, `position_minor`");
 
-		s = mysqlTables.t_log.where("").select("", "", 10);
-		assertEquals(s+'', "SELECT * FROM `t_log` LIMIT 11, 2147483647");
+		s = mysqlTables.t_log.where("").select(mysql`col1*2, Count(*)`, {columns: ['position_major', 'position_minor'], desc: true});
+		assertEquals(s+'', "SELECT `col1`*2, Count(*) FROM `t_log` ORDER BY `position_major` DESC, `position_minor` DESC");
+
+		s = mysqlOnlyTables.t_log.where("").select("", "", 0, 10);
+		assertEquals(s+'', "SELECT * FROM `t_log` LIMIT 10");
+
+		s = mysqlOnlyTables.t_log.where("").select("", "", 1, 11);
+		assertEquals(s+'', "SELECT * FROM `t_log` LIMIT 11 OFFSET 1");
+
+		s = mysqlOnlyTables.t_log.where("").select("", "", 10);
+		assertEquals(s+'', "SELECT * FROM `t_log` LIMIT 2147483647 OFFSET 10");
+
+		s = pgsqlOnlyTables.t_log.where("").select("", "", 0, 10);
+		assertEquals(s+'', `SELECT * FROM "t_log" LIMIT 10`);
+
+		s = pgsqlOnlyTables.t_log.where("").select("", "", 1, 11);
+		assertEquals(s+'', `SELECT * FROM "t_log" LIMIT 11 OFFSET 1`);
+
+		s = pgsqlOnlyTables.t_log.where("").select("", "", 10);
+		assertEquals(s+'', `SELECT * FROM "t_log" OFFSET 10`);
+
+		s = sqliteOnlyTables.t_log.where("").select("", "", 0, 10);
+		assertEquals(s+'', `SELECT * FROM "t_log" LIMIT 10`);
+
+		s = sqliteOnlyTables.t_log.where("").select("", "", 1, 11);
+		assertEquals(s+'', `SELECT * FROM "t_log" LIMIT 11 OFFSET 1`);
+
+		s = sqliteOnlyTables.t_log.where("").select("", "", 10);
+		assertEquals(s+'', `SELECT * FROM "t_log" LIMIT 2147483647 OFFSET 10`);
+
+		s = mssqlTables.t_log.where("").select("", "id", 0, 10);
+		assertEquals(s+'', `SELECT * FROM "t_log" ORDER BY "id" OFFSET 0 ROWS FETCH FIRST 10 ROWS ONLY`);
+
+		s = mssqlTables.t_log.where("").select("", "id", 1, 11);
+		assertEquals(s+'', `SELECT * FROM "t_log" ORDER BY "id" OFFSET 1 ROWS FETCH FIRST 11 ROWS ONLY`);
+
+		s = mssqlTables.t_log.where("").select("", "id", 10);
+		assertEquals(s+'', `SELECT * FROM "t_log" ORDER BY "id" OFFSET 10 ROWS`);
+
+		error = undefined;
+		try
+		{	mysqlTables.t_log.where("").select("", "", 0, 10);
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, 'SELECT with LIMIT but without ORDER BY is not supported across all engines. Please use mysqlOnly`...`');
+
+		error = undefined;
+		try
+		{	pgsqlTables.t_log.where("").select("", "", 0, 10);
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, 'SELECT with LIMIT but without ORDER BY is not supported across all engines. Please use pgsqlOnly`...`');
+
+		error = undefined;
+		try
+		{	sqliteTables.t_log.where("").select("", "", 0, 10);
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, 'SELECT with LIMIT but without ORDER BY is not supported across all engines. Please use sqliteOnly`...`');
+
+		error = undefined;
+		try
+		{	mssqlTables.t_log.where("").select("", "", 0, 10);
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, 'SELECT with LIMIT but without ORDER BY is not supported on MS SQL');
+
+		error = undefined;
+		try
+		{	mssqlOnlyTables.t_log.where("").select("", "", 0, 10);
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, 'SELECT with LIMIT but without ORDER BY is not supported on MS SQL');
+
+		error = undefined;
+		try
+		{	mysqlTables.t_log.where("").select("", "", 10);
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, 'SELECT with OFFSET but without ORDER BY is not supported across all engines. Please use mysqlOnly`...`');
+
+		error = undefined;
+		try
+		{	pgsqlTables.t_log.where("").select("", "", 10);
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, 'SELECT with OFFSET but without ORDER BY is not supported across all engines. Please use pgsqlOnly`...`');
+
+		error = undefined;
+		try
+		{	sqliteTables.t_log.where("").select("", "", 10);
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, 'SELECT with OFFSET but without ORDER BY is not supported across all engines. Please use sqliteOnly`...`');
+
+		error = undefined;
+		try
+		{	mssqlTables.t_log.where("").select("", "", 10);
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, 'SELECT with OFFSET but without ORDER BY is not supported on MS SQL');
+
+		error = undefined;
+		try
+		{	mssqlOnlyTables.t_log.where("").select("", "", 10);
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, 'SELECT with OFFSET but without ORDER BY is not supported on MS SQL');
 	}
 );
 
@@ -279,19 +404,19 @@ Deno.test
 		assertEquals(s+'', "UPDATE `t_log` AS `b` LEFT JOIN `more` ON (`b`.more_id = `more`.id) SET `b`.`message`='Message 1' WHERE (`b`.id=1)");
 
 		s = sqliteOnlyTables.t_log.leftJoin('more', 'm', 'more_id = m.id').where("id=1").update({message: "Message 1"});
-		assertEquals(s+'', `UPDATE "t_log" AS "s" SET "message"='Message 1' FROM "t_log" AS "b" LEFT JOIN "more" AS "m" ON ("b"."more_id" = "m"."id") WHERE ("b"."id"=1) AND "s".ROWID = "b".ROWID`);
+		assertEquals(s+'', `UPDATE "t_log" AS "s" SET "message"='Message 1' FROM "t_log" AS "b" LEFT JOIN "more" AS "m" ON ("b"."more_id" = "m"."id") WHERE ("b"."id"=1) AND "s".rowid = "b".rowid`);
 
 		s = sqliteOnlyTables.t_log.leftJoin('more', 'm', 'more_id = m.id').where('').update({message: "Message 1"});
-		assertEquals(s+'', `UPDATE "t_log" AS "s" SET "message"='Message 1' FROM "t_log" AS "b" LEFT JOIN "more" AS "m" ON ("b"."more_id" = "m"."id") WHERE "s".ROWID = "b".ROWID`);
+		assertEquals(s+'', `UPDATE "t_log" AS "s" SET "message"='Message 1' FROM "t_log" AS "b" LEFT JOIN "more" AS "m" ON ("b"."more_id" = "m"."id") WHERE "s".rowid = "b".rowid`);
 
 		s = sqliteOnlyTables.t_log.leftJoin('more', 'm', 'more_id = m.id').join('s').where("id=1").update({message: "Message 1"});
-		assertEquals(s+'', `UPDATE "t_log" AS "subj" SET "message"='Message 1' FROM "t_log" AS "b" LEFT JOIN "more" AS "m" ON ("b"."more_id" = "m"."id") CROSS JOIN "s" WHERE ("b"."id"=1) AND "subj".ROWID = "b".ROWID`);
+		assertEquals(s+'', `UPDATE "t_log" AS "subj" SET "message"='Message 1' FROM "t_log" AS "b" LEFT JOIN "more" AS "m" ON ("b"."more_id" = "m"."id") CROSS JOIN "s" WHERE ("b"."id"=1) AND "subj".rowid = "b".rowid`);
 
 		s = sqliteOnlyTables.t_log.leftJoin('more', 'm', 'more_id = m.id').join('s').join('subj').where("id=1").update({message: "Message 1"});
-		assertEquals(s+'', `UPDATE "t_log" AS "subj_table" SET "message"='Message 1' FROM "t_log" AS "b" LEFT JOIN "more" AS "m" ON ("b"."more_id" = "m"."id") CROSS JOIN "s" CROSS JOIN "subj" WHERE ("b"."id"=1) AND "subj_table".ROWID = "b".ROWID`);
+		assertEquals(s+'', `UPDATE "t_log" AS "subj_table" SET "message"='Message 1' FROM "t_log" AS "b" LEFT JOIN "more" AS "m" ON ("b"."more_id" = "m"."id") CROSS JOIN "s" CROSS JOIN "subj" WHERE ("b"."id"=1) AND "subj_table".rowid = "b".rowid`);
 
 		s = sqliteOnlyTables.t_log.leftJoin('more', 'm', 'more_id = m.id').join('s').join('subj').join('subj_table').where("id=1").update({message: "Message 1"});
-		assertEquals(s+'', `UPDATE "t_log" AS "_subj_table" SET "message"='Message 1' FROM "t_log" AS "b" LEFT JOIN "more" AS "m" ON ("b"."more_id" = "m"."id") CROSS JOIN "s" CROSS JOIN "subj" CROSS JOIN "subj_table" WHERE ("b"."id"=1) AND "_subj_table".ROWID = "b".ROWID`);
+		assertEquals(s+'', `UPDATE "t_log" AS "_subj_table" SET "message"='Message 1' FROM "t_log" AS "b" LEFT JOIN "more" AS "m" ON ("b"."more_id" = "m"."id") CROSS JOIN "s" CROSS JOIN "subj" CROSS JOIN "subj_table" WHERE ("b"."id"=1) AND "_subj_table".rowid = "b".rowid`);
 
 		s = mssqlOnlyTables.t_log.leftJoin('more', '', 'more_id = more.id').where("id=1").update({message: "Message 1"});
 		assertEquals(s+'', `UPDATE "t_log" SET "message"='Message 1' FROM "t_log" AS "b" LEFT JOIN "more" ON ("b"."more_id" = "more"."id") WHERE ("b"."id"=1)`);
@@ -302,7 +427,7 @@ Deno.test
 		assertEquals(s+'', "UPDATE `t_log` AS `b` LEFT JOIN `more` ON (`b`.more_id = `more`.id) INNER JOIN `more2` AS `m2` ON (`more`.more2_id = `m2`.id) SET `b`.`message`='Message 1' WHERE (`b`.id=1)");
 
 		s = sqliteOnlyTables.t_log.leftJoin('more', '', 'more_id = more.id').join('more2', 'm2', 'more.more2_id = m2.id').where("id=1").update({message: "Message 1"});
-		assertEquals(s+'', `UPDATE "t_log" AS "s" SET "message"='Message 1' FROM "t_log" AS "b" LEFT JOIN "more" ON ("b"."more_id" = "more"."id") INNER JOIN "more2" AS "m2" ON ("more"."more2_id" = "m2"."id") WHERE ("b"."id"=1) AND "s".ROWID = "b".ROWID`);
+		assertEquals(s+'', `UPDATE "t_log" AS "s" SET "message"='Message 1' FROM "t_log" AS "b" LEFT JOIN "more" ON ("b"."more_id" = "more"."id") INNER JOIN "more2" AS "m2" ON ("more"."more2_id" = "m2"."id") WHERE ("b"."id"=1) AND "s".rowid = "b".rowid`);
 
 		s = mssqlOnlyTables.t_log.leftJoin('more', '', 'more_id = more.id').join('more2', 'm2', 'more.more2_id = m2.id').where("id=1").update({message: "Message 1"});
 		assertEquals(s+'', `UPDATE "t_log" SET "message"='Message 1' FROM "t_log" AS "b" LEFT JOIN "more" ON ("b"."more_id" = "more"."id") INNER JOIN "more2" AS "m2" ON ("more"."more2_id" = "m2"."id") WHERE ("b"."id"=1)`);
@@ -332,8 +457,8 @@ Deno.test
 		s = pgsqlTables.t_log.join('more', '', 'more_id = more.id').leftJoin('more2', 'm2', 'more.more2_id = m2.id').join('more3').where("id=1").update({message: "Message 1"});
 		assertEquals(s+'', `UPDATE "t_log" AS "b" SET "message"='Message 1' FROM "more" LEFT JOIN "more2" AS "m2" ON ("more".more2_id = "m2".id) CROSS JOIN "more3" WHERE ("b".id=1) AND ("b".more_id = "more".id)`);
 
-		s = sqliteTables.t_log.join('more', '', 'more_id = more.id').leftJoin('more2', '', 'more.more2_id = more2.id').join('more3', 'm3').join('more4', '', 'more3.more4_id = more4.id').where("id=1").update({message: "Message 1"});
-		assertEquals(s+'', `UPDATE "t_log" AS "b" SET "message"='Message 1' FROM "more" LEFT JOIN "more2" ON ("more"."more2_id" = "more2"."id") CROSS JOIN "more3" AS "m3" INNER JOIN "more4" ON ("more3"."more4_id" = "more4"."id") WHERE ("b"."id"=1) AND ("b"."more_id" = "more"."id")`);
+		s = sqliteTables.t_log.join('more', '', 'more_id = more.id').leftJoin('more2', '', 'more.more2_id = more2.id').join('more3', 'm3').join('more4', '', 'm3.more4_id = more4.id').where("id=1").update({message: "Message 1"});
+		assertEquals(s+'', `UPDATE "t_log" AS "b" SET "message"='Message 1' FROM "more" LEFT JOIN "more2" ON ("more"."more2_id" = "more2"."id") CROSS JOIN "more3" AS "m3" INNER JOIN "more4" ON ("m3"."more4_id" = "more4"."id") WHERE ("b"."id"=1) AND ("b"."more_id" = "more"."id")`);
 
 		s = mssqlTables.t_log.join('more', '', 'more_id = more.id').leftJoin('more2', 'm2', 'more.more2_id = m2.id').join('more3').where("id=1").update({message: "Message 1"});
 		assertEquals(s+'', `UPDATE "t_log" SET "message"='Message 1' FROM "t_log" AS "b" INNER JOIN "more" ON ("b"."more_id" = "more"."id") LEFT JOIN "more2" AS "m2" ON ("more"."more2_id" = "m2"."id") CROSS JOIN "more3" WHERE ("b"."id"=1)`);
@@ -427,7 +552,7 @@ Deno.test
 		assertEquals(s+'', `DELETE FROM "t_log" AS "b" USING "more" WHERE ("b".more_id = "more".id)`);
 
 		s = sqliteTables.t_log.join('more', 'm', 'more_id = m.id').where("id=1").delete();
-		assertEquals(s+'', `DELETE FROM "t_log" AS "s" WHERE ROWID IN (SELECT "b".ROWID FROM "t_log" AS "b" INNER JOIN "more" AS "m" ON ("b"."more_id" = "m"."id") WHERE ("b"."id"=1))`);
+		assertEquals(s+'', `DELETE FROM "t_log" AS "s" WHERE rowid IN (SELECT "b".rowid FROM "t_log" AS "b" INNER JOIN "more" AS "m" ON ("b"."more_id" = "m"."id") WHERE ("b"."id"=1))`);
 
 		s = mssqlTables.t_log.join('more', '', 'more_id = more.id').where("id=1").delete();
 		assertEquals(s+'', `DELETE "b" FROM "t_log" AS "b" INNER JOIN "more" ON ("b"."more_id" = "more"."id") WHERE ("b"."id"=1)`);
@@ -438,7 +563,7 @@ Deno.test
 		assertEquals(s+'', "DELETE `b` FROM `t_log` AS `b` LEFT JOIN `more` ON (`b`.more_id = `more`.id) WHERE (`b`.id=1)");
 
 		s = sqliteOnlyTables.t_log.leftJoin('more', 'm', 'more_id = m.id').where("id=1").delete();
-		assertEquals(s+'', `DELETE FROM "t_log" AS "s" WHERE ROWID IN (SELECT "b".ROWID FROM "t_log" AS "b" LEFT JOIN "more" AS "m" ON ("b"."more_id" = "m"."id") WHERE ("b"."id"=1))`);
+		assertEquals(s+'', `DELETE FROM "t_log" AS "s" WHERE rowid IN (SELECT "b".rowid FROM "t_log" AS "b" LEFT JOIN "more" AS "m" ON ("b"."more_id" = "m"."id") WHERE ("b"."id"=1))`);
 
 		// One LEFT JOIN and one INNER:
 
@@ -446,7 +571,7 @@ Deno.test
 		assertEquals(s+'', "DELETE `b` FROM `t_log` AS `b` LEFT JOIN `more` ON (`b`.more_id = `more`.id) INNER JOIN `more2` AS `m2` ON (`more`.more2_id = `m2`.id) WHERE (`b`.id=1)");
 
 		s = sqliteOnlyTables.t_log.leftJoin('more', '', 'more_id = more.id').join('more2', 'm2', 'more.more2_id = m2.id').where("id=1").delete();
-		assertEquals(s+'', `DELETE FROM "t_log" AS "s" WHERE ROWID IN (SELECT "b".ROWID FROM "t_log" AS "b" LEFT JOIN "more" ON ("b"."more_id" = "more"."id") INNER JOIN "more2" AS "m2" ON ("more"."more2_id" = "m2"."id") WHERE ("b"."id"=1))`);
+		assertEquals(s+'', `DELETE FROM "t_log" AS "s" WHERE rowid IN (SELECT "b".rowid FROM "t_log" AS "b" LEFT JOIN "more" ON ("b"."more_id" = "more"."id") INNER JOIN "more2" AS "m2" ON ("more"."more2_id" = "m2"."id") WHERE ("b"."id"=1))`);
 
 		s = mssqlOnlyTables.t_log.leftJoin('more', '', 'more_id = more.id').join('more2', 'm2', 'more.more2_id = m2.id').where("id=1").delete();
 		assertEquals(s+'', `DELETE "b" FROM "t_log" AS "b" LEFT JOIN "more" ON ("b"."more_id" = "more"."id") INNER JOIN "more2" AS "m2" ON ("more"."more2_id" = "m2"."id") WHERE ("b"."id"=1)`);

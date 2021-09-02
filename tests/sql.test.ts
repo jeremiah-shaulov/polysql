@@ -216,6 +216,8 @@ Deno.test
 		assertEquals(s+'', `SELECT (name \`AND\` Count(*))`);
 		s.sqlSettings = new SqlSettings(SqlMode.MYSQL, 'name', '');
 		assertEquals(s+'', `SELECT (name \`AND\` \`Count\`(*))`);
+		s.sqlSettings = new SqlSettings(SqlMode.MYSQL, 'name name name', '');
+		assertEquals(s+'', `SELECT (name \`AND\` \`Count\`(*))`);
 		s.sqlSettings = new SqlSettings(SqlMode.MYSQL, '!name');
 		assertEquals(s+'', `SELECT (\`name\` AND Count(*))`);
 

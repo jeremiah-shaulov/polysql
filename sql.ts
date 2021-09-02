@@ -92,12 +92,6 @@ const enum Change
 	QUOTE_IDENT,
 }
 
-const enum OnConflictDo
-{	NOTHING,
-	UPDATE,
-	FAIL,
-}
-
 export class Sql
 {	estimatedByteLength: number;
 
@@ -435,7 +429,8 @@ class Serializer
 				break;
 			}
 			default:
-			{	this.append_raw_string(s);
+			{	debug_assert(want == Want.NOTHING);
+				this.append_raw_string(s);
 			}
 		}
 	}

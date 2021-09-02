@@ -520,7 +520,7 @@ SqlTable.where(whereExpr: string|Sql): SqlTable
 
 Adds WHERE condition for SELECT, UPDATE and DELETE queries.
 
-You can call `sqlTable.select()`, `sqlTable.update()` or `sqlTable.delete()` only after calling `sqlTable.where()`, or an exception will be thrown.
+You can call `sqlTable.select()`, `sqlTable.update()` and `sqlTable.delete()` only after calling `sqlTable.where()`, or an exception will be thrown.
 To explicitly allow working on the whole table, call `sqlTable.where('')` (with empty condition).
 
 ### SqlTable.groupBy()
@@ -529,16 +529,18 @@ To explicitly allow working on the whole table, call `sqlTable.where('')` (with 
 SqlTable.groupBy(groupByExprs: string|string[]|Sql, havingExpr: string|Sql=''): SqlTable
 ```
 
-Adds GROUP BY expressions, and optionally HAVING expression to the SELECT query.
+Adds GROUP BY expressions, and optionally a HAVING expression to the SELECT query.
 
-If `groupByExprs` is a string or an `Sql` object, it will represent a safe SQL fragment.
+If `groupByExprs` is a string or an `Sql` object, it will represent a safe SQL fragment that contains comma-separated list of column expressions.
 
 If it's `string[]`, it will be treated as array of column names.
 
 ### SqlTable.select()
 
 ```ts
-SqlTable.select(columns: string|string[]|Sql='', orderBy: string|Sql='', offset=0, limit=0): Sql
+SqlTable.select(columns: string|string[]|Sql='', orderBy: OrderBy='', offset=0, limit=0): Sql
+
+type OrderBy = string | Sql | {columns: string[], desc?: boolean}
 ```
 
 Generates a SELECT query.
@@ -547,7 +549,9 @@ If `columns` parameter is a string or an `Sql` object, it will represent columns
 
 If it's `string[]`, it will be treated as array of column names.
 
-Empty string, Sql or array will cause selecting all columns.
+Empty string, Sql or array will represent `*`-wildcard (select all columns).
+
+OFFSET and LIMIT without ORDER BY are not supported on Microsoft SQL Server.
 
 ### SqlTable.update()
 
@@ -591,6 +595,6 @@ Generates "INSERT INTO (...) SELECT ..." query.
 ```ts
 import {mysqlTables as sqlTables} from 'https://deno.land/x/polysql/mod.ts';
 
-let s = sqlTables.t_log.insertFrom(['c1', 'c2'], sqlTables.t_log_bak.where('id<=100').select('c1, c2'));
+let s = sqlTables.t_log.insertFrom(['c1', 'c2'], sqlTables.t_log_bak.where('id<=100').select(['c1', 'c2']));
 console.log('' + s); // prints: INSERT INTO `t_log` (`c1`, `c2`) SELECT `c1`, `c2` FROM `t_log_bak` WHERE (`id`<=100)
 ```

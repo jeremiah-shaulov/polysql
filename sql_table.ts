@@ -10,6 +10,7 @@ import
 } from './sql_settings.ts';
 
 type Join = {table_name: string, alias: string, on_expr: string|Sql, is_left: boolean};
+export type OrderBy = string | Sql | {columns: string[], desc?: boolean};
 
 export const mysqlTables: Record<string, SqlTable> = new Proxy
 (	{},
@@ -237,10 +238,18 @@ export class SqlTable
 		return sql_table;
 	}
 
+	/**	Adds an INNER (if `onExpr` is given) or a CROSS join (if `onExpr` is blank).
+		This method can be called multiple times.
+		The method returns a new `SqlTable` object that has everything from the original object, plus the new join.
+	 **/
 	join(table_name: string, alias='', on_expr: string|Sql='')
 	{	return this.some_join(table_name, alias, on_expr, false);
 	}
 
+	/**	Adds a LEFT JOIN.
+		This method can be called multiple times.
+		The method returns a new `SqlTable` object that has everything from the original object, plus the new join.
+	 **/
 	leftJoin(table_name: string, alias: string, on_expr: string|Sql)
 	{	if (!on_expr)
 		{	throw new Error(`No condition in LEFT JOIN`);
@@ -248,6 +257,11 @@ export class SqlTable
 		return this.some_join(table_name, alias, on_expr, true);
 	}
 
+	/**	Adds WHERE condition for SELECT, UPDATE and DELETE queries.
+		The method returns a new `SqlTable` object that has everything from the original object, plus the new condition.
+		You can call `sqlTable.select()`, `sqlTable.update()` and `sqlTable.delete()` only after calling `sqlTable.where()`, or an exception will be thrown.
+		To explicitly allow working on the whole table, call `sqlTable.where('')` (with empty condition).
+	 **/
 	where(where_expr: string|Sql)
 	{	if (this.group_by_exprs != undefined)
 		{	throw new Error(`where() can be called before groupBy()`);
@@ -257,6 +271,10 @@ export class SqlTable
 		return sql_table;
 	}
 
+	/**	Adds GROUP BY expressions, and optionally a HAVING expression to the SELECT query.
+		If `groupByExprs` is a string or an `Sql` object, it will represent a safe SQL fragment that contains comma-separated list of column expressions.
+		If it's `string[]`, it will be treated as array of column names.
+	 **/
 	groupBy(group_by_exprs: string|string[]|Sql, having_expr: string|Sql='')
 	{	if (this.group_by_exprs != undefined)
 		{	throw new Error(`groupBy() can be called only once`);
@@ -267,7 +285,13 @@ export class SqlTable
 		return sql_table;
 	}
 
-	select(columns: string|string[]|Sql='', order_by: string|Sql='', offset=0, limit=0)
+	/**	Generates a SELECT query.
+		If `columns` parameter is a string or an `Sql` object, it will represent columns as a safe SQL fragment.
+		If it's `string[]`, it will be treated as array of column names.
+		Empty string, Sql or array will represent `*`-wildcard (select all columns).
+		OFFSET and LIMIT without ORDER BY are not supported on Microsoft SQL Server.
+	 **/
+	select(columns: string|string[]|Sql='', order_by: OrderBy='', offset=0, limit=0)
 	{	let base_table = this.get_base_table_alias();
 		let stmt = !columns ? mysql`SELECT * FROM` : Array.isArray(columns) ? mysql`SELECT "${base_table}.${columns}*" FROM` : mysql`SELECT ${base_table}.${columns} FROM`;
 		stmt = this.concat_joins(stmt, base_table);
@@ -283,19 +307,104 @@ export class SqlTable
 			{	stmt = stmt.concat(mysql` HAVING (${this.having_expr})`);
 			}
 		}
+		let has_order_by = false;
 		if (order_by)
-		{	stmt = stmt.concat(mysql` ORDER BY ${order_by}`);
+		{	if (typeof(order_by)=='string' || (order_by instanceof Sql))
+			{	stmt = stmt.concat(mysql` ORDER BY ${order_by}`);
+				has_order_by = true;
+			}
+			else
+			{	let {columns, desc} = order_by;
+				let n_columns = columns.length;
+				has_order_by = n_columns != 0;
+				if (has_order_by)
+				{	if (!desc)
+					{	stmt = stmt.concat(mysql` ORDER BY "${columns}+"`);
+					}
+					else
+					{	stmt = stmt.concat(mysql` ORDER BY "${columns[0]}" DESC`);
+						for (let i=1; i<n_columns; i++)
+						{	stmt = stmt.concat(mysql`, "${columns[i]}" DESC`);
+						}
+					}
+				}
+			}
 		}
 		if (limit > 0)
-		{	stmt = stmt.concat(mysql` LIMIT '${offset+1}', '${limit}'`);
+		{	switch (this.sqlSettings.mode)
+			{	case SqlMode.MYSQL:
+					if (!has_order_by)
+					{	throw new Error("SELECT with LIMIT but without ORDER BY is not supported across all engines. Please use mysqlOnly`...`");
+					}
+				case SqlMode.MYSQL_ONLY:
+					stmt = stmt.concat(offset>0 ? mysql` LIMIT '${limit}' OFFSET '${offset}'` : mysql` LIMIT '${limit}'`);
+					break;
+
+				case SqlMode.PGSQL:
+					if (!has_order_by)
+					{	throw new Error("SELECT with LIMIT but without ORDER BY is not supported across all engines. Please use pgsqlOnly`...`");
+					}
+				case SqlMode.PGSQL_ONLY:
+					stmt = stmt.concat(offset>0 ? mysql` LIMIT '${limit}' OFFSET '${offset}'` : mysql` LIMIT '${limit}'`);
+					break;
+
+				case SqlMode.SQLITE:
+					if (!has_order_by)
+					{	throw new Error("SELECT with LIMIT but without ORDER BY is not supported across all engines. Please use sqliteOnly`...`");
+					}
+				case SqlMode.SQLITE_ONLY:
+					stmt = stmt.concat(offset>0 ? mysql` LIMIT '${limit}' OFFSET '${offset}'` : mysql` LIMIT '${limit}'`);
+					break;
+
+				default:
+					debug_assert(this.sqlSettings.mode==SqlMode.MSSQL || this.sqlSettings.mode==SqlMode.MSSQL_ONLY);
+					if (!has_order_by)
+					{	throw new Error("SELECT with LIMIT but without ORDER BY is not supported on MS SQL");
+					}
+					stmt = stmt.concat(mysql` OFFSET '${offset}' ROWS FETCH FIRST '${limit}' ROWS ONLY`);
+			}
 		}
 		else if (offset > 0)
-		{	stmt = stmt.concat(mysql` LIMIT '${offset+1}', 2147483647`);
+		{	switch (this.sqlSettings.mode)
+			{	case SqlMode.MYSQL:
+					if (!has_order_by)
+					{	throw new Error("SELECT with OFFSET but without ORDER BY is not supported across all engines. Please use mysqlOnly`...`");
+					}
+				case SqlMode.MYSQL_ONLY:
+					stmt = stmt.concat(mysql` LIMIT 2147483647 OFFSET '${offset}'`);
+					break;
+
+				case SqlMode.PGSQL:
+					if (!has_order_by)
+					{	throw new Error("SELECT with OFFSET but without ORDER BY is not supported across all engines. Please use pgsqlOnly`...`");
+					}
+				case SqlMode.PGSQL_ONLY:
+					stmt = stmt.concat(mysql` OFFSET '${offset}'`);
+					break;
+
+				case SqlMode.SQLITE:
+					if (!has_order_by)
+					{	throw new Error("SELECT with OFFSET but without ORDER BY is not supported across all engines. Please use sqliteOnly`...`");
+					}
+				case SqlMode.SQLITE_ONLY:
+					stmt = stmt.concat(mysql` LIMIT 2147483647 OFFSET '${offset}'`);
+					break;
+
+				default:
+					debug_assert(this.sqlSettings.mode==SqlMode.MSSQL || this.sqlSettings.mode==SqlMode.MSSQL_ONLY);
+					if (!has_order_by)
+					{	throw new Error("SELECT with OFFSET but without ORDER BY is not supported on MS SQL");
+					}
+					stmt = stmt.concat(mysql` OFFSET '${offset}' ROWS`);
+			}
 		}
 		stmt.sqlSettings = this.sqlSettings;
 		return stmt;
 	}
 
+	/**	Generates an UPDATE query. You can update with joins, but if the first join is a LEFT JOIN, such query is not supported by PostgreSQL.
+		Columns of the base table (not joined) will be updated.
+	 **/
 	update(row: Record<string, any>)
 	{	if (this.group_by_exprs != undefined)
 		{	throw new Error(`Cannot UPDATE with GROUP BY`);
@@ -340,7 +449,7 @@ export class SqlTable
 						let orig_stmt = stmt;
 						stmt = this.concat_where_exprs(stmt, base_table);
 						let has_where = stmt != orig_stmt;
-						stmt = stmt.concat(has_where ? mysql` AND "${subj}".ROWID = "${base_table}".ROWID` : mysql` WHERE "${subj}".ROWID = "${base_table}".ROWID`);
+						stmt = stmt.concat(has_where ? mysql` AND "${subj}".rowid = "${base_table}".rowid` : mysql` WHERE "${subj}".rowid = "${base_table}".rowid`);
 						break;
 					}
 					// fallthrough
@@ -369,6 +478,9 @@ export class SqlTable
 		return stmt;
 	}
 
+	/**	Generates a DELETE query. You can delete with joins, but if the first join is a LEFT JOIN, such query is not supported by PostgreSQL.
+		Will delete from the base table (not joined).
+	 **/
 	delete()
 	{	if (this.group_by_exprs != undefined)
 		{	throw new Error(`Cannot DELETE with GROUP BY`);
@@ -419,7 +531,7 @@ export class SqlTable
 				default:
 				{	debug_assert(mode==SqlMode.SQLITE || mode==SqlMode.SQLITE_ONLY);
 					let subj = this.get_subj_table_alias();
-					stmt = mysql`DELETE FROM "${this.table_name}" AS "${subj}" WHERE ROWID IN (SELECT "${base_table}".ROWID FROM`;
+					stmt = mysql`DELETE FROM "${this.table_name}" AS "${subj}" WHERE rowid IN (SELECT "${base_table}".rowid FROM`;
 					stmt = this.concat_joins(stmt, base_table);
 					stmt = this.concat_where_exprs(stmt, base_table);
 					stmt = stmt.concat(mysql`)`);
@@ -430,6 +542,12 @@ export class SqlTable
 		return stmt;
 	}
 
+	/**	Generates an INSERT query.
+		- `onConflictDo=='nothing'` is only supported for MySQL, PostgreSQL and SQLite. Ignores (doesn't insert) conflicting rows (if unique constraint fails).
+		- `onConflictDo=='replace'` is only supported for MySQL and SQLite.
+		- `onConflictDo=='update'` is only supported for MySQL. If duplicate key, updates the existing record with the new values.
+		- `onConflictDo=='patch'` is only supported for MySQL If duplicate key, updates **empty** (null, 0 or '') columns of the existing record with the new values.
+	 **/
 	insert(rows: Iterable<Record<string, any>>, on_conflict_do: ''|'nothing'|'replace'|'update'|'patch' = '')
 	{	if (this.joins.length)
 		{	throw new Error(`Cannot INSERT with JOIN`);
@@ -540,6 +658,13 @@ export class SqlTable
 		return stmt;
 	}
 
+	/**	Generates "INSERT INTO (...) SELECT ..." query.
+
+		import {mysqlTables as sqlTables} from 'https://deno.land/x/polysql/mod.ts';
+
+		let s = sqlTables.t_log.insertFrom(['c1', 'c2'], sqlTables.t_log_bak.where('id<=100').select(['c1', 'c2']));
+		console.log('' + s); // prints: INSERT INTO `t_log` (`c1`, `c2`) SELECT `c1`, `c2` FROM `t_log_bak` WHERE (`id`<=100)
+	 **/
 	insertFrom(names: string[], select: Sql, on_conflict_do: ''|'nothing'|'replace' = '')
 	{	if (this.joins.length)
 		{	throw new Error(`Cannot INSERT with JOIN`);
