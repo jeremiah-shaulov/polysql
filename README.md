@@ -622,3 +622,11 @@ import {mysqlTables as sqlTables} from 'https://deno.land/x/polysql/mod.ts';
 let s = sqlTables.t_log.insertFrom(['c1', 'c2'], sqlTables.t_log_bak.where('id<=100').select(['c1', 'c2']));
 console.log('' + s); // prints: INSERT INTO `t_log` (`c1`, `c2`) SELECT `c1`, `c2` FROM `t_log_bak` WHERE (`id`<=100)
 ```
+
+### SqlTable.truncate()
+
+```ts
+SqlTable.truncate(): Sql
+```
+
+Generates TRUNCATE TABLE query where supported (all but SQLite), and for others generates "DELETE FROM".
