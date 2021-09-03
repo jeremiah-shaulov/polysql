@@ -1,13 +1,13 @@
 # polysql
 
 This library assists developers to generate SQL queries for MySQL, PostgreSQL, SQLite and Microsoft SQL Server.
-It's designed for those who interested in utilizing the true power of relational databases (not a "non-SQL" SQL).
+It's designed for those who's interested in utilizing the true power of relational databases (not a "no-SQL" SQL).
 It tries to make queries safe, and migration to different database engine easier.
 
 This library can:
 
 - Quote SQL literals (string, blob, date, ...)
-- Form certain parts in an SQL query, like names-values in INSERT, in UPDATE, to generate "WHERE" expressions, etc.
+- Form certain parts in an SQL query, like names-values in INSERT, to generate "WHERE" expressions, etc.
 - Generate SELECT, INSERT, UPDATE and DELETE queries from parts
 
 ## Quote SQL literals
@@ -348,7 +348,50 @@ Sql.toString(putParamsTo?: any[], mysqlNoBackslashEscapes=false): string
 Sql.encode(putParamsTo?: any[], mysqlNoBackslashEscapes=false, useBuffer?: Uint8Array, useBufferFromPos=0): Uint8Array
 ```
 
-Also they have public property called `sqlSettings`, that contains the chosen SQL dialect (SqlMode) and quoting policy, that allows to whitelist identifiers in SQL fragments.
+Also they have public property called `sqlSettings`, that contains the chosen SQL dialect and quoting policy, that allows to whitelist identifiers in SQL fragments.
+
+### Sql.encode() function
+
+```ts
+Sql.encode(putParamsTo?: any[], mysqlNoBackslashEscapes=false, useBuffer?: Uint8Array, useBufferFromPos=0): Uint8Array
+```
+This function converts the SQL query to `Uint8Array`, that you probably need to pass to your SQL driver.
+
+You can pass an array to the `putParamsTo` parameter, so long strings and long typed arrays, and `Deno.Reader` objects, that appear in quoted `'${value}'` parameters, will be put to this array,
+and their SQL representation will be produced as `?` character.
+
+```ts
+import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
+
+let message = 'a'.repeat(100);
+let params: any[] = [];
+console.log(sql`SELECT '${message}'`.toString(params)); // prints: SELECT ?
+console.log(params); // prints: ['aaa...']
+```
+
+If `putParamsTo` is not provided, `Deno.Reader` objects will be rejected with exception.
+
+The `mysqlNoBackslashEscapes` parameter is only respected when using MySQL dialect.
+If it's true, backslashes in SQL string literals will be assumed not to have special meaning, so `` mysql`'${value}'` `` will not double backslashes.
+It's important to provide the correct value to this parameter.
+Remember that the value of this parameter can change during server session, if user executes a query like `SET sql_mode='no_backslash_escapes'`.
+
+If `useBuffer` parameter is provided, and there's enough space in this buffer, this buffer will be used and a `useBuffer.subarray()` of it will be returned from `sql.encode()`.
+If it's not big enough, a new buffer will be allocated, as usual.
+
+If `useBufferFromPos` parameter is provided together with the `useBuffer`, so the produced query will be appended after that position in the buffer, and the contents of `useBuffer` before this position will be the part of returned query (even if a new buffer was used).
+
+### Sql.toString() function
+
+```ts
+Sql.toString(putParamsTo?: any[], mysqlNoBackslashEscapes=false): string
+```
+
+It calls `Sql.encode()`, and then converts the result to string.
+
+### Sql.sqlSettings
+
+This public property of `Sql` object contains the chosen SQL dialect (SqlMode) and quoting policy, that allows to whitelist identifiers in SQL fragments.
 
 ```ts
 Sql.sqlSettings: SqlSettings
@@ -405,44 +448,25 @@ console.log('Identifiers: ', settings.idents);
 console.log('Functions: ', settings.functions);
 ```
 
-### Sql.encode() function
+Please note, that quoting policy is only applied to safe SQL fragments that you embed using `` sql`(${expr})` `` or `` sql`${expr}` ``.
+
+If you want to use custom policy all the time, you can write your own version of `sql()` function:
 
 ```ts
-Sql.encode(putParamsTo?: any[], mysqlNoBackslashEscapes=false, useBuffer?: Uint8Array, useBufferFromPos=0): Uint8Array
-```
-This function converts the SQL query to `Uint8Array`, that you probably need to pass to your SQL driver.
+import {Sql, SqlSettings, SqlMode} from './mod.ts';
 
-You can pass an array to the `putParamsTo` parameter, so long strings and long typed arrays, and `Deno.Reader` objects, that appear in quoted `'${value}'` parameters, will be put to this array,
-and their SQL representation will be produced as `?` character.
+const SQL_SETTINGS_MYSQL = new SqlSettings(SqlMode.MYSQL, '!bad forbidden', 'calc_stats');
 
-```ts
-import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
+function sql(strings: TemplateStringsArray, ...params: any[])
+{	return new Sql(strings, params, SQL_SETTINGS_MYSQL);
+}
 
-let message = 'a'.repeat(100);
-let params: any[] = [];
-console.log(sql`SELECT '${message}'`.toString(params)); // prints: SELECT ?
-console.log(params); // prints: ['aaa...']
+let expr = "calc_stats(bad, good)";
+let s = sql`CALL ${expr}`;
+console.log('' + s);
 ```
 
-If `putParamsTo` is not provided, `Deno.Reader` objects will be rejected with exception.
-
-The `mysqlNoBackslashEscapes` parameter is only respected when using MySQL dialect.
-If it's true, backslashes in SQL string literals will be assumed not to have special meaning, so `` mysql`'${value}'` `` will not double backslashes.
-It's important to provide the correct value to this parameter.
-Remember that the value of this parameter can change during server session, if user executes a query like `SET sql_mode='no_backslash_escapes'`.
-
-If `useBuffer` parameter is provided, and there's enough space in this buffer, this buffer will be used and a `useBuffer.subarray()` of it will be returned from `sql.encode()`.
-If it's not big enough, a new buffer will be allocated, as usual.
-
-If `useBufferFromPos` parameter is provided together with the `useBuffer`, so the produced query will be appended after that position in the buffer, and the contents of `useBuffer` before this position will be the part of returned query (even if a new buffer was used).
-
-### Sql.toString() function
-
-```ts
-Sql.toString(putParamsTo?: any[], mysqlNoBackslashEscapes=false): string
-```
-
-It calls `Sql.encode()`, and then converts the result to string.
+It's good idea to create `SqlSettings` object once, and reuse it, because creating new instance takes time (it builds index of words).
 
 ## Generate SELECT, INSERT, UPDATE and DELETE queries from parts
 
@@ -549,7 +573,7 @@ If `columns` parameter is a string or an `Sql` object, it will represent columns
 
 If it's `string[]`, it will be treated as array of column names.
 
-Empty string, Sql or array will represent `*`-wildcard (select all columns).
+Empty string or array will represent `*`-wildcard (select all columns).
 
 OFFSET and LIMIT without ORDER BY are not supported on Microsoft SQL Server.
 

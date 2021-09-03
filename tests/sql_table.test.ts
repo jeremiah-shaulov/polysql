@@ -997,3 +997,50 @@ Deno.test
 
 	}
 );
+
+Deno.test
+(	'Test sqlTables.truncate()',
+	async () =>
+	{	let s = mysqlTables.t_log.truncate();
+		assertEquals(s+'', "TRUNCATE TABLE `t_log`");
+
+		s = s = pgsqlTables.t_log.truncate();
+		assertEquals(s+'', `TRUNCATE TABLE "t_log"`);
+
+		s = s = mssqlTables.t_log.truncate();
+		assertEquals(s+'', `TRUNCATE TABLE "t_log"`);
+
+		s = s = sqliteTables.t_log.truncate();
+		assertEquals(s+'', `DELETE FROM "t_log"`);
+
+		s = s = sqliteOnlyTables.t_log.truncate();
+		assertEquals(s+'', `DELETE FROM "t_log"`);
+
+		let error;
+		try
+		{	'' + mysqlTables.t_log.join('more').truncate();
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, "Cannot TRUNCATE with JOIN");
+
+		error = undefined;
+		try
+		{	'' + mysqlTables.t_log.where("id=1").truncate();
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, "Cannot TRUNCATE with WHERE");
+
+		error = undefined;
+		try
+		{	'' + mysqlTables.t_log.groupBy('').truncate();
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, "Cannot TRUNCATE with GROUP BY");
+	}
+);

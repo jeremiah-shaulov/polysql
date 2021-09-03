@@ -288,7 +288,7 @@ export class SqlTable
 	/**	Generates a SELECT query.
 		If `columns` parameter is a string or an `Sql` object, it will represent columns as a safe SQL fragment.
 		If it's `string[]`, it will be treated as array of column names.
-		Empty string, Sql or array will represent `*`-wildcard (select all columns).
+		Empty string or array will represent `*`-wildcard (select all columns).
 		OFFSET and LIMIT without ORDER BY are not supported on Microsoft SQL Server.
 	 **/
 	select(columns: string|string[]|Sql='', order_by: OrderBy='', offset=0, limit=0)
@@ -729,6 +729,35 @@ export class SqlTable
 					debug_assert(this.sqlSettings.mode == SqlMode.SQLITE_ONLY);
 					stmt = mysql`REPLACE INTO "${this.table_name}" ("${names}+") `.concat(select);
 			}
+		}
+		stmt.sqlSettings = this.sqlSettings;
+		return stmt;
+	}
+
+	truncate()
+	{	if (this.joins.length)
+		{	throw new Error(`Cannot TRUNCATE with JOIN`);
+		}
+		if (this.where_exprs.length)
+		{	throw new Error(`Cannot TRUNCATE with WHERE`);
+		}
+		if (this.group_by_exprs != undefined)
+		{	throw new Error(`Cannot TRUNCATE with GROUP BY`);
+		}
+		let stmt;
+		switch (this.sqlSettings.mode)
+		{	case SqlMode.MYSQL:
+			case SqlMode.MYSQL_ONLY:
+			case SqlMode.PGSQL:
+			case SqlMode.PGSQL_ONLY:
+			case SqlMode.MSSQL:
+			case SqlMode.MSSQL_ONLY:
+				stmt = mysql`TRUNCATE TABLE "${this.table_name}"`;
+				break;
+
+			default:
+				debug_assert(this.sqlSettings.mode == SqlMode.SQLITE || this.sqlSettings.mode == SqlMode.SQLITE_ONLY);
+				stmt = mysql`DELETE FROM "${this.table_name}"`;
 		}
 		stmt.sqlSettings = this.sqlSettings;
 		return stmt;
