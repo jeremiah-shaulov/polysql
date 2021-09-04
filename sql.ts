@@ -95,7 +95,7 @@ const enum Change
 export class Sql
 {	estimatedByteLength: number;
 
-	constructor(private strings: TemplateStringsArray|string[], private params: any[], public sqlSettings: SqlSettings=DEFAULT_SETTINGS_MYSQL)
+	constructor(private strings: string[], private params: any[], public sqlSettings: SqlSettings=DEFAULT_SETTINGS_MYSQL)
 	{	let len = 0;
 		for (let s of strings)
 		{	len += s.length + GUESS_STRING_BYTE_LEN_LONGER; // if byte length of s is longer than s.length+GUESS_STRING_BYTE_LEN_LONGER, will realloc later
@@ -158,13 +158,27 @@ export class Sql
 		for (let i=1, i_end=other.strings.length, j=strings.length; i<i_end; i++, j++)
 		{	strings[j] = other.strings[i];
 		}
-		let sql = new Sql([], []);
+		let sql: Sql = new (this.constructor as any)([], []);
 		sql.strings = strings;
 		sql.params = this.params.concat(other.params);
 		sql.sqlSettings = this.sqlSettings;
 		sql.estimatedByteLength = this.estimatedByteLength + other.estimatedByteLength - GUESS_STRING_BYTE_LEN_LONGER;
 		debug_assert(sql.estimatedByteLength >= GUESS_STRING_BYTE_LEN_LONGER);
 		return sql;
+	}
+
+	append(other: Sql)
+	{	let {strings, params} = this;
+		strings[strings.length-1] += other.strings[0];
+		for (let i=1, i_end=other.strings.length, j=strings.length; i<i_end; i++, j++)
+		{	strings[j] = other.strings[i];
+		}
+		for (let i=0, i_end=other.params.length, j=params.length; i<i_end; i++, j++)
+		{	params[j] = other.params[i];
+		}
+		this.estimatedByteLength += other.estimatedByteLength - GUESS_STRING_BYTE_LEN_LONGER;
+		debug_assert(this.estimatedByteLength >= GUESS_STRING_BYTE_LEN_LONGER);
+		return this;
 	}
 
 	/**	If `useBuffer` is provided, and it has enough size, will encode to it, and return a `useBuffer.subarray(0, N)`.
@@ -282,35 +296,35 @@ export class Sql
 }
 
 export function mysql(strings: TemplateStringsArray, ...params: any[])
-{	return new Sql(strings, params, DEFAULT_SETTINGS_MYSQL);
+{	return new Sql([...strings], params, DEFAULT_SETTINGS_MYSQL);
 }
 
 export function pgsql(strings: TemplateStringsArray, ...params: any[])
-{	return new Sql(strings, params, DEFAULT_SETTINGS_PGSQL);
+{	return new Sql([...strings], params, DEFAULT_SETTINGS_PGSQL);
 }
 
 export function sqlite(strings: TemplateStringsArray, ...params: any[])
-{	return new Sql(strings, params, DEFAULT_SETTINGS_SQLITE);
+{	return new Sql([...strings], params, DEFAULT_SETTINGS_SQLITE);
 }
 
 export function mssql(strings: TemplateStringsArray, ...params: any[])
-{	return new Sql(strings, params, DEFAULT_SETTINGS_MSSQL);
+{	return new Sql([...strings], params, DEFAULT_SETTINGS_MSSQL);
 }
 
 export function mysqlOnly(strings: TemplateStringsArray, ...params: any[])
-{	return new Sql(strings, params, DEFAULT_SETTINGS_MYSQL_ONLY);
+{	return new Sql([...strings], params, DEFAULT_SETTINGS_MYSQL_ONLY);
 }
 
 export function pgsqlOnly(strings: TemplateStringsArray, ...params: any[])
-{	return new Sql(strings, params, DEFAULT_SETTINGS_PGSQL_ONLY);
+{	return new Sql([...strings], params, DEFAULT_SETTINGS_PGSQL_ONLY);
 }
 
 export function sqliteOnly(strings: TemplateStringsArray, ...params: any[])
-{	return new Sql(strings, params, DEFAULT_SETTINGS_SQLITE_ONLY);
+{	return new Sql([...strings], params, DEFAULT_SETTINGS_SQLITE_ONLY);
 }
 
 export function mssqlOnly(strings: TemplateStringsArray, ...params: any[])
-{	return new Sql(strings, params, DEFAULT_SETTINGS_MSSQL_ONLY);
+{	return new Sql([...strings], params, DEFAULT_SETTINGS_MSSQL_ONLY);
 }
 
 class Serializer

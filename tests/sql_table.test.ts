@@ -8,7 +8,7 @@ import
 import {assert, assertEquals} from "https://deno.land/std@0.106.0/testing/asserts.ts";
 
 Deno.test
-(	'Table name must be a string',
+(	'Table name must be string',
 	async () =>
 	{	let error;
 		try
@@ -17,7 +17,7 @@ Deno.test
 		catch (e)
 		{	error = e;
 		}
-		assertEquals(error?.message, "Table name must be a string");
+		assertEquals(error?.message, "Table name must be string");
 
 		error = undefined;
 		try
@@ -26,7 +26,7 @@ Deno.test
 		catch (e)
 		{	error = e;
 		}
-		assertEquals(error?.message, "Table name must be a string");
+		assertEquals(error?.message, "Table name must be string");
 
 		error = undefined;
 		try
@@ -35,7 +35,7 @@ Deno.test
 		catch (e)
 		{	error = e;
 		}
-		assertEquals(error?.message, "Table name must be a string");
+		assertEquals(error?.message, "Table name must be string");
 
 		error = undefined;
 		try
@@ -44,7 +44,7 @@ Deno.test
 		catch (e)
 		{	error = e;
 		}
-		assertEquals(error?.message, "Table name must be a string");
+		assertEquals(error?.message, "Table name must be string");
 
 		error = undefined;
 		try
@@ -53,7 +53,7 @@ Deno.test
 		catch (e)
 		{	error = e;
 		}
-		assertEquals(error?.message, "Table name must be a string");
+		assertEquals(error?.message, "Table name must be string");
 
 		error = undefined;
 		try
@@ -62,7 +62,7 @@ Deno.test
 		catch (e)
 		{	error = e;
 		}
-		assertEquals(error?.message, "Table name must be a string");
+		assertEquals(error?.message, "Table name must be string");
 
 		error = undefined;
 		try
@@ -71,7 +71,7 @@ Deno.test
 		catch (e)
 		{	error = e;
 		}
-		assertEquals(error?.message, "Table name must be a string");
+		assertEquals(error?.message, "Table name must be string");
 
 		error = undefined;
 		try
@@ -80,7 +80,7 @@ Deno.test
 		catch (e)
 		{	error = e;
 		}
-		assertEquals(error?.message, "Table name must be a string");
+		assertEquals(error?.message, "Table name must be string");
 	}
 );
 

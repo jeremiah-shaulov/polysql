@@ -8,7 +8,7 @@ This library can:
 
 - Quote SQL literals (string, blob, date, ...)
 - Form certain parts in an SQL query, like names-values in INSERT, to generate "WHERE" expressions, etc.
-- Generate SELECT, INSERT, UPDATE and DELETE queries from parts
+- Generate SELECT, INSERT, UPDATE, DELETE and TRUNCATE queries from parts
 
 ## Quote SQL literals
 
@@ -318,7 +318,7 @@ In [3b], [5], [6], [7], [8], [9] and [10] the parent qualifier name can be taken
 
 ## About `Sql` object
 
-The `sql` template function returns object of `Sql` class.
+`sql` template function returns object of `Sql` class.
 
 ```ts
 import {mysql as sql, Sql} from 'https://deno.land/x/polysql/mod.ts';
@@ -326,31 +326,35 @@ import {mysql as sql, Sql} from 'https://deno.land/x/polysql/mod.ts';
 let s: Sql = sql`SELECT 2*2`;
 ```
 
-The `Sql` objects can be concatenated:
+### Sql.append() and Sql.concat()
+
+`Sql` objects can be appended to and concatenated:
+
+```ts
+Sql.append(other: Sql): this
+Sql.concat(other: Sql): Sql
+```
+
+`append()` modifies current object, and `concat()` returns a new one.
 
 ```ts
 import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
 
 const id = 10;
-let s = sql`SELECT * FROM articles WHERE id='${id}'`;
+const s = sql`SELECT * FROM articles WHERE id='${id}'`;
 
 const where = `name <> ''`;
-s = s.concat(sql` AND (${where})`);
 
-console.log('' + s); // prints: SELECT * FROM articles WHERE id=10 AND (`name` <> '')
+const s2 = s.concat(sql` AND (${where})`); // concat() returns a new object
+console.log('' + s2); // prints: SELECT * FROM articles WHERE id=10 AND (`name` <> '')
+
+s.append(sql` AND (${where})`); // append() modifies current object
+console.log('' + s); // prints the same
 ```
 
-Also the `Sql` objects can be stringified, or converted to bytes.
+### Sql.encode()
 
-```ts
-Sql.toString(putParamsTo?: any[], mysqlNoBackslashEscapes=false): string
-
-Sql.encode(putParamsTo?: any[], mysqlNoBackslashEscapes=false, useBuffer?: Uint8Array, useBufferFromPos=0): Uint8Array
-```
-
-Also they have public property called `sqlSettings`, that contains the chosen SQL dialect and quoting policy, that allows to whitelist identifiers in SQL fragments.
-
-### Sql.encode() function
+Also `Sql` objects can be converted to bytes.
 
 ```ts
 Sql.encode(putParamsTo?: any[], mysqlNoBackslashEscapes=false, useBuffer?: Uint8Array, useBufferFromPos=0): Uint8Array
@@ -381,13 +385,15 @@ If it's not big enough, a new buffer will be allocated, as usual.
 
 If `useBufferFromPos` parameter is provided together with the `useBuffer`, so the produced query will be appended after that position in the buffer, and the contents of `useBuffer` before this position will be the part of returned query (even if a new buffer was used).
 
-### Sql.toString() function
+### Sql.toString()
+
+`Sql` objects can be stringified.
 
 ```ts
 Sql.toString(putParamsTo?: any[], mysqlNoBackslashEscapes=false): string
 ```
 
-It calls `Sql.encode()`, and then converts the result to string.
+This function calls `Sql.encode()`, and then converts the result to string.
 
 ### Sql.sqlSettings
 
@@ -397,12 +403,12 @@ This public property of `Sql` object contains the chosen SQL dialect (SqlMode) a
 Sql.sqlSettings: SqlSettings
 ```
 
-If you create the `Sql` object using `mysql` template function, it's `sqlSettings.mode` will be `SqlMode.MYSQL`, for `pgsql` it will be `SqlMode.PGSQL`, etc.
+If you create the `Sql` object using `mysql` template function, it's `sqlSettings.mode` will be set to `SqlMode.MYSQL`, for `pgsql` it will be `SqlMode.PGSQL`, etc.
 
 If you assign a different `SqlSettings` object before calling `toString()` or `encode()`, that different SQL dialect and policy will be used.
 
 The quoting policy has either a whitelist or a blacklist of allowed identifiers, that can remain unquoted.
-There're 2 separate lists for functions (any identifier that is followed by a parenthesis is considered a function name), and for other identifiers.
+There're 2 separate lists for functions (any identifier that is followed by a parenthesis is considered to be a function name), and for other identifiers.
 
 ```ts
 import {mysql as sql, SqlSettings, SqlMode} from 'https://deno.land/x/polysql/mod.ts';
@@ -450,25 +456,37 @@ console.log('Functions: ', settings.functions);
 
 Please note, that quoting policy is only applied to safe SQL fragments that you embed using `` sql`(${expr})` `` or `` sql`${expr}` ``.
 
-If you want to use custom policy all the time, you can write your own version of `sql()` function:
+If you want to use custom policy all the time, you can write your own version of `sql()` function, and of `sqlTables`:
 
 ```ts
-import {Sql, SqlSettings, SqlMode} from './mod.ts';
+import {Sql, SqlSettings, SqlMode, SqlTable} from 'https://deno.land/x/polysql/mod.ts';
 
 const SQL_SETTINGS_MYSQL = new SqlSettings(SqlMode.MYSQL, '!bad forbidden', 'calc_stats');
 
 function sql(strings: TemplateStringsArray, ...params: any[])
-{	return new Sql(strings, params, SQL_SETTINGS_MYSQL);
+{	return new Sql([...strings], params, SQL_SETTINGS_MYSQL);
 }
+
+const sqlTables: Record<string, SqlTable> = new Proxy
+(	{},
+	{	get(target, table_name)
+		{	if (typeof(table_name) != 'string')
+			{	throw new Error("Table name must be string");
+			}
+			return new SqlTable(SQL_SETTINGS_MYSQL, table_name);
+		}
+	}
+);
 
 let expr = "calc_stats(bad, good)";
 let s = sql`CALL ${expr}`;
-console.log('' + s);
+console.log('' + s); // prints: CALL calc_stats(`bad`, good)
+console.log('' + sqlTables.messages.where('bad=0 AND good=1').select()); // prints SELECT * FROM `messages` WHERE (`bad`=0 AND good=1)
 ```
 
-It's good idea to create `SqlSettings` object once, and reuse it, because creating new instance takes time (it builds index of words).
+It's good idea to create `SqlSettings` object once, and reuse it, because creating new instance takes time (it builds words index).
 
-## Generate SELECT, INSERT, UPDATE and DELETE queries from parts
+## Generate SELECT, INSERT, UPDATE, DELETE and TRUNCATE queries from parts
 
 This library provides the following constant objects:
 
@@ -507,8 +525,9 @@ The `SqlTable` class has the following methods:
 - delete(): Sql
 - insert(): Sql
 - insertFrom(): Sql
+- truncate(): Sql
 
-The 5 latter methods return `Sql` objects, with the final query.
+The 6 latter methods return `Sql` objects, with the final query.
 
 ### SqlTable.join()
 

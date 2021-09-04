@@ -707,11 +707,16 @@ Deno.test
 );
 
 Deno.test
-(	'Sql.concat()',
+(	'Sql.concat(), Sql.append()',
 	async () =>
 	{	let s = mysql`A, '${'B'}', C`;
-		s = s.concat(mysql`, '${'D'}'`).concat(mysql`.`).concat(mysql``);
-		assertEquals(s+'', `A, 'B', C, 'D'.`);
+		let s2 = s.concat(mysql`, '${'D'}'`).concat(mysql`.`).concat(mysql``);
+		assertEquals(s2+'', `A, 'B', C, 'D'.`);
+		assert(s != s2);
+
+		s2 = s.append(mysql`, '${'D'}'`).append(mysql`.`).append(mysql``);
+		assertEquals(s2+'', `A, 'B', C, 'D'.`);
+		assertEquals(s, s2);
 	}
 );
 

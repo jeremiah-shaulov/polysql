@@ -16,7 +16,7 @@ export const mysqlTables: Record<string, SqlTable> = new Proxy
 (	{},
 	{	get(target, table_name)
 		{	if (typeof(table_name) != 'string')
-			{	throw new Error("Table name must be a string");
+			{	throw new Error("Table name must be string");
 			}
 			return new SqlTable(DEFAULT_SETTINGS_MYSQL, table_name);
 		}
@@ -27,7 +27,7 @@ export const mysqlOnlyTables: Record<string, SqlTable> = new Proxy
 (	{},
 	{	get(target, table_name)
 		{	if (typeof(table_name) != 'string')
-			{	throw new Error("Table name must be a string");
+			{	throw new Error("Table name must be string");
 			}
 			return new SqlTable(DEFAULT_SETTINGS_MYSQL_ONLY, table_name);
 		}
@@ -38,7 +38,7 @@ export const pgsqlTables: Record<string, SqlTable> = new Proxy
 (	{},
 	{	get(target, table_name)
 		{	if (typeof(table_name) != 'string')
-			{	throw new Error("Table name must be a string");
+			{	throw new Error("Table name must be string");
 			}
 			return new SqlTable(DEFAULT_SETTINGS_PGSQL, table_name);
 		}
@@ -49,7 +49,7 @@ export const pgsqlOnlyTables: Record<string, SqlTable> = new Proxy
 (	{},
 	{	get(target, table_name)
 		{	if (typeof(table_name) != 'string')
-			{	throw new Error("Table name must be a string");
+			{	throw new Error("Table name must be string");
 			}
 			return new SqlTable(DEFAULT_SETTINGS_PGSQL_ONLY, table_name);
 		}
@@ -60,7 +60,7 @@ export const sqliteTables: Record<string, SqlTable> = new Proxy
 (	{},
 	{	get(target, table_name)
 		{	if (typeof(table_name) != 'string')
-			{	throw new Error("Table name must be a string");
+			{	throw new Error("Table name must be string");
 			}
 			return new SqlTable(DEFAULT_SETTINGS_SQLITE, table_name);
 		}
@@ -71,7 +71,7 @@ export const sqliteOnlyTables: Record<string, SqlTable> = new Proxy
 (	{},
 	{	get(target, table_name)
 		{	if (typeof(table_name) != 'string')
-			{	throw new Error("Table name must be a string");
+			{	throw new Error("Table name must be string");
 			}
 			return new SqlTable(DEFAULT_SETTINGS_SQLITE_ONLY, table_name);
 		}
@@ -82,7 +82,7 @@ export const mssqlTables: Record<string, SqlTable> = new Proxy
 (	{},
 	{	get(target, table_name)
 		{	if (typeof(table_name) != 'string')
-			{	throw new Error("Table name must be a string");
+			{	throw new Error("Table name must be string");
 			}
 			return new SqlTable(DEFAULT_SETTINGS_MSSQL, table_name);
 		}
@@ -93,7 +93,7 @@ export const mssqlOnlyTables: Record<string, SqlTable> = new Proxy
 (	{},
 	{	get(target, table_name)
 		{	if (typeof(table_name) != 'string')
-			{	throw new Error("Table name must be a string");
+			{	throw new Error("Table name must be string");
 			}
 			return new SqlTable(DEFAULT_SETTINGS_MSSQL_ONLY, table_name);
 		}
@@ -154,58 +154,55 @@ export class SqlTable
 		}
 	}
 
-	private concat_joins(stmt: Sql, base_table: string)
+	private append_joins(stmt: Sql, base_table: string)
 	{	if (this.joins.length == 0)
-		{	return stmt.concat(mysql` "${this.table_name}"`);
+		{	stmt.append(mysql` "${this.table_name}"`);
 		}
-		stmt = stmt.concat(mysql` "${this.table_name}" AS "${base_table}"`);
-		for (let {table_name, alias, on_expr, is_left} of this.joins)
-		{	let join;
-			if (!on_expr)
-			{	join = !alias ? mysql` CROSS JOIN "${table_name}"` : mysql` CROSS JOIN "${table_name}" AS "${alias}"`;
+		else
+		{	stmt.append(mysql` "${this.table_name}" AS "${base_table}"`);
+			for (let {table_name, alias, on_expr, is_left} of this.joins)
+			{	if (!on_expr)
+				{	stmt.append(!alias ? mysql` CROSS JOIN "${table_name}"` : mysql` CROSS JOIN "${table_name}" AS "${alias}"`);
+				}
+				else if (!is_left)
+				{	stmt.append(!alias ? mysql` INNER JOIN "${table_name}" ON (${base_table}.${on_expr})` : mysql` INNER JOIN "${table_name}" AS "${alias}" ON (${base_table}.${on_expr})`);
+				}
+				else
+				{	stmt.append(!alias ? mysql` LEFT JOIN "${table_name}" ON (${base_table}.${on_expr})` : mysql` LEFT JOIN "${table_name}" AS "${alias}" ON (${base_table}.${on_expr})`);
+				}
 			}
-			else if (!is_left)
-			{	join = !alias ? mysql` INNER JOIN "${table_name}" ON (${base_table}.${on_expr})` : mysql` INNER JOIN "${table_name}" AS "${alias}" ON (${base_table}.${on_expr})`;
-			}
-			else
-			{	join = !alias ? mysql` LEFT JOIN "${table_name}" ON (${base_table}.${on_expr})` : mysql` LEFT JOIN "${table_name}" AS "${alias}" ON (${base_table}.${on_expr})`;
-			}
-			stmt = stmt.concat(join);
 		}
-		return stmt;
 	}
 
-	private concat_joins_except_first(stmt: Sql, base_table: string)
+	private append_joins_except_first(stmt: Sql, base_table: string)
 	{	let {table_name, alias} = this.joins[0];
-		stmt = !alias ? stmt.concat(mysql` "${table_name}"`) : stmt.concat(mysql` "${table_name}" AS "${alias}"`);
+		stmt.append(!alias ? mysql` "${table_name}"` : mysql` "${table_name}" AS "${alias}"`);
 		for (let i=1, i_end=this.joins.length; i<i_end; i++)
 		{	let {table_name, alias, on_expr, is_left} = this.joins[i];
-			let join;
 			if (!on_expr)
-			{	join = !alias ? mysql` CROSS JOIN "${table_name}"` : mysql` CROSS JOIN "${table_name}" AS "${alias}"`;
+			{	stmt.append(!alias ? mysql` CROSS JOIN "${table_name}"` : mysql` CROSS JOIN "${table_name}" AS "${alias}"`);
 			}
 			else if (!is_left)
-			{	join = !alias ? mysql` INNER JOIN "${table_name}" ON (${base_table}.${on_expr})` : mysql` INNER JOIN "${table_name}" AS "${alias}" ON (${base_table}.${on_expr})`;
+			{	stmt.append(!alias ? mysql` INNER JOIN "${table_name}" ON (${base_table}.${on_expr})` : mysql` INNER JOIN "${table_name}" AS "${alias}" ON (${base_table}.${on_expr})`);
 			}
 			else
-			{	join = !alias ? mysql` LEFT JOIN "${table_name}" ON (${base_table}.${on_expr})` : mysql` LEFT JOIN "${table_name}" AS "${alias}" ON (${base_table}.${on_expr})`;
+			{	stmt.append(!alias ? mysql` LEFT JOIN "${table_name}" ON (${base_table}.${on_expr})` : mysql` LEFT JOIN "${table_name}" AS "${alias}" ON (${base_table}.${on_expr})`);
 			}
-			stmt = stmt.concat(join);
 		}
-		return stmt;
 	}
 
-	private concat_where_exprs(stmt: Sql, base_table: string)
+	private append_where_exprs(stmt: Sql, base_table: string)
 	{	if (this.where_exprs.length == 0)
 		{	throw new Error(`Please, call where() first`);
 		}
-		let w: Sql | undefined;
+		let has_where = false;
 		for (let where_expr of this.where_exprs)
 		{	if (where_expr)
-			{	w = !w ? mysql` WHERE (${base_table}.${where_expr})` : w.concat(mysql` AND (${base_table}.${where_expr})`);
+			{	stmt.append(!has_where ? mysql` WHERE (${base_table}.${where_expr})` : mysql` AND (${base_table}.${where_expr})`);
+				has_where = true;
 			}
 		}
-		return !w ? stmt : stmt.concat(w);
+		return has_where;
 	}
 
 	private clone()
@@ -294,23 +291,23 @@ export class SqlTable
 	select(columns: string|string[]|Sql='', order_by: OrderBy='', offset=0, limit=0)
 	{	let base_table = this.get_base_table_alias();
 		let stmt = !columns ? mysql`SELECT * FROM` : Array.isArray(columns) ? mysql`SELECT "${base_table}.${columns}*" FROM` : mysql`SELECT ${base_table}.${columns} FROM`;
-		stmt = this.concat_joins(stmt, base_table);
-		stmt = this.concat_where_exprs(stmt, base_table);
+		this.append_joins(stmt, base_table);
+		this.append_where_exprs(stmt, base_table);
 		if (this.group_by_exprs)
 		{	if (!Array.isArray(this.group_by_exprs))
-			{	stmt = stmt.concat(mysql` GROUP BY ${base_table}.${this.group_by_exprs}`);
+			{	stmt.append(mysql` GROUP BY ${base_table}.${this.group_by_exprs}`);
 			}
 			else if (this.group_by_exprs.length)
-			{	stmt = stmt.concat(mysql` GROUP BY "${base_table}.${this.group_by_exprs}+"`);
+			{	stmt.append(mysql` GROUP BY "${base_table}.${this.group_by_exprs}+"`);
 			}
 			if (this.having_expr)
-			{	stmt = stmt.concat(mysql` HAVING (${this.having_expr})`);
+			{	stmt.append(mysql` HAVING (${this.having_expr})`);
 			}
 		}
 		let has_order_by = false;
 		if (order_by)
 		{	if (typeof(order_by)=='string' || (order_by instanceof Sql))
-			{	stmt = stmt.concat(mysql` ORDER BY ${order_by}`);
+			{	stmt.append(mysql` ORDER BY ${order_by}`);
 				has_order_by = true;
 			}
 			else
@@ -319,12 +316,12 @@ export class SqlTable
 				has_order_by = n_columns != 0;
 				if (has_order_by)
 				{	if (!desc)
-					{	stmt = stmt.concat(mysql` ORDER BY "${columns}+"`);
+					{	stmt.append(mysql` ORDER BY "${columns}+"`);
 					}
 					else
-					{	stmt = stmt.concat(mysql` ORDER BY "${columns[0]}" DESC`);
+					{	stmt.append(mysql` ORDER BY "${columns[0]}" DESC`);
 						for (let i=1; i<n_columns; i++)
-						{	stmt = stmt.concat(mysql`, "${columns[i]}" DESC`);
+						{	stmt.append(mysql`, "${columns[i]}" DESC`);
 						}
 					}
 				}
@@ -337,7 +334,7 @@ export class SqlTable
 					{	throw new Error("SELECT with LIMIT but without ORDER BY is not supported across all engines. Please use mysqlOnly`...`");
 					}
 				case SqlMode.MYSQL_ONLY:
-					stmt = stmt.concat(offset>0 ? mysql` LIMIT '${limit}' OFFSET '${offset}'` : mysql` LIMIT '${limit}'`);
+					stmt.append(offset>0 ? mysql` LIMIT '${limit}' OFFSET '${offset}'` : mysql` LIMIT '${limit}'`);
 					break;
 
 				case SqlMode.PGSQL:
@@ -345,7 +342,7 @@ export class SqlTable
 					{	throw new Error("SELECT with LIMIT but without ORDER BY is not supported across all engines. Please use pgsqlOnly`...`");
 					}
 				case SqlMode.PGSQL_ONLY:
-					stmt = stmt.concat(offset>0 ? mysql` LIMIT '${limit}' OFFSET '${offset}'` : mysql` LIMIT '${limit}'`);
+					stmt.append(offset>0 ? mysql` LIMIT '${limit}' OFFSET '${offset}'` : mysql` LIMIT '${limit}'`);
 					break;
 
 				case SqlMode.SQLITE:
@@ -353,7 +350,7 @@ export class SqlTable
 					{	throw new Error("SELECT with LIMIT but without ORDER BY is not supported across all engines. Please use sqliteOnly`...`");
 					}
 				case SqlMode.SQLITE_ONLY:
-					stmt = stmt.concat(offset>0 ? mysql` LIMIT '${limit}' OFFSET '${offset}'` : mysql` LIMIT '${limit}'`);
+					stmt.append(offset>0 ? mysql` LIMIT '${limit}' OFFSET '${offset}'` : mysql` LIMIT '${limit}'`);
 					break;
 
 				default:
@@ -361,7 +358,7 @@ export class SqlTable
 					if (!has_order_by)
 					{	throw new Error("SELECT with LIMIT but without ORDER BY is not supported on MS SQL");
 					}
-					stmt = stmt.concat(mysql` OFFSET '${offset}' ROWS FETCH FIRST '${limit}' ROWS ONLY`);
+					stmt.append(mysql` OFFSET '${offset}' ROWS FETCH FIRST '${limit}' ROWS ONLY`);
 			}
 		}
 		else if (offset > 0)
@@ -371,7 +368,7 @@ export class SqlTable
 					{	throw new Error("SELECT with OFFSET but without ORDER BY is not supported across all engines. Please use mysqlOnly`...`");
 					}
 				case SqlMode.MYSQL_ONLY:
-					stmt = stmt.concat(mysql` LIMIT 2147483647 OFFSET '${offset}'`);
+					stmt.append(mysql` LIMIT 2147483647 OFFSET '${offset}'`);
 					break;
 
 				case SqlMode.PGSQL:
@@ -379,7 +376,7 @@ export class SqlTable
 					{	throw new Error("SELECT with OFFSET but without ORDER BY is not supported across all engines. Please use pgsqlOnly`...`");
 					}
 				case SqlMode.PGSQL_ONLY:
-					stmt = stmt.concat(mysql` OFFSET '${offset}'`);
+					stmt.append(mysql` OFFSET '${offset}'`);
 					break;
 
 				case SqlMode.SQLITE:
@@ -387,7 +384,7 @@ export class SqlTable
 					{	throw new Error("SELECT with OFFSET but without ORDER BY is not supported across all engines. Please use sqliteOnly`...`");
 					}
 				case SqlMode.SQLITE_ONLY:
-					stmt = stmt.concat(mysql` LIMIT 2147483647 OFFSET '${offset}'`);
+					stmt.append(mysql` LIMIT 2147483647 OFFSET '${offset}'`);
 					break;
 
 				default:
@@ -395,7 +392,7 @@ export class SqlTable
 					if (!has_order_by)
 					{	throw new Error("SELECT with OFFSET but without ORDER BY is not supported on MS SQL");
 					}
-					stmt = stmt.concat(mysql` OFFSET '${offset}' ROWS`);
+					stmt.append(mysql` OFFSET '${offset}' ROWS`);
 			}
 		}
 		stmt.sqlSettings = this.sqlSettings;
@@ -413,7 +410,7 @@ export class SqlTable
 		let {mode} = this.sqlSettings;
 		if (this.joins.length == 0)
 		{	stmt = mysql`UPDATE "${this.table_name}" SET {${row}}`;
-			stmt = this.concat_where_exprs(stmt, '');
+			this.append_where_exprs(stmt, '');
 		}
 		else
 		{	let base_table = this.get_base_table_alias();
@@ -435,9 +432,9 @@ export class SqlTable
 			{	case SqlMode.MYSQL:
 				case SqlMode.MYSQL_ONLY:
 				{	stmt = mysql`UPDATE`;
-					stmt = this.concat_joins(stmt, base_table);
-					stmt = stmt.concat(mysql` SET {${base_table}.${row}}`);
-					stmt = this.concat_where_exprs(stmt, base_table);
+					this.append_joins(stmt, base_table);
+					stmt.append(mysql` SET {${base_table}.${row}}`);
+					this.append_where_exprs(stmt, base_table);
 					break;
 				}
 
@@ -445,11 +442,9 @@ export class SqlTable
 					if (is_left)
 					{	let subj = this.get_subj_table_alias();
 						stmt = mysql`UPDATE "${this.table_name}" AS "${subj}" SET {.${base_table}.${row}} FROM`;
-						stmt = this.concat_joins(stmt, base_table);
-						let orig_stmt = stmt;
-						stmt = this.concat_where_exprs(stmt, base_table);
-						let has_where = stmt != orig_stmt;
-						stmt = stmt.concat(has_where ? mysql` AND "${subj}".rowid = "${base_table}".rowid` : mysql` WHERE "${subj}".rowid = "${base_table}".rowid`);
+						this.append_joins(stmt, base_table);
+						let has_where = this.append_where_exprs(stmt, base_table);
+						stmt.append(has_where ? mysql` AND "${subj}".rowid = "${base_table}".rowid` : mysql` WHERE "${subj}".rowid = "${base_table}".rowid`);
 						break;
 					}
 					// fallthrough
@@ -458,19 +453,17 @@ export class SqlTable
 				case SqlMode.PGSQL_ONLY:
 				case SqlMode.SQLITE:
 				{	stmt = mysql`UPDATE "${this.table_name}" AS "${base_table}" SET {.${base_table}.${row}} FROM`;
-					stmt = this.concat_joins_except_first(stmt, base_table);
-					let orig_stmt = stmt;
-					stmt = this.concat_where_exprs(stmt, base_table);
-					let has_where = stmt != orig_stmt;
-					stmt = stmt.concat(has_where ? mysql` AND (${base_table}.${on_expr})` : mysql` WHERE (${base_table}.${on_expr})`);
+					this.append_joins_except_first(stmt, base_table);
+					let has_where = this.append_where_exprs(stmt, base_table);
+					stmt.append(has_where ? mysql` AND (${base_table}.${on_expr})` : mysql` WHERE (${base_table}.${on_expr})`);
 					break;
 				}
 
 				default:
 				{	debug_assert(mode==SqlMode.MSSQL || mode==SqlMode.MSSQL_ONLY);
 					stmt = mysql`UPDATE "${this.table_name}" SET {.${base_table}.${row}} FROM`;
-					stmt = this.concat_joins(stmt, base_table);
-					stmt = this.concat_where_exprs(stmt, base_table);
+					this.append_joins(stmt, base_table);
+					this.append_where_exprs(stmt, base_table);
 				}
 			}
 		}
@@ -488,7 +481,8 @@ export class SqlTable
 		let stmt;
 		let {mode} = this.sqlSettings;
 		if (this.joins.length == 0)
-		{	stmt = this.concat_where_exprs(mysql`DELETE FROM "${this.table_name}"`, '');
+		{	stmt = mysql`DELETE FROM "${this.table_name}"`;
+			this.append_where_exprs(stmt, '');
 		}
 		else
 		{	let base_table = this.get_base_table_alias();
@@ -512,19 +506,17 @@ export class SqlTable
 				case SqlMode.MSSQL:
 				case SqlMode.MSSQL_ONLY:
 				{	stmt = mysql`DELETE "${base_table}" FROM`;
-					stmt = this.concat_joins(stmt, base_table);
-					stmt = this.concat_where_exprs(stmt, base_table);
+					this.append_joins(stmt, base_table);
+					this.append_where_exprs(stmt, base_table);
 					break;
 				}
 
 				case SqlMode.PGSQL:
 				case SqlMode.PGSQL_ONLY:
 				{	stmt = mysql`DELETE FROM "${this.table_name}" AS "${base_table}" USING`;
-					stmt = this.concat_joins_except_first(stmt, base_table);
-					let orig_stmt = stmt;
-					stmt = this.concat_where_exprs(stmt, base_table);
-					let has_where = stmt != orig_stmt;
-					stmt = stmt.concat(has_where ? mysql` AND (${base_table}.${on_expr})` : mysql` WHERE (${base_table}.${on_expr})`);
+					this.append_joins_except_first(stmt, base_table);
+					let has_where = this.append_where_exprs(stmt, base_table);
+					stmt.append(has_where ? mysql` AND (${base_table}.${on_expr})` : mysql` WHERE (${base_table}.${on_expr})`);
 					break;
 				}
 
@@ -532,9 +524,9 @@ export class SqlTable
 				{	debug_assert(mode==SqlMode.SQLITE || mode==SqlMode.SQLITE_ONLY);
 					let subj = this.get_subj_table_alias();
 					stmt = mysql`DELETE FROM "${this.table_name}" AS "${subj}" WHERE rowid IN (SELECT "${base_table}".rowid FROM`;
-					stmt = this.concat_joins(stmt, base_table);
-					stmt = this.concat_where_exprs(stmt, base_table);
-					stmt = stmt.concat(mysql`)`);
+					this.append_joins(stmt, base_table);
+					this.append_where_exprs(stmt, base_table);
+					stmt.append(mysql`)`);
 				}
 			}
 		}
@@ -640,14 +632,14 @@ export class SqlTable
 					let want_comma = false;
 					for (let name of names)
 					{	if (want_comma)
-						{	stmt = stmt.concat(mysql`, `);
+						{	stmt.append(mysql`, `);
 						}
 						want_comma = true;
 						if (!is_patch)
-						{	stmt = stmt.concat(mysql`"${name}"=excluded."${name}"`);
+						{	stmt.append(mysql`"${name}"=excluded."${name}"`);
 						}
 						else
-						{	stmt = stmt.concat(mysql`"${name}"=CASE WHEN excluded."${name}" IS NOT NULL AND ("${this.table_name}"."${name}" IS NULL OR Cast(excluded."${name}" AS char) NOT IN ('', '0') OR Cast("${this.table_name}"."${name}" AS char) IN ('', '0')) THEN excluded."${name}" ELSE "${this.table_name}"."${name}" END`);
+						{	stmt.append(mysql`"${name}"=CASE WHEN excluded."${name}" IS NOT NULL AND ("${this.table_name}"."${name}" IS NULL OR Cast(excluded."${name}" AS char) NOT IN ('', '0') OR Cast("${this.table_name}"."${name}" AS char) IN ('', '0')) THEN excluded."${name}" ELSE "${this.table_name}"."${name}" END`);
 						}
 					}
 					break;
@@ -677,7 +669,7 @@ export class SqlTable
 		}
 		let stmt: Sql;
 		if (!on_conflict_do)
-		{	stmt = mysql`INSERT INTO "${this.table_name}" ("${names}+") `.concat(select);
+		{	stmt = mysql`INSERT INTO "${this.table_name}" ("${names}+") `.append(select);
 		}
 		else if (on_conflict_do == 'nothing')
 		{	let {mode} = this.sqlSettings;
@@ -696,12 +688,12 @@ export class SqlTable
 					throw new Error("ON CONFLICT DO NOTHING is not supported on MS SQL");
 
 				case SqlMode.MYSQL_ONLY:
-					stmt = mysql`INSERT INTO "${this.table_name}" ("${names}+") `.concat(select).concat(mysql` ON DUPLICATE KEY UPDATE "${names[0]}"="${names[0]}"`);
+					stmt = mysql`INSERT INTO "${this.table_name}" ("${names}+") `.append(select).append(mysql` ON DUPLICATE KEY UPDATE "${names[0]}"="${names[0]}"`);
 					break;
 
 				default:
 					debug_assert(mode==SqlMode.PGSQL_ONLY || mode==SqlMode.SQLITE_ONLY);
-					stmt =  mysql`INSERT INTO "${this.table_name}" ("${names}+") `.concat(select).concat(mysql` ON CONFLICT DO NOTHING`);
+					stmt =  mysql`INSERT INTO "${this.table_name}" ("${names}+") `.append(select).append(mysql` ON CONFLICT DO NOTHING`);
 			}
 		}
 		else
@@ -722,12 +714,12 @@ export class SqlTable
 					throw new Error("REPLACE is not supported on MS SQL");
 
 				case SqlMode.MYSQL_ONLY:
-					stmt = mysql`REPLACE "${this.table_name}" ("${names}+") `.concat(select);
+					stmt = mysql`REPLACE "${this.table_name}" ("${names}+") `.append(select);
 					break;
 
 				default:
 					debug_assert(this.sqlSettings.mode == SqlMode.SQLITE_ONLY);
-					stmt = mysql`REPLACE INTO "${this.table_name}" ("${names}+") `.concat(select);
+					stmt = mysql`REPLACE INTO "${this.table_name}" ("${names}+") `.append(select);
 			}
 		}
 		stmt.sqlSettings = this.sqlSettings;
