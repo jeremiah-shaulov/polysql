@@ -205,23 +205,6 @@ export class SqlTable
 		return has_where;
 	}
 
-	private clone()
-	{	return new SqlTable
-		(	this.sqlSettings,
-			this.table_name,
-			this.joins.slice(),
-			this.where_exprs.slice(),
-			this.group_by_exprs,
-			this.having_expr,
-			this.has_b,
-			this.has_base,
-			this.has_base_table,
-			this.has_s,
-			this.has_subj,
-			this.has_subj_table
-		);
-	}
-
 	private some_join(table_name: string, alias: string, on_expr: string|Sql, is_left: boolean)
 	{	if (this.where_exprs.length)
 		{	throw new Error(`join() can be called before where()`);
@@ -229,10 +212,8 @@ export class SqlTable
 		if (this.group_by_exprs != undefined)
 		{	throw new Error(`join() can be called before groupBy()`);
 		}
-		let sql_table = this.clone();
-		sql_table.joins.push({table_name, alias, on_expr, is_left});
-		sql_table.table_used(alias || table_name);
-		return sql_table;
+		this.joins.push({table_name, alias, on_expr, is_left});
+		this.table_used(alias || table_name);
 	}
 
 	/**	Adds an INNER (if `onExpr` is given) or a CROSS join (if `onExpr` is blank).
@@ -240,7 +221,8 @@ export class SqlTable
 		The method returns a new `SqlTable` object that has everything from the original object, plus the new join.
 	 **/
 	join(table_name: string, alias='', on_expr: string|Sql='')
-	{	return this.some_join(table_name, alias, on_expr, false);
+	{	this.some_join(table_name, alias, on_expr, false);
+		return this;
 	}
 
 	/**	Adds a LEFT JOIN.
@@ -251,7 +233,8 @@ export class SqlTable
 	{	if (!on_expr)
 		{	throw new Error(`No condition in LEFT JOIN`);
 		}
-		return this.some_join(table_name, alias, on_expr, true);
+		this.some_join(table_name, alias, on_expr, true);
+		return this;
 	}
 
 	/**	Adds WHERE condition for SELECT, UPDATE and DELETE queries.
@@ -263,9 +246,8 @@ export class SqlTable
 	{	if (this.group_by_exprs != undefined)
 		{	throw new Error(`where() can be called before groupBy()`);
 		}
-		let sql_table = this.clone();
-		sql_table.where_exprs.push(where_expr);
-		return sql_table;
+		this.where_exprs.push(where_expr);
+		return this;
 	}
 
 	/**	Adds GROUP BY expressions, and optionally a HAVING expression to the SELECT query.
@@ -276,10 +258,9 @@ export class SqlTable
 	{	if (this.group_by_exprs != undefined)
 		{	throw new Error(`groupBy() can be called only once`);
 		}
-		let sql_table = this.clone();
-		sql_table.group_by_exprs = group_by_exprs;
-		sql_table.having_expr = having_expr;
-		return sql_table;
+		this.group_by_exprs = group_by_exprs;
+		this.having_expr = having_expr;
+		return this;
 	}
 
 	/**	Generates a SELECT query.

@@ -395,6 +395,15 @@ Sql.toString(putParamsTo?: any[], mysqlNoBackslashEscapes=false): string
 
 This function calls `Sql.encode()`, and then converts the result to string.
 
+### Sql.toSqlBytesWithParamsBackslashAndBuffer()
+
+```ts
+Sql.toSqlBytesWithParamsBackslashAndBuffer(putParamsTo: any[]|undefined, mysqlNoBackslashEscapes: boolean, useBuffer: Uint8Array)
+```
+
+This function is the same as `encode()`, but with 3 mandatory parameters.
+This is for optimal support of [this MySQL driver](https://deno.land/x/office_spirit_mysql).
+
 ### Sql.sqlSettings
 
 This public property of `Sql` object contains the chosen SQL dialect (SqlMode) and quoting policy, that allows to whitelist identifiers in SQL fragments.
@@ -514,12 +523,12 @@ All the provided `*Tables` (and `*OnlyTables`) objects are `Proxy` objects. Ever
 let table: SqlTable = sqlTables[tableName];
 ```
 
-The `SqlTable` class has the following methods:
+`SqlTable` class has the following methods:
 
-- join(): SqlTable
-- leftJoin(): SqlTable
-- where(): SqlTable
-- groupBy(): SqlTable
+- join(): this
+- leftJoin(): this
+- where(): this
+- groupBy(): this
 - select(): Sql
 - update(): Sql
 - delete(): Sql
@@ -532,13 +541,12 @@ The 6 latter methods return `Sql` objects, with the final query.
 ### SqlTable.join()
 
 ```ts
-SqlTable.join(tableName: string, alias='', onExpr: string|Sql=''): SqlTable
+SqlTable.join(tableName: string, alias='', onExpr: string|Sql=''): this
 ```
 
 Adds an INNER (if `onExpr` is given) or a CROSS join (if `onExpr` is blank).
 
 This method can be called multiple times.
-The method returns a new `SqlTable` object that has everything from the original object, plus the new join.
 
 ```ts
 import {mysqlTables as sqlTables} from 'https://deno.land/x/polysql/mod.ts';
@@ -550,7 +558,7 @@ console.log('' + sqlTables.messages.join('content', 'c', 'content_id = c.id').wh
 ### SqlTable.leftJoin()
 
 ```ts
-SqlTable.leftJoin(tableName: string, alias: string, onExpr: string|Sql): SqlTable
+SqlTable.leftJoin(tableName: string, alias: string, onExpr: string|Sql): this
 ```
 
 Like `join()`, but adds a LEFT JOIN.
@@ -558,7 +566,7 @@ Like `join()`, but adds a LEFT JOIN.
 ### SqlTable.where()
 
 ```ts
-SqlTable.where(whereExpr: string|Sql): SqlTable
+SqlTable.where(whereExpr: string|Sql): this
 ```
 
 Adds WHERE condition for SELECT, UPDATE and DELETE queries.
@@ -569,7 +577,7 @@ To explicitly allow working on the whole table, call `sqlTable.where('')` (with 
 ### SqlTable.groupBy()
 
 ```ts
-SqlTable.groupBy(groupByExprs: string|string[]|Sql, havingExpr: string|Sql=''): SqlTable
+SqlTable.groupBy(groupByExprs: string|string[]|Sql, havingExpr: string|Sql=''): this
 ```
 
 Adds GROUP BY expressions, and optionally a HAVING expression to the SELECT query.

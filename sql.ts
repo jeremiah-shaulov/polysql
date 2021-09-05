@@ -153,17 +153,11 @@ export class Sql
 	}
 
 	concat(other: Sql)
-	{	let strings = [...this.strings];
-		strings[strings.length-1] += other.strings[0];
-		for (let i=1, i_end=other.strings.length, j=strings.length; i<i_end; i++, j++)
-		{	strings[j] = other.strings[i];
-		}
-		let sql: Sql = new (this.constructor as any)([], []);
-		sql.strings = strings;
-		sql.params = this.params.concat(other.params);
-		sql.sqlSettings = this.sqlSettings;
-		sql.estimatedByteLength = this.estimatedByteLength + other.estimatedByteLength - GUESS_STRING_BYTE_LEN_LONGER;
-		debug_assert(sql.estimatedByteLength >= GUESS_STRING_BYTE_LEN_LONGER);
+	{	let sql: Sql = new (this.constructor as any)([], []);
+		Object.assign(sql, this);
+		sql.strings = sql.strings.slice();
+		sql.params = sql.params.slice();
+		sql.append(other);
 		return sql;
 	}
 
@@ -292,6 +286,10 @@ export class Sql
 
 	toString(put_params_to?: any[], mysql_no_backslash_escapes=false)
 	{	return decoder.decode(this.encode(put_params_to, mysql_no_backslash_escapes));
+	}
+
+	toSqlBytesWithParamsBackslashAndBuffer(put_params_to: any[]|undefined, mysql_no_backslash_escapes: boolean, use_buffer: Uint8Array)
+	{	return this.encode(put_params_to, mysql_no_backslash_escapes, use_buffer);
 	}
 }
 

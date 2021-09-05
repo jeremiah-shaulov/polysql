@@ -3,6 +3,8 @@ import {mysqlQuote, pgsqlQuote, sqliteQuote, mssqlQuote} from '../quote.ts';
 import {SqlSettings, SqlMode} from '../sql_settings.ts';
 import {assert, assertEquals} from "https://deno.land/std@0.106.0/testing/asserts.ts";
 
+const decoder = new TextDecoder;
+
 Deno.test
 (	'Basic',
 	async () =>
@@ -707,7 +709,7 @@ Deno.test
 );
 
 Deno.test
-(	'Sql.concat(), Sql.append()',
+(	'Sql.concat(), Sql.append(), Sql.toSqlBytesWithParamsBackslashAndBuffer()',
 	async () =>
 	{	let s = mysql`A, '${'B'}', C`;
 		let s2 = s.concat(mysql`, '${'D'}'`).concat(mysql`.`).concat(mysql``);
@@ -717,6 +719,15 @@ Deno.test
 		s2 = s.append(mysql`, '${'D'}'`).append(mysql`.`).append(mysql``);
 		assertEquals(s2+'', `A, 'B', C, 'D'.`);
 		assertEquals(s, s2);
+
+		let expected_result = "`id` = ?";
+		let put_params_to: any = [];
+		let buffer = new Uint8Array(expected_result.length);
+		let param = 'a'.repeat(INLINE_STRING_MAX_LEN+1);
+		let buffer_2 = mysql`"${'id'}" = '${param}'`.toSqlBytesWithParamsBackslashAndBuffer(put_params_to, false, buffer);
+		assert(buffer_2.buffer == buffer.buffer);
+		assertEquals(decoder.decode(buffer_2), expected_result);
+		assertEquals(put_params_to[0], param);
 	}
 );
 
