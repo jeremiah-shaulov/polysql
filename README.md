@@ -450,7 +450,7 @@ If `idents` and/or `functions` argument is omitted or `undefined`, the default v
 
 For `idents` the default value is: `AGAINST AND AS ASC BETWEEN CASE CHAR DAY DESC DISTINCT ELSE END HOUR INTERVAL IS LIKE MATCH MICROSECOND MINUTE MONTH NOT NULL OR SECOND SEPARATOR THEN WEEK WHEN XOR YEAR`.
 
-For `functions` is: `! FROM JOIN ON SELECT WHERE`.
+For `functions` is: `! FROM HAVING JOIN LIMIT OFFSET ON SELECT WHERE`.
 
 To print the default policy, you can do:
 
