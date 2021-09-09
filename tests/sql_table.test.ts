@@ -1,3 +1,5 @@
+// deno-lint-ignore-file
+
 import {mysql} from '../sql.ts';
 import
 {	mysqlTables, mysqlOnlyTables,
@@ -88,7 +90,7 @@ Deno.test
 (	'Test sqlTables.select()',
 	async () =>
 	{	const TABLE = 'Hello `All`!';
-		assertEquals(mysqlTables[TABLE].table_name, TABLE);
+		assertEquals(mysqlTables[TABLE].tableName, TABLE);
 
 		let s = mysqlTables[TABLE].where("id=1").select("col1*2, Count(*)");
 		assertEquals(s+'', "SELECT `col1`*2, Count(*) FROM `Hello ``All``!` WHERE (`id`=1)");
@@ -107,7 +109,7 @@ Deno.test
 
 		let error;
 		try
-		{	mysqlTables[TABLE].select("col1*2, Count(*)");
+		{	mysqlTables[TABLE].select("col1*2, Count(*)") + '';
 		}
 		catch (e)
 		{	error = e;
@@ -286,7 +288,7 @@ Deno.test
 
 		error = undefined;
 		try
-		{	mysqlTables.t_log.where("").select("", "", 0, 10);
+		{	mysqlTables.t_log.where("").select("", "", 0, 10) + '';
 		}
 		catch (e)
 		{	error = e;
@@ -295,7 +297,7 @@ Deno.test
 
 		error = undefined;
 		try
-		{	pgsqlTables.t_log.where("").select("", "", 0, 10);
+		{	pgsqlTables.t_log.where("").select("", "", 0, 10) + '';
 		}
 		catch (e)
 		{	error = e;
@@ -304,7 +306,7 @@ Deno.test
 
 		error = undefined;
 		try
-		{	sqliteTables.t_log.where("").select("", "", 0, 10);
+		{	sqliteTables.t_log.where("").select("", "", 0, 10) + '';
 		}
 		catch (e)
 		{	error = e;
@@ -313,7 +315,7 @@ Deno.test
 
 		error = undefined;
 		try
-		{	mssqlTables.t_log.where("").select("", "", 0, 10);
+		{	mssqlTables.t_log.where("").select("", "", 0, 10) + '';
 		}
 		catch (e)
 		{	error = e;
@@ -322,7 +324,7 @@ Deno.test
 
 		error = undefined;
 		try
-		{	mssqlOnlyTables.t_log.where("").select("", "", 0, 10);
+		{	mssqlOnlyTables.t_log.where("").select("", "", 0, 10) + '';
 		}
 		catch (e)
 		{	error = e;
@@ -331,7 +333,7 @@ Deno.test
 
 		error = undefined;
 		try
-		{	mysqlTables.t_log.where("").select("", "", 10);
+		{	mysqlTables.t_log.where("").select("", "", 10) + '';
 		}
 		catch (e)
 		{	error = e;
@@ -340,7 +342,7 @@ Deno.test
 
 		error = undefined;
 		try
-		{	pgsqlTables.t_log.where("").select("", "", 10);
+		{	pgsqlTables.t_log.where("").select("", "", 10) + '';
 		}
 		catch (e)
 		{	error = e;
@@ -349,7 +351,7 @@ Deno.test
 
 		error = undefined;
 		try
-		{	sqliteTables.t_log.where("").select("", "", 10);
+		{	sqliteTables.t_log.where("").select("", "", 10) + '';
 		}
 		catch (e)
 		{	error = e;
@@ -358,7 +360,7 @@ Deno.test
 
 		error = undefined;
 		try
-		{	mssqlTables.t_log.where("").select("", "", 10);
+		{	mssqlTables.t_log.where("").select("", "", 10) + '';
 		}
 		catch (e)
 		{	error = e;
@@ -367,7 +369,7 @@ Deno.test
 
 		error = undefined;
 		try
-		{	mssqlOnlyTables.t_log.where("").select("", "", 10);
+		{	mssqlOnlyTables.t_log.where("").select("", "", 10) + '';
 		}
 		catch (e)
 		{	error = e;
@@ -640,40 +642,40 @@ Deno.test
 (	'Test sqlTables.insert()',
 	async () =>
 	{	const ROWS = [{a: 1, b: '2'}, {a: 10, b: '20'}];
-		function *it_rows(rows: Record<string, any>[])
+		function *itRows(rows: Record<string, any>[])
 		{	for (let row of rows)
 			{	yield row;
 			}
 		}
 
 		for (let i=0; i<2; i++)
-		{	let s = mysqlTables.t_log.insert(i==0 ? ROWS : it_rows(ROWS));
+		{	let s = mysqlTables.t_log.insert(i==0 ? ROWS : itRows(ROWS));
 			assertEquals(s+'', "INSERT INTO `t_log` (`a`, `b`) VALUES\n(1,'2'),\n(10,'20')");
 
-			s = mysqlOnlyTables.t_log.insert(i==0 ? ROWS : it_rows(ROWS), 'nothing');
+			s = mysqlOnlyTables.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'nothing');
 			assertEquals(s+'', "INSERT INTO `t_log` (`a`, `b`) VALUES\n(1,'2'),\n(10,'20') ON DUPLICATE KEY UPDATE `a`=`a`");
 
-			s = pgsqlOnlyTables.t_log.insert(i==0 ? ROWS : it_rows(ROWS), 'nothing');
+			s = pgsqlOnlyTables.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'nothing');
 			assertEquals(s+'', `INSERT INTO "t_log" ("a", "b") VALUES\n(1,'2'),\n(10,'20') ON CONFLICT DO NOTHING`);
 
-			s = sqliteOnlyTables.t_log.insert(i==0 ? ROWS : it_rows(ROWS), 'nothing');
+			s = sqliteOnlyTables.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'nothing');
 			assertEquals(s+'', `INSERT INTO "t_log" ("a", "b") VALUES\n(1,'2'),\n(10,'20') ON CONFLICT DO NOTHING`);
 
-			s = mysqlOnlyTables.t_log.insert(i==0 ? ROWS : it_rows(ROWS), 'replace');
+			s = mysqlOnlyTables.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'replace');
 			assertEquals(s+'', "REPLACE `t_log` (`a`, `b`) VALUES\n(1,'2'),\n(10,'20')");
 
-			s = sqliteOnlyTables.t_log.insert(i==0 ? ROWS : it_rows(ROWS), 'replace');
+			s = sqliteOnlyTables.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'replace');
 			assertEquals(s+'', `REPLACE INTO "t_log" ("a", "b") VALUES\n(1,'2'),\n(10,'20')`);
 
-			s = mysqlOnlyTables.t_log.insert(i==0 ? ROWS : it_rows(ROWS), 'update');
+			s = mysqlOnlyTables.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'update');
 			assertEquals(s+'', "INSERT INTO `t_log` (`a`, `b`) VALUES\n(1,'2'),\n(10,'20') AS excluded ON DUPLICATE KEY UPDATE `a`=excluded.`a`, `b`=excluded.`b`");
 
-			s = mysqlOnlyTables.t_log.insert(i==0 ? ROWS : it_rows(ROWS), 'patch');
+			s = mysqlOnlyTables.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'patch');
 			assertEquals(s+'', "INSERT INTO `t_log` (`a`, `b`) VALUES\n(1,'2'),\n(10,'20') AS excluded ON DUPLICATE KEY UPDATE `a`=CASE WHEN excluded.`a` IS NOT NULL AND (`t_log`.`a` IS NULL OR Cast(excluded.`a` AS char) NOT IN ('', '0') OR Cast(`t_log`.`a` AS char) IN ('', '0')) THEN excluded.`a` ELSE `t_log`.`a` END, `b`=CASE WHEN excluded.`b` IS NOT NULL AND (`t_log`.`b` IS NULL OR Cast(excluded.`b` AS char) NOT IN ('', '0') OR Cast(`t_log`.`b` AS char) IN ('', '0')) THEN excluded.`b` ELSE `t_log`.`b` END");
 
 			let error;
 			try
-			{	'' + mysqlTables.t_log.join('more').insert(i==0 ? ROWS : it_rows(ROWS));
+			{	'' + mysqlTables.t_log.join('more').insert(i==0 ? ROWS : itRows(ROWS));
 			}
 			catch (e)
 			{	error = e;
@@ -682,7 +684,7 @@ Deno.test
 
 			error = undefined;
 			try
-			{	'' + mysqlTables.t_log.where("id=1").insert(i==0 ? ROWS : it_rows(ROWS));
+			{	'' + mysqlTables.t_log.where("id=1").insert(i==0 ? ROWS : itRows(ROWS));
 			}
 			catch (e)
 			{	error = e;
@@ -691,7 +693,7 @@ Deno.test
 
 			error = undefined;
 			try
-			{	'' + mysqlTables.t_log.insert(i==0 ? [] : it_rows([]));
+			{	'' + mysqlTables.t_log.insert(i==0 ? [] : itRows([]));
 			}
 			catch (e)
 			{	error = e;
@@ -700,7 +702,7 @@ Deno.test
 
 			error = undefined;
 			try
-			{	'' + mysqlOnlyTables.t_log.insert(i==0 ? [] : it_rows([]), 'update');
+			{	'' + mysqlOnlyTables.t_log.insert(i==0 ? [] : itRows([]), 'update');
 			}
 			catch (e)
 			{	error = e;
@@ -709,7 +711,7 @@ Deno.test
 
 			error = undefined;
 			try
-			{	'' + mysqlTables.t_log.insert(i==0 ? [{}] : it_rows([{}]));
+			{	'' + mysqlTables.t_log.insert(i==0 ? [{}] : itRows([{}]));
 			}
 			catch (e)
 			{	error = e;
@@ -718,7 +720,7 @@ Deno.test
 
 			error = undefined;
 			try
-			{	'' + mysqlTables.t_log.groupBy('').insert(i==0 ? ROWS : it_rows(ROWS));
+			{	'' + mysqlTables.t_log.groupBy('').insert(i==0 ? ROWS : itRows(ROWS));
 			}
 			catch (e)
 			{	error = e;
@@ -727,7 +729,7 @@ Deno.test
 
 			error = undefined;
 			try
-			{	'' + mysqlTables.t_log.insert(i==0 ? ROWS : it_rows(ROWS), 'nothing');
+			{	'' + mysqlTables.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'nothing');
 			}
 			catch (e)
 			{	error = e;
@@ -736,7 +738,7 @@ Deno.test
 
 			error = undefined;
 			try
-			{	'' + pgsqlTables.t_log.insert(i==0 ? ROWS : it_rows(ROWS), 'nothing');
+			{	'' + pgsqlTables.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'nothing');
 			}
 			catch (e)
 			{	error = e;
@@ -745,7 +747,7 @@ Deno.test
 
 			error = undefined;
 			try
-			{	'' + sqliteTables.t_log.insert(i==0 ? ROWS : it_rows(ROWS), 'nothing');
+			{	'' + sqliteTables.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'nothing');
 			}
 			catch (e)
 			{	error = e;
@@ -754,7 +756,7 @@ Deno.test
 
 			error = undefined;
 			try
-			{	'' + mssqlTables.t_log.insert(i==0 ? ROWS : it_rows(ROWS), 'nothing');
+			{	'' + mssqlTables.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'nothing');
 			}
 			catch (e)
 			{	error = e;
@@ -763,7 +765,7 @@ Deno.test
 
 			error = undefined;
 			try
-			{	'' + mysqlTables.t_log.insert(i==0 ? ROWS : it_rows(ROWS), 'replace');
+			{	'' + mysqlTables.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'replace');
 			}
 			catch (e)
 			{	error = e;
@@ -772,7 +774,7 @@ Deno.test
 
 			error = undefined;
 			try
-			{	'' + sqliteTables.t_log.insert(i==0 ? ROWS : it_rows(ROWS), 'replace');
+			{	'' + sqliteTables.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'replace');
 			}
 			catch (e)
 			{	error = e;
@@ -781,7 +783,7 @@ Deno.test
 
 			error = undefined;
 			try
-			{	'' + pgsqlTables.t_log.insert(i==0 ? ROWS : it_rows(ROWS), 'replace');
+			{	'' + pgsqlTables.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'replace');
 			}
 			catch (e)
 			{	error = e;
@@ -790,7 +792,7 @@ Deno.test
 
 			error = undefined;
 			try
-			{	'' + mssqlTables.t_log.insert(i==0 ? ROWS : it_rows(ROWS), 'replace');
+			{	'' + mssqlTables.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'replace');
 			}
 			catch (e)
 			{	error = e;
@@ -799,7 +801,7 @@ Deno.test
 
 			error = undefined;
 			try
-			{	'' + mysqlTables.t_log.insert(i==0 ? ROWS : it_rows(ROWS), 'update');
+			{	'' + mysqlTables.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'update');
 			}
 			catch (e)
 			{	error = e;
@@ -808,7 +810,7 @@ Deno.test
 
 			error = undefined;
 			try
-			{	'' + pgsqlTables.t_log.insert(i==0 ? ROWS : it_rows(ROWS), 'update');
+			{	'' + pgsqlTables.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'update');
 			}
 			catch (e)
 			{	error = e;
@@ -817,7 +819,7 @@ Deno.test
 
 			error = undefined;
 			try
-			{	'' + sqliteTables.t_log.insert(i==0 ? ROWS : it_rows(ROWS), 'update');
+			{	'' + sqliteTables.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'update');
 			}
 			catch (e)
 			{	error = e;
@@ -826,7 +828,7 @@ Deno.test
 
 			error = undefined;
 			try
-			{	'' + mssqlTables.t_log.insert(i==0 ? ROWS : it_rows(ROWS), 'update');
+			{	'' + mssqlTables.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'update');
 			}
 			catch (e)
 			{	error = e;
@@ -859,6 +861,9 @@ Deno.test
 
 		s = mysqlTables.t_log.insertFrom(['c1', 'c2'], mysql`HELLO ALL`);
 		assertEquals(s+'', "INSERT INTO `t_log` (`c1`, `c2`) HELLO ALL");
+
+		s = mysqlOnlyTables.t_log.insertFrom(['c1', 'c2'], mysql`HELLO ALL`, 'nothing');
+		assertEquals(s+'', "INSERT INTO `t_log` (`c1`, `c2`) HELLO ALL ON DUPLICATE KEY UPDATE `c1`=`c1`");
 
 		let error;
 		try

@@ -383,7 +383,7 @@ Remember that the value of this parameter can change during server session, if u
 If `useBuffer` parameter is provided, and there's enough space in this buffer, this buffer will be used and a `useBuffer.subarray()` of it will be returned from `sql.encode()`.
 If it's not big enough, a new buffer will be allocated, as usual.
 
-If `useBufferFromPos` parameter is provided together with the `useBuffer`, so the produced query will be appended after that position in the buffer, and the contents of `useBuffer` before this position will be the part of returned query (even if a new buffer was used).
+If `useBufferFromPos` parameter is provided together with the `useBuffer`, so the produced query will be appended after that position in the buffer, and the contents of `useBuffer` before this position will be the part of returned query (even if a new buffer was allocated).
 
 ### Sql.toString()
 
@@ -473,16 +473,16 @@ import {Sql, SqlSettings, SqlMode, SqlTable} from 'https://deno.land/x/polysql/m
 const SQL_SETTINGS_MYSQL = new SqlSettings(SqlMode.MYSQL, '!bad forbidden', 'calc_stats');
 
 function sql(strings: TemplateStringsArray, ...params: any[])
-{	return new Sql([...strings], params, SQL_SETTINGS_MYSQL);
+{	return new Sql(SQL_SETTINGS_MYSQL, [...strings], params);
 }
 
 const sqlTables: Record<string, SqlTable> = new Proxy
 (	{},
-	{	get(target, table_name)
-		{	if (typeof(table_name) != 'string')
+	{	get(target, tableName)
+		{	if (typeof(tableName) != 'string')
 			{	throw new Error("Table name must be string");
 			}
-			return new SqlTable(SQL_SETTINGS_MYSQL, table_name);
+			return new SqlTable(SQL_SETTINGS_MYSQL, tableName);
 		}
 	}
 );
@@ -493,7 +493,7 @@ console.log('' + s); // prints: CALL calc_stats(`bad`, good)
 console.log('' + sqlTables.messages.where('bad=0 AND good=1').select()); // prints SELECT * FROM `messages` WHERE (`bad`=0 AND good=1)
 ```
 
-It's good idea to create `SqlSettings` object once, and reuse it, because creating new instance takes time (it builds words index).
+It's a good idea to create `SqlSettings` object once, and reuse it, because creating new instance takes time (it builds words index).
 
 ## Generate SELECT, INSERT, UPDATE, DELETE and TRUNCATE queries from parts
 
@@ -517,7 +517,7 @@ console.log('' + sqlTables.messages.where("id=1").select()); // prints: SELECT *
 `*Tables` (without `Only`) throw exception if you ask a feature that is not supported by all of MySQL, PostgreSQL, Sqlite and Microsoft SQL Server.
 So you can switch to different dialect later (e.g. from `mysqlTables` to `mssqlTables`).
 
-All the provided `*Tables` (and `*OnlyTables`) objects are `Proxy` objects. Every property you ask from them becomes a table name, and it's resolved to a `SqlTable` object.
+All the provided `*Tables` (and `*OnlyTables`) objects are `Proxy` objects. Every property you ask from them becomes a table name, and it's resolved to an `SqlTable` object, that extends `Sql`.
 
 ```ts
 let table: SqlTable = sqlTables[tableName];
@@ -529,14 +529,21 @@ let table: SqlTable = sqlTables[tableName];
 - leftJoin(): this
 - where(): this
 - groupBy(): this
-- select(): Sql
-- update(): Sql
-- delete(): Sql
-- insert(): Sql
-- insertFrom(): Sql
-- truncate(): Sql
+- select(): this
+- update(): this
+- delete(): this
+- insert(): this
+- insertFrom(): this
+- truncate(): this
 
-The 6 latter methods return `Sql` objects, with the final query.
+All these methods only log what you asked, and the actual query generation will happen when you convert the object to string or bytes.
+
+```ts
+import {mysqlTables as sqlTables} from 'https://deno.land/x/polysql/mod.ts';
+
+let s = sqlTables.messages.join('content', 'c', 'content_id = c.id').where("id=1").select("c.*");
+console.log('' + s); // prints: SELECT `c`.* FROM `messages` AS `b` INNER JOIN `content` AS `c` ON (`b`.content_id = `c`.id) WHERE (`b`.id=1)
+```
 
 ### SqlTable.join()
 
@@ -547,13 +554,6 @@ SqlTable.join(tableName: string, alias='', onExpr: string|Sql=''): this
 Adds an INNER (if `onExpr` is given) or a CROSS join (if `onExpr` is blank).
 
 This method can be called multiple times.
-
-```ts
-import {mysqlTables as sqlTables} from 'https://deno.land/x/polysql/mod.ts';
-
-console.log('' + sqlTables.messages.join('content', 'c', 'content_id = c.id').where("id=1").select("c.*"));
-// prints: SELECT `c`.* FROM `messages` AS `b` INNER JOIN `content` AS `c` ON (`b`.content_id = `c`.id) WHERE (`b`.id=1)
-```
 
 ### SqlTable.leftJoin()
 
@@ -657,3 +657,94 @@ SqlTable.truncate(): Sql
 ```
 
 Generates TRUNCATE TABLE query where supported (all but SQLite), and for others generates "DELETE FROM".
+
+### Extending SqlTable
+
+`SqlTable` extends `Sql`. You can extend it with your class to add your own methods. For example you can add method that will perform the actual query to database server.
+
+```ts
+import {SqlSettings, SqlMode, SqlTable} from 'https://deno.land/x/polysql/mod.ts';
+
+const SQL_SETTINGS_MYSQL = new SqlSettings(SqlMode.MYSQL);
+
+function sql(strings: TemplateStringsArray, ...params: any[])
+{	return new MySqlTable(SQL_SETTINGS_MYSQL, '', [...strings], params);
+}
+
+class MySqlTable extends SqlTable
+{	async query()
+	{	console.log(`I'm querying: ${this}`);
+	}
+}
+
+const sqlTables: Record<string, MySqlTable> = new Proxy
+(	{},
+	{	get(target, tableName)
+		{	if (typeof(tableName) != 'string')
+			{	throw new Error("Table name must be string");
+			}
+			return new MySqlTable(SQL_SETTINGS_MYSQL, tableName);
+		}
+	}
+);
+
+await sql`SELECT '${import.meta.url}'`.query();
+await sqlTables.messages.where('id=1').select().query(); // prints: SELECT * FROM `messages` WHERE (`id`=1)
+```
+
+`SqlTable` has one protected method, that you can override:
+
+```ts
+protected appendTableName(tableName: string)
+{	this.append(sql`"${tableName}"`);
+	return tableName;
+}
+```
+
+This method is called every time a quoted table name must be appended to the query.
+Subclasses can override this function to convert table names and maybe add schema prefixes.
+
+After this function appended the (converted) table name, it must then return this name without qualifiers.
+
+The default implementation shown above doesn't change the name, and doesn't add qualifiers.
+
+The following implementation will convert:
+
+```ts
+import {SqlSettings, SqlMode, SqlTable} from 'https://deno.land/x/polysql/mod.ts';
+
+const SQL_SETTINGS_MYSQL = new SqlSettings(SqlMode.MYSQL);
+
+function sql(strings: TemplateStringsArray, ...params: any[])
+{	return new MySqlTable(SQL_SETTINGS_MYSQL, '', [...strings], params);
+}
+
+class MySqlTable extends SqlTable
+{	private schema = '';
+
+	protected appendTableName(tableName: string)
+	{	tableName = 't_' + tableName;
+		this.append(!this.schema ? sql`"${tableName}"` : sql`"${this.schema}"."${tableName}"`);
+		return tableName;
+	}
+
+	async query()
+	{	this.schema = 'sc';
+		console.log(`I'm querying: ${this}`);
+	}
+}
+
+const sqlTables: Record<string, MySqlTable> = new Proxy
+(	{},
+	{	get(target, table_name)
+		{	if (typeof(table_name) != 'string')
+			{	throw new Error("Table name must be string");
+			}
+			return new MySqlTable(SQL_SETTINGS_MYSQL, table_name);
+		}
+	}
+);
+
+await sql`SELECT '${import.meta.url}'`.query();
+await sqlTables.messages.where('id=1').select().query(); // prints: SELECT * FROM `sc`.`t_messages` WHERE (`id`=1)
+```

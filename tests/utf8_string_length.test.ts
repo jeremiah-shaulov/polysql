@@ -1,4 +1,6 @@
-import {utf8_string_length} from '../utf8_string_length.ts';
+// deno-lint-ignore-file
+
+import {utf8StringLength} from '../utf8_string_length.ts';
 import {assert, assertEquals} from "https://deno.land/std@0.106.0/testing/asserts.ts";
 
 Deno.test
@@ -15,7 +17,7 @@ Deno.test
 		];
 
 		for (let str of strs)
-		{	assertEquals(utf8_string_length(str), encoder.encode(str).length);
+		{	assertEquals(utf8StringLength(str), encoder.encode(str).length);
 		}
 	}
 );

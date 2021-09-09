@@ -1,4 +1,6 @@
-import {mysql, pgsql, sqlite, mssql, mysqlOnly, pgsqlOnly, sqliteOnly, mssqlOnly, INLINE_STRING_MAX_LEN, INLINE_BLOB_MAX_LEN} from '../sql.ts';
+// deno-lint-ignore-file
+
+import {mysql, pgsql, sqlite, mssql, mysqlOnly, pgsqlOnly, sqliteOnly, mssqlOnly, Sql, INLINE_STRING_MAX_LEN, INLINE_BLOB_MAX_LEN} from '../sql.ts';
 import {mysqlQuote, pgsqlQuote, sqliteQuote, mssqlQuote} from '../quote.ts';
 import {SqlSettings, SqlMode} from '../sql_settings.ts';
 import {assert, assertEquals} from "https://deno.land/std@0.106.0/testing/asserts.ts";
@@ -170,6 +172,15 @@ Deno.test
 		{	error = e;
 		}
 		assertEquals(error?.message, 'Parameter for "${...}+" must be iterable');
+
+		error = undefined;
+		try
+		{	new Sql(new SqlSettings(SqlMode.MYSQL), [], []);
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, 'Please, pass arguments from a string template');
 
 	}
 );
@@ -569,8 +580,8 @@ Deno.test
 
 		expr = "col1, `col2`, 3.0, fn()";
 		let alias = 'the_alias';
-		let alias_2 = 'the_alias 2!';
-		s = mysql`A-${alias}.${expr}-${alias_2}.${expr}-B`;
+		let alias2 = 'the_alias 2!';
+		s = mysql`A-${alias}.${expr}-${alias2}.${expr}-B`;
 		assertEquals(s+'', "A-`the_alias`.col1, `the_alias`.`col2`, 3.0, fn()-`the_alias 2!`.col1, `the_alias 2!`.`col2`, 3.0, fn()-B");
 
 		expr = "col1, `col2`, 3.0, fn()";
@@ -596,20 +607,20 @@ Deno.test
 		let s = mysql`A[${list}]B`;
 		assertEquals(s+'', `A(12.5,'ABC''D''EF','2000-01-01')B`);
 
-		let list_2 = [[12.5, 13], ['ABC\'D\'EF'], new Date(2000, 0, 1)];
-		s = mysqlOnly`A[${list_2}]B`;
+		let list2 = [[12.5, 13], ['ABC\'D\'EF'], new Date(2000, 0, 1)];
+		s = mysqlOnly`A[${list2}]B`;
 		assertEquals(s+'', `A((12.5,13),('ABC''D''EF'),'2000-01-01')B`);
 
 		s = mysql`A[${[]}]B`;
 		assertEquals(s+'', `A(NULL)B`);
 
-		let list_3 = [[1, {}, () => {}]];
-		s = mysqlOnly`A[${list_3}]B`;
+		let list3 = [[1, {}, () => {}]];
+		s = mysqlOnly`A[${list3}]B`;
 		assertEquals(s+'', `A((1,NULL,NULL))B`);
 
 		let error;
 		try
-		{	'' + mysql`A[${list_3}]B`
+		{	'' + mysql`A[${list3}]B`
 		}
 		catch (e)
 		{	error = e;
@@ -618,7 +629,7 @@ Deno.test
 
 		error = undefined;
 		try
-		{	'' + pgsql`A[${list_3}]B`
+		{	'' + pgsql`A[${list3}]B`
 		}
 		catch (e)
 		{	error = e;
@@ -627,7 +638,7 @@ Deno.test
 
 		error = undefined;
 		try
-		{	'' + sqlite`A[${list_3}]B`
+		{	'' + sqlite`A[${list3}]B`
 		}
 		catch (e)
 		{	error = e;
@@ -636,7 +647,7 @@ Deno.test
 
 		error = undefined;
 		try
-		{	'' + sqliteOnly`A[${list_3}]B`
+		{	'' + sqliteOnly`A[${list3}]B`
 		}
 		catch (e)
 		{	error = e;
@@ -645,7 +656,7 @@ Deno.test
 
 		error = undefined;
 		try
-		{	'' + mssql`A[${list_3}]B`
+		{	'' + mssql`A[${list3}]B`
 		}
 		catch (e)
 		{	error = e;
@@ -654,7 +665,7 @@ Deno.test
 
 		error = undefined;
 		try
-		{	'' + mssqlOnly`A[${list_3}]B`
+		{	'' + mssqlOnly`A[${list3}]B`
 		}
 		catch (e)
 		{	error = e;
@@ -663,7 +674,7 @@ Deno.test
 
 		error = undefined;
 		try
-		{	'' + pgsqlOnly`A[${[list_3]}]B`
+		{	'' + pgsqlOnly`A[${[list3]}]B`
 		}
 		catch (e)
 		{	error = e;
@@ -677,34 +688,34 @@ Deno.test
 	async () =>
 	{	let value = "*".repeat(INLINE_STRING_MAX_LEN+1);
 		let s = mysql`A'${value}'B`;
-		let put_params_to: any[] = [];
-		assertEquals(s.toString(put_params_to, false), `A?B`);
-		assertEquals(put_params_to, [value]);
+		let putParamsTo: any[] = [];
+		assertEquals(s.toString(putParamsTo, false), `A?B`);
+		assertEquals(putParamsTo, [value]);
 
 		value = value.slice(1);
 		s = mysql`A'${value}'B`;
-		put_params_to = [];
-		assertEquals(s.toString(put_params_to, false), `A'${value}'B`);
-		assertEquals(put_params_to, []);
+		putParamsTo = [];
+		assertEquals(s.toString(putParamsTo, false), `A'${value}'B`);
+		assertEquals(putParamsTo, []);
 
 		let data = new Uint8Array(INLINE_BLOB_MAX_LEN+1);
 		data.fill('a'.charCodeAt(0));
 		s = mysql`A'${data}'B`;
-		put_params_to = [];
-		assertEquals(s.toString(put_params_to, false), `A?B`);
-		assertEquals(put_params_to, [data]);
+		putParamsTo = [];
+		assertEquals(s.toString(putParamsTo, false), `A?B`);
+		assertEquals(putParamsTo, [data]);
 
 		data = data.subarray(1);
 		s = mysql`A'${data}'B`;
-		put_params_to = [];
-		assertEquals(s.toString(put_params_to, false), `Ax'${data[0].toString(16).repeat(data.length)}'B`);
-		assertEquals(put_params_to, []);
+		putParamsTo = [];
+		assertEquals(s.toString(putParamsTo, false), `Ax'${data[0].toString(16).repeat(data.length)}'B`);
+		assertEquals(putParamsTo, []);
 
 		let reader = {read() {}};
 		s = mysql`A'${reader}'B`;
-		put_params_to = [];
-		assertEquals(s.toString(put_params_to, false), `A?B`);
-		assertEquals(put_params_to, [reader]);
+		putParamsTo = [];
+		assertEquals(s.toString(putParamsTo, false), `A?B`);
+		assertEquals(putParamsTo, [reader]);
 	}
 );
 
@@ -720,14 +731,14 @@ Deno.test
 		assertEquals(s2+'', `A, 'B', C, 'D'.`);
 		assertEquals(s, s2);
 
-		let expected_result = "`id` = ?";
-		let put_params_to: any = [];
-		let buffer = new Uint8Array(expected_result.length);
+		let expectedResult = "`id` = ?";
+		let putParamsTo: any = [];
+		let buffer = new Uint8Array(expectedResult.length);
 		let param = 'a'.repeat(INLINE_STRING_MAX_LEN+1);
-		let buffer_2 = mysql`"${'id'}" = '${param}'`.toSqlBytesWithParamsBackslashAndBuffer(put_params_to, false, buffer);
-		assert(buffer_2.buffer == buffer.buffer);
-		assertEquals(decoder.decode(buffer_2), expected_result);
-		assertEquals(put_params_to[0], param);
+		let buffer2 = mysql`"${'id'}" = '${param}'`.toSqlBytesWithParamsBackslashAndBuffer(putParamsTo, false, buffer);
+		assert(buffer2.buffer == buffer.buffer);
+		assertEquals(decoder.decode(buffer2), expectedResult);
+		assertEquals(putParamsTo[0], param);
 	}
 );
 
@@ -783,8 +794,8 @@ Deno.test
 		}
 		assertEquals(error?.message, "In SQL fragment: 0 values for {${...}}");
 
-		let row_2 = {};
-		s = mysql`SET {ta.${row_2},}`;
+		let row2 = {};
+		s = mysql`SET {ta.${row2},}`;
 		assertEquals(s+'', "SET ");
 
 		row = {a: 10, val: 'text 1'};
@@ -799,48 +810,48 @@ Deno.test
 		s = mysql`SET {ta.${row}|} SET {tab.${row}|}`;
 		assertEquals(s+'', "SET (`ta`.`a`=10 OR `ta`.`val`='text 1') SET (`tab`.`a`=10 OR `tab`.`val`='text 1')");
 
-		row_2 = {};
-		s = mysql`SET {ta.${row_2}&}`;
+		row2 = {};
+		s = mysql`SET {ta.${row2}&}`;
 		assertEquals(s+'', "SET TRUE");
 
-		row_2 = {};
-		s = mysql`SET {ta.${row_2}|}`;
+		row2 = {};
+		s = mysql`SET {ta.${row2}|}`;
 		assertEquals(s+'', "SET FALSE");
 
-		row_2 = {};
-		s = mssql`SET {ta.${row_2}&}`;
+		row2 = {};
+		s = mssql`SET {ta.${row2}&}`;
 		assertEquals(s+'', "SET 1");
 
-		row_2 = {};
-		s = mssql`SET {ta.${row_2}|}`;
+		row2 = {};
+		s = mssql`SET {ta.${row2}|}`;
 		assertEquals(s+'', "SET 0");
 
-		let row_3 = {one: 1.1, two: mysql`a + f(b)`};
-		s = mysql`SET {t1.${row_3}}`;
+		let row3 = {one: 1.1, two: mysql`a + f(b)`};
+		s = mysql`SET {t1.${row3}}`;
 		assertEquals(s+'', "SET `t1`.`one`=1.1, `t1`.`two`=`t1`.a + f(`t1`.b)");
 
-		s = mysql`SET {t1.t2.${row_3}}`;
+		s = mysql`SET {t1.t2.${row3}}`;
 		assertEquals(s+'', "SET `t1`.`one`=1.1, `t1`.`two`=`t2`.a + f(`t2`.b)");
 
-		s = mysql`SET {.t2.${row_3}}`;
+		s = mysql`SET {.t2.${row3}}`;
 		assertEquals(s+'', "SET `one`=1.1, `two`=`t2`.a + f(`t2`.b)");
 
-		s = mysql`SET {t1..${row_3}}`;
+		s = mysql`SET {t1..${row3}}`;
 		assertEquals(s+'', "SET `t1`.`one`=1.1, `t1`.`two`=`a` + f(`b`)");
 
-		s = mysql`SET {${'t1'}.${'t2'}.${row_3}}`;
+		s = mysql`SET {${'t1'}.${'t2'}.${row3}}`;
 		assertEquals(s+'', "SET `t1`.`one`=1.1, `t1`.`two`=`t2`.a + f(`t2`.b)");
 
-		s = mysql`SET {${'t1'}.t2.${row_3}}`;
+		s = mysql`SET {${'t1'}.t2.${row3}}`;
 		assertEquals(s+'', "SET `t1`.`one`=1.1, `t1`.`two`=`t2`.a + f(`t2`.b)");
 
-		s = mysql`SET {t1.${'t2'}.${row_3}}`;
+		s = mysql`SET {t1.${'t2'}.${row3}}`;
 		assertEquals(s+'', "SET `t1`.`one`=1.1, `t1`.`two`=`t2`.a + f(`t2`.b)");
 
-		s = mysql`SET {.${'t2'}.${row_3}}`;
+		s = mysql`SET {.${'t2'}.${row3}}`;
 		assertEquals(s+'', "SET `one`=1.1, `two`=`t2`.a + f(`t2`.b)");
 
-		s = mysql`SET {${'t1'}..${row_3}}`;
+		s = mysql`SET {${'t1'}..${row3}}`;
 		assertEquals(s+'', "SET `t1`.`one`=1.1, `t1`.`two`=`a` + f(`b`)");
 	}
 );

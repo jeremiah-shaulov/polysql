@@ -1,6 +1,8 @@
-import {debug_assert} from './debug_assert.ts';
+// deno-lint-ignore-file
+
+import {debugAssert} from './debug_assert.ts';
 import {Sql} from "./sql.ts";
-import {utf8_string_length} from "./utf8_string_length.ts";
+import {utf8StringLength} from "./utf8_string_length.ts";
 
 const BUFFER_FOR_DATE = new Uint8Array(23);
 
@@ -19,10 +21,10 @@ const C_BACKSLASH = '\\'.charCodeAt(0);
 
 const encoder = new TextEncoder;
 const decoder = new TextDecoder;
-const decoder_latin1 = new TextDecoder('latin1');
+const decoderLatin1 = new TextDecoder('latin1');
 
-export function mysqlQuote(param: any, no_backslash_escapes=false)
-{	return quote(param, no_backslash_escapes, false);
+export function mysqlQuote(param: any, noBackslashEscapes=false)
+{	return quote(param, noBackslashEscapes, false);
 }
 
 export function pgsqlQuote(param: any, unused=false)
@@ -33,11 +35,11 @@ export function sqliteQuote(param: any, unused=false)
 {	return quote(param, true, false);
 }
 
-export function mssqlQuote(param: any, no_backslash_escapes=false)
-{	return quote(param, no_backslash_escapes, true);
+export function mssqlQuote(param: any, noBackslashEscapes=false)
+{	return quote(param, noBackslashEscapes, true);
 }
 
-export function date_encode_into(date: Date, buffer: Uint8Array)
+export function dateEncodeInto(date: Date, buffer: Uint8Array)
 {	let year = date.getFullYear();
 	let month = date.getMonth() + 1;
 	let day = date.getDate();
@@ -96,48 +98,48 @@ export function date_encode_into(date: Date, buffer: Uint8Array)
 	return 23;
 }
 
-function quote(value: any, no_backslash_escapes=false, is_mssql=false)
+function quote(value: any, noBackslashEscapes=false, isMssql=false)
 {	if (value==null || typeof(value)=='function' || typeof(value)=='symbol')
 	{	return 'NULL';
 	}
 	if (value === false)
-	{	return is_mssql ? '0' : 'FALSE';
+	{	return isMssql ? '0' : 'FALSE';
 	}
 	if (value === true)
-	{	return is_mssql ? '1' : 'TRUE';
+	{	return isMssql ? '1' : 'TRUE';
 	}
 	if (typeof(value)=='number' || typeof(value)=='bigint')
 	{	return value+'';
 	}
 	if (value instanceof Date)
-	{	let len = date_encode_into(value, BUFFER_FOR_DATE);
-		return decoder_latin1.decode(BUFFER_FOR_DATE.subarray(0, len));
+	{	let len = dateEncodeInto(value, BUFFER_FOR_DATE);
+		return decoderLatin1.decode(BUFFER_FOR_DATE.subarray(0, len));
 	}
 	if (value.buffer instanceof ArrayBuffer)
-	{	let param_len = value.byteLength;
+	{	let paramLen = value.byteLength;
 		let result;
-		if (is_mssql)
-		{	result = new Uint8Array(param_len*2 + 2); // like 0x01020304
+		if (isMssql)
+		{	result = new Uint8Array(paramLen*2 + 2); // like 0x01020304
 			result[0] = C_ZERO;
 			result[1] = C_X;
 		}
 		else
-		{	result = new Uint8Array(param_len*2 + 3); // like x'01020304'
+		{	result = new Uint8Array(paramLen*2 + 3); // like x'01020304'
 			result[0] = C_X;
 			result[1] = C_APOS;
 		}
 		let pos = 2;
-		for (let j=0; j<param_len; j++)
+		for (let j=0; j<paramLen; j++)
 		{	let byte = value[j];
 			let high = byte >> 4;
 			let low = byte & 0xF;
 			result[pos++] = high < 10 ? C_ZERO+high : high-10+C_A_CAP;
 			result[pos++] = low < 10 ? C_ZERO+low : low-10+C_A_CAP;
 		}
-		if (!is_mssql)
+		if (!isMssql)
 		{	result[pos] = C_APOS;
 		}
-		return decoder_latin1.decode(result);
+		return decoderLatin1.decode(result);
 	}
 	if (typeof(value.read) == 'function')
 	{	throw new Error(`Cannot stringify Deno.Reader`);
@@ -149,27 +151,27 @@ function quote(value: any, no_backslash_escapes=false, is_mssql=false)
 	else
 	{	value += '';
 	}
-	let n_add = 0;
-	for (let j=0, j_end=value.length; j<j_end; j++)
+	let nAdd = 0;
+	for (let j=0, jEnd=value.length; j<jEnd; j++)
 	{	let c = value.charCodeAt(j);
-		if (c==C_APOS || c==C_BACKSLASH && !no_backslash_escapes)
-		{	n_add++;
+		if (c==C_APOS || c==C_BACKSLASH && !noBackslashEscapes)
+		{	nAdd++;
 		}
 	}
-	if (n_add == 0)
+	if (nAdd == 0)
 	{	return "'" + value + "'";
 	}
-	let result = new Uint8Array(2 + utf8_string_length(value) + n_add);
+	let result = new Uint8Array(2 + utf8StringLength(value) + nAdd);
 	let {read, written} = encoder.encodeInto(value, result.subarray(1));
-	debug_assert(read == value.length);
+	debugAssert(read == value.length);
 	result[0] = C_APOS;
-	for (let j=written, k=j+n_add; k!=j; k--, j--)
+	for (let j=written, k=j+nAdd; k!=j; k--, j--)
 	{	let c = result[j];
-		if (c==C_APOS || c==C_BACKSLASH && !no_backslash_escapes)
+		if (c==C_APOS || c==C_BACKSLASH && !noBackslashEscapes)
 		{	result[k--] = c;
 		}
 		result[k] = c;
 	}
-	result[1 + written + n_add] = C_APOS;
+	result[1 + written + nAdd] = C_APOS;
 	return decoder.decode(result);
 }

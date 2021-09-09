@@ -1,3 +1,5 @@
+// deno-lint-ignore-file
+
 const C_A_CAP = 'A'.charCodeAt(0);
 const C_A = 'a'.charCodeAt(0);
 const C_Z = 'z'.charCodeAt(0);
@@ -23,18 +25,18 @@ export const enum SqlMode
 class SqlWordsList
 {	def: string;
 
-	private is_whitelist = true;
+	private isWhitelist = true;
 	private map: Map<number, Uint8Array[]> = new Map;
 
-	constructor(init_def: string)
-	{	init_def = init_def.trim();
-		if (init_def.charAt(0) == '!')
-		{	this.is_whitelist = false;
-			init_def = init_def.slice(1).trimStart();
+	constructor(initDef: string)
+	{	initDef = initDef.trim();
+		if (initDef.charAt(0) == '!')
+		{	this.isWhitelist = false;
+			initDef = initDef.slice(1).trimStart();
 		}
-		let init_idents_arr = init_def.split(RE_S);
+		let initIdentsArr = initDef.split(RE_S);
 		let idents = [];
-		for (let id of init_idents_arr)
+		for (let id of initIdentsArr)
 		{	id = id.toUpperCase();
 			let word = encoder.encode(id);
 			let key = word[0] | (word[1] << 8) | (word[word.length-1] << 16) | (word.length << 24);
@@ -43,16 +45,16 @@ class SqlWordsList
 			{	list = [];
 				this.map.set(key, list);
 			}
-			if (list.findIndex(v => uint8array_cmp(v, word)==0) == -1)
+			if (list.findIndex(v => uint8arrayCmp(v, word)==0) == -1)
 			{	list.push(word);
 				idents.push(id);
 			}
 		}
 		idents.sort();
-		this.def = this.is_whitelist ? idents.join(' ') : '!'+idents.join(' ');
+		this.def = this.isWhitelist ? idents.join(' ') : '!'+idents.join(' ');
 	}
 
-	is_allowed(subj: Uint8Array)
+	isAllowed(subj: Uint8Array)
 	{	let len = subj.length;
 		let c0 = subj[0] | 0;
 		let c1 = subj[1] | 0;
@@ -81,40 +83,40 @@ L:			for (let word of list)
 					{	continue L;
 					}
 				}
-				return this.is_whitelist;
+				return this.isWhitelist;
 			}
 		}
-		return !this.is_whitelist;
+		return !this.isWhitelist;
 	}
 }
 
 export class SqlSettings
-{	private m_idents: SqlWordsList;
-	private m_functions: SqlWordsList;
+{	private mIdents: SqlWordsList;
+	private mFunctions: SqlWordsList;
 
 	constructor(readonly mode: SqlMode, idents?: string, functions?: string)
-	{	this.m_idents = new SqlWordsList(idents ?? DEFAULT_IDENTS_POLICY);
-		this.m_functions = new SqlWordsList(functions ?? DEFAULT_FUNCTIONS_POLICY);
+	{	this.mIdents = new SqlWordsList(idents ?? DEFAULT_IDENTS_POLICY);
+		this.mFunctions = new SqlWordsList(functions ?? DEFAULT_FUNCTIONS_POLICY);
 	}
 
 	get idents()
-	{	return this.m_idents.def;
+	{	return this.mIdents.def;
 	}
 
 	get functions()
-	{	return this.m_functions.def;
+	{	return this.mFunctions.def;
 	}
 
 	isIdentAllowed(subj: Uint8Array)
-	{	return this.m_idents.is_allowed(subj);
+	{	return this.mIdents.isAllowed(subj);
 	}
 
 	isFunctionAllowed(subj: Uint8Array)
-	{	return this.m_functions.is_allowed(subj);
+	{	return this.mFunctions.isAllowed(subj);
 	}
 }
 
-function uint8array_cmp(a: Uint8Array, b: Uint8Array)
+function uint8arrayCmp(a: Uint8Array, b: Uint8Array)
 {	let len = Math.min(a.length, b.length);
 	for (let i=0; i<len; i++)
 	{	if (a[i] < b[i])
