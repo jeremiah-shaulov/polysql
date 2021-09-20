@@ -1,6 +1,6 @@
 // deno-lint-ignore-file
 
-import {mysql} from '../sql.ts';
+import {mysql, pgsql, INLINE_STRING_MAX_LEN} from '../sql.ts';
 import
 {	mysqlTables, mysqlOnlyTables,
 	pgsqlTables, pgsqlOnlyTables,
@@ -106,6 +106,14 @@ Deno.test
 
 		s = mysqlTables[TABLE].join('more').where("").select(['a', 'b b']);
 		assertEquals(s+'', "SELECT `b`.`a`, `b`.`b b` FROM `Hello ``All``!` AS `b` CROSS JOIN `more`");
+
+		{	let a = 'a'.repeat(INLINE_STRING_MAX_LEN+1);
+			let b = 'b'.repeat(INLINE_STRING_MAX_LEN+1);
+			let params: any[] = [];
+			let str = mysqlTables.t_log.where(pgsql`a='${a}'`).select(pgsql`b+'${b}'`).toString(params);
+			assertEquals(str, "SELECT `b`+? FROM `t_log` WHERE (`a`=?)");
+			assertEquals(params, [b, a]);
+		}
 
 		let error;
 		try

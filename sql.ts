@@ -869,8 +869,9 @@ class Serializer
 	appendSafeSqlFragment(param: any, isExpression=false)
 	{	// Remember end position before appending
 		let from = this.pos;
+		let paramIsSql = param instanceof Sql;
 		// Append param, as is
-		if (param instanceof Sql)
+		if (paramIsSql)
 		{	let tmp = param.sqlSettings;
 			param.sqlSettings = this.sqlSettings;
 			try
@@ -897,19 +898,7 @@ class Serializer
 L:		for (let j=from; j<pos; j++)
 		{	let c = result[j];
 			switch (c)
-			{	case 0:
-				case C_SEMICOLON:
-				case C_AT:
-				case C_DOLLAR:
-				case C_HASH:
-				case C_QUEST:
-				case C_COLON:
-				case C_SQUARE_OPEN:
-				case C_SQUARE_CLOSE:
-				case C_BRACE_OPEN:
-				case C_BRACE_CLOSE:
-					throw new Error(`Invalid character in SQL fragment: ${param}`);
-				case C_COMMA:
+			{	case C_COMMA:
 					if (parenLevel==0 && isExpression)
 					{	throw new Error(`Comma in SQL fragment: ${param}`);
 					}
@@ -1024,6 +1013,22 @@ L:		for (let j=from; j<pos; j++)
 					}
 					j--; // will j++ on next iter
 					break;
+				case 0:
+				case C_SEMICOLON:
+				case C_AT:
+				case C_DOLLAR:
+				case C_HASH:
+				case C_COLON:
+				case C_SQUARE_OPEN:
+				case C_SQUARE_CLOSE:
+				case C_BRACE_OPEN:
+				case C_BRACE_CLOSE:
+					throw new Error(`Invalid character in SQL fragment: ${param}`);
+				case C_QUEST:
+					if (!paramIsSql)
+					{	throw new Error(`Invalid character in SQL fragment: ${param}`);
+					}
+					// fallthrough
 				default:
 				{	let hasNondigit = c>=C_A && c<=C_Z || c>=C_A_CAP && c<=C_Z_CAP || c==C_UNDERSCORE || c>=0x80;
 					if (hasNondigit || c>=C_ZERO && c<=C_NINE)
