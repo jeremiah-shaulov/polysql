@@ -94,13 +94,15 @@ const enum Change
 	QUOTE_IDENT,
 }
 
+type Param = any;
+
 export class Sql
 {	estimatedByteLength: number;
 
 	protected strings: string[];
-	protected params: any[];
+	protected params: Param[];
 
-	constructor(public sqlSettings: SqlSettings, strings?: string[], params?: any[])
+	constructor(public sqlSettings: SqlSettings, strings?: string[], params?: Param[])
 	{	if (!strings)
 		{	strings = [''];
 		}
@@ -113,7 +115,7 @@ export class Sql
 		this.strings = strings;
 		this.params = params;
 		let len = 0;
-		for (let s of strings)
+		for (const s of strings)
 		{	len += s.length + GUESS_STRING_BYTE_LEN_LONGER; // if byte length of s is longer than s.length+GUESS_STRING_BYTE_LEN_LONGER, will realloc later
 		}
 		for (let i=0, iEnd=params.length; i<iEnd; i++)
@@ -153,8 +155,8 @@ export class Sql
 			{	// assume, will use "put_params_to"
 			}
 			else
-			{	let prevString = strings[i];
-				let paramTypeDescriminator = prevString.charCodeAt(prevString.length-1);
+			{	const prevString = strings[i];
+				const paramTypeDescriminator = prevString.charCodeAt(prevString.length-1);
 				if (paramTypeDescriminator==C_APOS || (paramTypeDescriminator==C_QUOT || paramTypeDescriminator==C_BACKTICK) && strings[i+1]?.charCodeAt(0)==paramTypeDescriminator)
 				{	param = JSON.stringify(param);
 					len += param.length + GUESS_STRING_BYTE_LEN_LONGER; // if byte length of param is longer than param.length+GUESS_STRING_BYTE_LEN_LONGER, will realloc later
@@ -169,7 +171,7 @@ export class Sql
 	}
 
 	concat(other: Sql)
-	{	let sql: Sql = new (this.constructor as any)(this.sqlSettings);
+	{	const sql: Sql = new (this.constructor as any)(this.sqlSettings);
 		Object.assign(sql, this);
 		sql.strings = sql.strings.slice();
 		sql.params = sql.params.slice();
@@ -178,7 +180,7 @@ export class Sql
 	}
 
 	append(other: Sql)
-	{	let {strings, params} = this;
+	{	const {strings, params} = this;
 		strings[strings.length-1] += other.strings[0];
 		for (let i=1, iEnd=other.strings.length, j=strings.length; i<iEnd; i++, j++)
 		{	strings[j] = other.strings[i];
@@ -195,14 +197,14 @@ export class Sql
 		Else, will return a subarray of a new Uint8Array.
 		If `useBufferFromPos` is provided, will append to the `useBuffer` after this position.
 	 **/
-	encode(putParamsTo?: any[], mysqlNoBackslashEscapes=false, useBuffer?: Uint8Array, useBufferFromPos=0, defaultParentName?: Uint8Array): Uint8Array
-	{	let {strings, params, sqlSettings} = this;
+	encode(putParamsTo?: Param[], mysqlNoBackslashEscapes=false, useBuffer?: Uint8Array, useBufferFromPos=0, defaultParentName?: Uint8Array): Uint8Array
+	{	const {strings, params, sqlSettings} = this;
 		const {mode} = sqlSettings;
 		// 1. Allocate the buffer
-		let serializer = new Serializer(putParamsTo, mode!=SqlMode.MYSQL && mode!=SqlMode.MYSQL_ONLY || mysqlNoBackslashEscapes, useBuffer, useBufferFromPos, sqlSettings, this.estimatedByteLength);
+		const serializer = new Serializer(putParamsTo, mode!=SqlMode.MYSQL && mode!=SqlMode.MYSQL_ONLY || mysqlNoBackslashEscapes, useBuffer, useBufferFromPos, sqlSettings, this.estimatedByteLength);
 		// 2. Append strings and params to the buffer
 		let want = Want.NOTHING;
-		let iEnd = strings.length - 1;
+		const iEnd = strings.length - 1;
 		for (let i=0; true; i++)
 		{	// Append part of string literal
 			serializer.appendIntermediateSqlPart(strings[i], want);
@@ -245,7 +247,7 @@ export class Sql
 				// Have parent_name?
 				let varParentNameLeft: Uint8Array | undefined;
 				let varParentName: Uint8Array | undefined;
-				let next = strings[i+1];
+				const next = strings[i+1];
 				if (next?.charCodeAt(0) == C_DOT)
 				{	varParentName = encodeParentName(param);
 					param = params[++i];
@@ -262,7 +264,7 @@ export class Sql
 				serializer.readParentNamesOnTheLeft(defaultParentName, varParentNameLeft, varParentName);
 				qt = serializer.getChar(-1);
 				if (qt == C_BRACE_OPEN)
-				{	let paramTypeDescriminator = strings[i+1].charCodeAt(0);
+				{	const paramTypeDescriminator = strings[i+1].charCodeAt(0);
 					if (paramTypeDescriminator != C_BRACE_CLOSE)
 					{	if (paramTypeDescriminator!=C_COMMA && paramTypeDescriminator!=C_AMP && paramTypeDescriminator!=C_PIPE || strings[i+1].charCodeAt(1)!=C_BRACE_CLOSE)
 						{	throw new Error(`Inappropriately enclosed parameter`);
@@ -271,7 +273,7 @@ export class Sql
 					want = serializer.appendEqList(param, paramTypeDescriminator);
 				}
 				else if (qt==C_BACKTICK || qt==C_QUOT)
-				{	let paramTypeDescriminator = strings[i+1].charCodeAt(0);
+				{	const paramTypeDescriminator = strings[i+1].charCodeAt(0);
 					if (paramTypeDescriminator == qt)
 					{	serializer.appendQuotedIdent(param+'');
 						want = Want.CONVERT_QT_ID;
@@ -300,44 +302,44 @@ export class Sql
 		return serializer.getResult();
 	}
 
-	toString(putParamsTo?: any[], mysqlNoBackslashEscapes=false)
+	toString(putParamsTo?: Param[], mysqlNoBackslashEscapes=false)
 	{	return decoder.decode(this.encode(putParamsTo, mysqlNoBackslashEscapes));
 	}
 
-	toSqlBytesWithParamsBackslashAndBuffer(putParamsTo: any[]|undefined, mysqlNoBackslashEscapes: boolean, useBuffer: Uint8Array)
+	toSqlBytesWithParamsBackslashAndBuffer(putParamsTo: Param[]|undefined, mysqlNoBackslashEscapes: boolean, useBuffer: Uint8Array)
 	{	return this.encode(putParamsTo, mysqlNoBackslashEscapes, useBuffer);
 	}
 }
 
-export function mysql(strings: TemplateStringsArray, ...params: any[])
+export function mysql(strings: TemplateStringsArray, ...params: Param[])
 {	return new Sql(DEFAULT_SETTINGS_MYSQL, [...strings], params);
 }
 
-export function pgsql(strings: TemplateStringsArray, ...params: any[])
+export function pgsql(strings: TemplateStringsArray, ...params: Param[])
 {	return new Sql(DEFAULT_SETTINGS_PGSQL, [...strings], params);
 }
 
-export function sqlite(strings: TemplateStringsArray, ...params: any[])
+export function sqlite(strings: TemplateStringsArray, ...params: Param[])
 {	return new Sql(DEFAULT_SETTINGS_SQLITE, [...strings], params);
 }
 
-export function mssql(strings: TemplateStringsArray, ...params: any[])
+export function mssql(strings: TemplateStringsArray, ...params: Param[])
 {	return new Sql(DEFAULT_SETTINGS_MSSQL, [...strings], params);
 }
 
-export function mysqlOnly(strings: TemplateStringsArray, ...params: any[])
+export function mysqlOnly(strings: TemplateStringsArray, ...params: Param[])
 {	return new Sql(DEFAULT_SETTINGS_MYSQL_ONLY, [...strings], params);
 }
 
-export function pgsqlOnly(strings: TemplateStringsArray, ...params: any[])
+export function pgsqlOnly(strings: TemplateStringsArray, ...params: Param[])
 {	return new Sql(DEFAULT_SETTINGS_PGSQL_ONLY, [...strings], params);
 }
 
-export function sqliteOnly(strings: TemplateStringsArray, ...params: any[])
+export function sqliteOnly(strings: TemplateStringsArray, ...params: Param[])
 {	return new Sql(DEFAULT_SETTINGS_SQLITE_ONLY, [...strings], params);
 }
 
-export function mssqlOnly(strings: TemplateStringsArray, ...params: any[])
+export function mssqlOnly(strings: TemplateStringsArray, ...params: Param[])
 {	return new Sql(DEFAULT_SETTINGS_MSSQL_ONLY, [...strings], params);
 }
 
@@ -350,7 +352,7 @@ class Serializer
 	private parentName = EMPTY_ARRAY;
 	private parentNameLeft = EMPTY_ARRAY;
 
-	constructor(private putParamsTo: any[]|undefined, private noBackslashEscapes: boolean, useBuffer: Uint8Array|undefined, useBufferFromPos: number, private sqlSettings: SqlSettings, estimatedByteLength: number)
+	constructor(private putParamsTo: Param[]|undefined, private noBackslashEscapes: boolean, useBuffer: Uint8Array|undefined, useBufferFromPos: number, private sqlSettings: SqlSettings, estimatedByteLength: number)
 	{	if (useBuffer)
 		{	this.result = useBuffer;
 			this.pos = useBufferFromPos;
@@ -365,7 +367,7 @@ class Serializer
 
 	private appendRawString(s: string)
 	{	while (true)
-		{	let {read, written} = encoder.encodeInto(s, this.result.subarray(this.pos));
+		{	const {read, written} = encoder.encodeInto(s, this.result.subarray(this.pos));
 			this.pos += written;
 			if (read == s.length)
 			{	break;
@@ -377,7 +379,7 @@ class Serializer
 
 	private ensureRoom(room: number)
 	{	if (this.pos+room > this.result.length)
-		{	let tmp = new Uint8Array((Math.max(this.result.length*2, this.result.length+Math.max(room, this.result.length/2)) | 7) + 1);
+		{	const tmp = new Uint8Array((Math.max(this.result.length*2, this.result.length+Math.max(room, this.result.length/2)) | 7) + 1);
 			tmp.set(this.result.subarray(0, this.pos));
 			this.result = tmp;
 		}
@@ -408,8 +410,8 @@ class Serializer
 	{	switch (want)
 		{	case Want.REMOVE_APOS_OR_BRACE_CLOSE_OR_GT:
 			{	debugAssert(this.pos > 0);
-				let from = --this.pos;
-				let c = this.result[from];
+				const from = --this.pos;
+				const c = this.result[from];
 				this.appendRawString(s);
 				debugAssert(this.result[from]==C_APOS || this.result[from]==C_QUOT || this.result[from]==C_BRACE_CLOSE || this.result[from]==C_GT);
 				this.result[from] = c;
@@ -418,9 +420,9 @@ class Serializer
 			case Want.REMOVE_A_CHAR_AND_BRACE_CLOSE:
 			{	debugAssert(s.charAt(1) == "}");
 				this.pos -= 2;
-				let from = this.pos;
-				let c0 = this.result[from];
-				let c1 = this.result[from + 1];
+				const from = this.pos;
+				const c0 = this.result[from];
+				const c1 = this.result[from + 1];
 				this.appendRawString(s);
 				debugAssert(this.result[from+1] == C_BRACE_CLOSE);
 				this.result[from] = c0;
@@ -428,14 +430,14 @@ class Serializer
 				break;
 			}
 			case Want.CONVERT_QT_ID:
-			{	let from = this.pos;
+			{	const from = this.pos;
 				this.appendRawString(s);
 				debugAssert(this.result[from]==C_QUOT || this.result[from]==C_BACKTICK);
 				this.result[from] = this.qtId;
 				break;
 			}
 			case Want.CONVERT_CLOSE_TO_PAREN_CLOSE:
-			{	let from = this.pos;
+			{	const from = this.pos;
 				this.appendRawString(s);
 				debugAssert(this.result[from] == C_SQUARE_CLOSE);
 				this.result[from] = C_PAREN_CLOSE;
@@ -443,8 +445,8 @@ class Serializer
 			}
 			case Want.CONVERT_A_CHAR_AND_BRACE_CLOSE_TO_PAREN_CLOSE:
 			{	debugAssert(this.pos > 0);
-				let from = --this.pos;
-				let c = this.result[from];
+				const from = --this.pos;
+				const c = this.result[from];
 				this.appendRawString(s);
 				debugAssert(this.result[from+1] == C_BRACE_CLOSE);
 				this.result[from + 1] = C_PAREN_CLOSE;
@@ -467,7 +469,7 @@ class Serializer
 		I assume that i'm after opening '"' or '`' char.
 	 **/
 	appendQuotedIdent(param: string)
-	{	let from = this.pos;
+	{	const from = this.pos;
 		// Append param, as is
 		this.appendRawString(param);
 		// Escape chars in param
@@ -487,7 +489,7 @@ class Serializer
 		{	this.ensureRoom(nAdd);
 			result = this.result;
 			for (let j=pos-1, k=j+nAdd; k!=j; k--, j--)
-			{	let c = result[j];
+			{	const c = result[j];
 				if (c == qtId)
 				{	result[k--] = qtId;
 				}
@@ -500,14 +502,14 @@ class Serializer
 	/**	Append a "${param}*", "${param}+" or a `${param},`.
 		I assume that i'm after opening '"' or '`' char.
 	 **/
-	appendQuotedIdents(param: any, paramTypeDescriminator: number)
+	appendQuotedIdents(param: Param, paramTypeDescriminator: number)
 	{	if (param==null || typeof(param)!='object' || !(Symbol.iterator in param))
 		{	throw new Error('Parameter for "${...}' + String.fromCharCode(paramTypeDescriminator) + '" must be iterable');
 		}
-		let {qtId, parentName} = this;
+		const {qtId, parentName} = this;
 		let isNext = false;
 		this.pos--; // backspace "
-		for (let p of param)
+		for (const p of param)
 		{	if (!isNext)
 			{	isNext = true;
 			}
@@ -547,7 +549,7 @@ class Serializer
 	/**	Append a '${param}'.
 		I assume that i'm after opening "'" char.
 	 **/
-	appendSqlValue(param: any)
+	appendSqlValue(param: Param)
 	{	debugAssert(this.result[this.pos-1] == C_APOS);
 		if (param == null)
 		{	this.pos--; // backspace '
@@ -566,9 +568,9 @@ class Serializer
 			return Want.REMOVE_APOS_OR_BRACE_CLOSE_OR_GT;
 		}
 		if (param === true)
-		{	const alt_booleans = this.sqlSettings.mode == SqlMode.MSSQL || this.sqlSettings.mode == SqlMode.MSSQL_ONLY;
+		{	const altBooleans = this.sqlSettings.mode == SqlMode.MSSQL || this.sqlSettings.mode == SqlMode.MSSQL_ONLY;
 			this.pos--; // backspace '
-			if (alt_booleans)
+			if (altBooleans)
 			{	this.appendRawChar(C_ONE);
 			}
 			else
@@ -587,13 +589,13 @@ class Serializer
 			return Want.NOTHING;
 		}
 		if (param.buffer instanceof ArrayBuffer)
-		{	let paramLen = param.byteLength;
+		{	const paramLen = param.byteLength;
 			if (this.putParamsTo && this.putParamsTo.length<MAX_PLACEHOLDERS && paramLen>INLINE_BLOB_MAX_LEN)
 			{	this.result[this.pos - 1] = C_QUEST; // ' -> ?
 				this.putParamsTo.push(param);
 				return Want.REMOVE_APOS_OR_BRACE_CLOSE_OR_GT;
 			}
-			let {result} = this;
+			const {result} = this;
 			const altHexLiterals = this.sqlSettings.mode == SqlMode.MSSQL || this.sqlSettings.mode == SqlMode.MSSQL_ONLY;
 			this.ensureRoom(paramLen*2 + 1);
 			if (altHexLiterals)
@@ -607,9 +609,9 @@ class Serializer
 				result[this.pos++] = C_APOS;
 			}
 			for (let j=0; j<paramLen; j++)
-			{	let byte = param[j];
-				let high = byte >> 4;
-				let low = byte & 0xF;
+			{	const byte = param[j];
+				const high = byte >> 4;
+				const low = byte & 0xF;
 				result[this.pos++] = high < 10 ? C_ZERO+high : high-10+C_A_CAP;
 				result[this.pos++] = low < 10 ? C_ZERO+low : low-10+C_A_CAP;
 			}
@@ -637,7 +639,7 @@ class Serializer
 		let {result, pos} = this;
 		let nAdd = 0;
 		for (let j=0, jEnd=param.length; j<jEnd; j++)
-		{	let c = param.charCodeAt(j);
+		{	const c = param.charCodeAt(j);
 			if (c==C_APOS || c==C_BACKSLASH && !this.noBackslashEscapes)
 			{	nAdd++;
 			}
@@ -646,7 +648,7 @@ class Serializer
 		{	this.ensureRoom(nAdd);
 			result = this.result;
 			for (let j=pos-1, k=j+nAdd; k!=j; k--, j--)
-			{	let c = result[j];
+			{	const c = result[j];
 				if (c==C_APOS || c==C_BACKSLASH && !this.noBackslashEscapes)
 				{	result[k--] = c;
 				}
@@ -660,9 +662,9 @@ class Serializer
 	/**	Append a [${param}].
 		I assume that i'm after opening '[' char, that was converted to '('.
 	 **/
-	appendIterable(param: Iterable<any>, level=0)
+	appendIterable(param: Iterable<Param>, level=0)
 	{	let nItemsAdded = 0;
-		for (let p of param)
+		for (const p of param)
 		{	if (nItemsAdded++ != 0)
 			{	this.appendRawChar(C_COMMA);
 			}
@@ -705,10 +707,10 @@ class Serializer
 	/**	Append a <${param}>.
 		I assume that i'm after opening '<' char, that was converted to '('.
 	 **/
-	appendNamesValues(param: Iterable<Record<string, any>>)
-	{	let {qtId} = this;
+	appendNamesValues(param: Iterable<Record<string, Param>>)
+	{	const {qtId} = this;
 		let names: string[] | undefined;
-		for (let row of param)
+		for (const row of param)
 		{	if (!names)
 			{	names = Object.keys(row);
 				if (names.length == 0)
@@ -732,7 +734,7 @@ class Serializer
 				this.appendRawChar(C_LF);
 			}
 			let delim = C_PAREN_OPEN;
-			for (let name of names)
+			for (const name of names)
 			{	this.appendRawChar(delim);
 				this.appendRawChar(C_APOS);
 				if (this.appendSqlValue(row[name]) != Want.REMOVE_APOS_OR_BRACE_CLOSE_OR_GT)
@@ -763,12 +765,12 @@ class Serializer
 			return;
 		}
 		// parent_name
-		let from = --pos; // from '.'
+		const from = --pos; // from '.'
 		let c = result[--pos];
 		while (c>=C_A && c<=C_Z || c>=C_A_CAP && c<=C_Z_CAP || c>=C_ZERO && c<=C_NINE || c==C_UNDERSCORE || c>=0x80)
 		{	c = result[--pos];
 		}
-		let parentNameLen = from - pos - 1;
+		const parentNameLen = from - pos - 1;
 		// parent_name_left
 		let fromLeft = -1;
 		if (c==C_DOT && !varParentName)
@@ -781,7 +783,7 @@ class Serializer
 		//
 		pos++; // to the first letter of the parent name
 		this.pos = pos;
-		let bothLen = from - pos; // name of "left.right"
+		const bothLen = from - pos; // name of "left.right"
 		if (this.bufferForParentName.length < bothLen)
 		{	this.bufferForParentName = new Uint8Array((bothLen|7) + 1);
 		}
@@ -796,11 +798,11 @@ class Serializer
 		}
 	}
 
-	appendEqList(param: any, paramTypeDescriminator: number)
+	appendEqList(param: Param, paramTypeDescriminator: number)
 	{	if (param==null || typeof(param)!='object')
 		{	throw new Error("In SQL fragment: parameter for {${...}} must be object");
 		}
-		let {qtId, parentNameLeft} = this;
+		const {qtId, parentNameLeft} = this;
 		let delim;
 		if (paramTypeDescriminator==C_BRACE_CLOSE || paramTypeDescriminator==C_COMMA)
 		{	delim = DELIM_COMMA;
@@ -811,7 +813,7 @@ class Serializer
 			this.setChar(-1, C_PAREN_OPEN); // { -> (
 		}
 		let nItemsAdded = 0;
-		for (let [k, v] of Object.entries(param))
+		for (const [k, v] of Object.entries(param))
 		{	if (nItemsAdded++ != 0)
 			{	this.appendRawBytes(delim);
 			}
@@ -866,16 +868,16 @@ class Serializer
 	/**	Append a (${param}).
 		I assume that i'm after opening '(' char (if enclosed).
 	 **/
-	appendSafeSqlFragment(param: any, isExpression=false)
+	appendSafeSqlFragment(param: Param, isExpression=false)
 	{	// Remember end position before appending
-		let from = this.pos;
-		let paramIsSql = param instanceof Sql;
+		const from = this.pos;
+		const paramIsSql = param instanceof Sql;
 		// Append param, as is
 		if (paramIsSql)
-		{	let tmp = param.sqlSettings;
+		{	const tmp = param.sqlSettings;
 			param.sqlSettings = this.sqlSettings;
 			try
-			{	let newResult = param.encode(this.putParamsTo, this.noBackslashEscapes, this.result, this.pos, this.parentName);
+			{	const newResult = param.encode(this.putParamsTo, this.noBackslashEscapes, this.result, this.pos, this.parentName);
 				this.pos = newResult.length;
 				if (newResult.buffer != this.result.buffer)
 				{	this.result = new Uint8Array(newResult.buffer);
@@ -893,7 +895,7 @@ class Serializer
 		// 1. Find how many bytes to add
 		let {result, pos, qtId, alwaysQuoteIdents, parentName} = this;
 		let parenLevel = 0;
-		let changes: {change: Change, changeFrom: number, changeTo: number}[] = [];
+		const changes: {change: Change, changeFrom: number, changeTo: number}[] = [];
 		let nAdd = 0;
 L:		for (let j=from; j<pos; j++)
 		{	let c = result[j];
@@ -922,9 +924,9 @@ L:		for (let j=from; j<pos; j++)
 					throw new Error(`Unterminated string literal in SQL fragment: ${param}`);
 				case C_BACKTICK:
 				case C_QUOT:
-				{	let qt = c;
-					let jFrom = j;
-					let changesPos = changes.length;
+				{	const qt = c;
+					const jFrom = j;
+					const changesPos = changes.length;
 					if (qt == qtId)
 					{	while (++j < pos)
 						{	c = result[j];
@@ -995,7 +997,7 @@ L:		for (let j=from; j<pos; j++)
 						{	c = result[j];
 							if (c!=C_SPACE && c!=C_TAB && c!=C_CR && c!=C_LF)
 							{	// skip identifier that follows this dot
-								let changeFrom = j;
+								const changeFrom = j;
 								j--;
 								while (++j < pos)
 								{	c = result[j];
@@ -1032,7 +1034,7 @@ L:		for (let j=from; j<pos; j++)
 				default:
 				{	let hasNondigit = c>=C_A && c<=C_Z || c>=C_A_CAP && c<=C_Z_CAP || c==C_UNDERSCORE || c>=0x80;
 					if (hasNondigit || c>=C_ZERO && c<=C_NINE)
-					{	let changeFrom = j;
+					{	const changeFrom = j;
 						while (++j < pos)
 						{	c = result[j];
 							if (c>=C_A && c<=C_Z || c>=C_A_CAP && c<=C_Z_CAP || c==C_UNDERSCORE || c>=0x80)
@@ -1046,7 +1048,7 @@ L:		for (let j=from; j<pos; j++)
 						}
 						if (hasNondigit)
 						{	// skip space following this identifier
-							let jAfterIdent = j--;
+							const jAfterIdent = j--;
 							while (++j < pos)
 							{	c = result[j];
 								if (c!=C_SPACE && c!=C_TAB && c!=C_CR && c!=C_LF)
@@ -1054,7 +1056,7 @@ L:		for (let j=from; j<pos; j++)
 								}
 							}
 							// is allowed?
-							let name = result.subarray(changeFrom, jAfterIdent);
+							const name = result.subarray(changeFrom, jAfterIdent);
 							if (c == C_PAREN_OPEN) // if is function
 							{	if (!this.sqlSettings.isFunctionAllowed(name))
 								{	changes[changes.length] = {change: Change.QUOTE_IDENT, changeFrom, changeTo: jAfterIdent-1};
@@ -1094,7 +1096,7 @@ L:		for (let j=from; j<pos; j++)
 			let nChange = changes.length;
 			var {change, changeFrom, changeTo} = changes[--nChange];
 			for (let j=pos-1, k=j+nAdd; true; k--, j--)
-			{	let c = result[j];
+			{	const c = result[j];
 				if (j == changeTo)
 				{	// take actions
 					switch (change)
@@ -1184,7 +1186,7 @@ L:		for (let j=from; j<pos; j++)
 	}
 }
 
-function encodeParentName(param: any)
+function encodeParentName(param: Param)
 {	if (param == null)
 	{	return EMPTY_ARRAY;
 	}
