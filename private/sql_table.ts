@@ -478,7 +478,8 @@ export class SqlTable extends Sql
 					}
 				}
 				else if (onConflictDo == 'replace')
-				{	switch (this.sqlSettings.mode)
+				{	const {mode} = this.sqlSettings;
+					switch (mode)
 					{	case SqlMode.MYSQL:
 							throw new Error("REPLACE is not supported across all engines. Please use mysqlOnly`...`");
 
@@ -501,7 +502,7 @@ export class SqlTable extends Sql
 							break;
 
 						default:
-							debugAssert(this.sqlSettings.mode == SqlMode.SQLITE_ONLY);
+							debugAssert(mode == SqlMode.SQLITE_ONLY);
 							this.strings[this.strings.length - 1] += 'REPLACE INTO ';
 							this.estimatedByteLength += 13;
 							this.appendTableName(this.tableName);
@@ -511,13 +512,13 @@ export class SqlTable extends Sql
 				else
 				{	debugAssert(onConflictDo=='update' || onConflictDo=='patch');
 					const isPatch = onConflictDo == 'patch';
-					switch (this.sqlSettings.mode)
+					const {mode} = this.sqlSettings;
+					switch (mode)
 					{	case SqlMode.MYSQL:
 							throw new Error("ON CONFLICT DO UPDATE is not supported across all engines. Please use mysqlOnly`...`");
 
 						case SqlMode.SQLITE:
-						case SqlMode.SQLITE_ONLY:
-							throw new Error("ON CONFLICT DO UPDATE is not supported on SQLite");
+							throw new Error("ON CONFLICT DO UPDATE is not supported across all engines. Please use sqliteOnly`...`");
 
 						case SqlMode.PGSQL:
 						case SqlMode.PGSQL_ONLY:
@@ -528,12 +529,17 @@ export class SqlTable extends Sql
 							throw new Error("ON CONFLICT DO UPDATE is not supported on MS SQL");
 
 						default:
-						{	debugAssert(this.sqlSettings.mode == SqlMode.MYSQL_ONLY);
+						{	debugAssert(mode==SqlMode.MYSQL_ONLY || mode==SqlMode.SQLITE_ONLY);
 							const {names, rows: rowsW} = wrapRowsIterator(rows);
 							this.strings[this.strings.length - 1] += 'INSERT INTO ';
 							this.estimatedByteLength += 12;
 							const tableName = this.appendTableName(this.tableName);
-							this.append(mysql` <${rowsW}> AS excluded ON DUPLICATE KEY UPDATE `);
+							if (mode==SqlMode.MYSQL_ONLY)
+							{	this.append(mysql` <${rowsW}> AS excluded ON DUPLICATE KEY UPDATE `);
+							}
+							else
+							{	this.append(mysql` <${rowsW}> ON CONFLICT DO UPDATE SET `);
+							}
 							let wantComma = false;
 							for (const name of names)
 							{	if (wantComma)
@@ -544,7 +550,7 @@ export class SqlTable extends Sql
 								{	this.append(mysql`"${name}"=excluded."${name}"`);
 								}
 								else
-								{	this.append(mysql`"${name}"=CASE WHEN excluded."${name}" IS NOT NULL AND ("${tableName}"."${name}" IS NULL OR Cast(excluded."${name}" AS char) NOT IN ('', '0') OR Cast("${tableName}"."${name}" AS char) IN ('', '0')) THEN excluded."${name}" ELSE "${tableName}"."${name}" END`);
+								{	this.append(mysql`"${name}"=CASE WHEN "${tableName}"."${name}" IS NULL OR Cast("${tableName}"."${name}" AS char) IN ('', '0') THEN excluded."${name}" ELSE "${tableName}"."${name}" END`);
 								}
 							}
 							break;
