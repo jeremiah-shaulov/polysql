@@ -1,7 +1,7 @@
 // deno-lint-ignore-file
 
-import {SqlMode, SqlSettings} from '../sql_settings.ts';
-import {assert, assertEquals} from "https://deno.land/std@0.106.0/testing/asserts.ts";
+import {SqlMode, SqlSettings} from '../private/sql_settings.ts';
+import {assertEquals} from 'https://deno.land/std@0.224.0/assert/assert_equals.ts';
 
 let encoder = new TextEncoder;
 

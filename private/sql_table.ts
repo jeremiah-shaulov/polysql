@@ -1,5 +1,3 @@
-// deno-lint-ignore-file
-
 import {debugAssert} from "./debug_assert.ts";
 import {mysql, Sql} from "./sql.ts";
 import
@@ -16,7 +14,7 @@ export type OrderBy = string | Sql | {columns: string[], desc?: boolean};
 
 export const mysqlTables: Record<string, SqlTable> = new Proxy
 (	{},
-	{	get(target, tableName)
+	{	get(_target, tableName)
 		{	if (typeof(tableName) != 'string')
 			{	throw new Error("Table name must be string");
 			}
@@ -27,7 +25,7 @@ export const mysqlTables: Record<string, SqlTable> = new Proxy
 
 export const mysqlOnlyTables: Record<string, SqlTable> = new Proxy
 (	{},
-	{	get(target, tableName)
+	{	get(_target, tableName)
 		{	if (typeof(tableName) != 'string')
 			{	throw new Error("Table name must be string");
 			}
@@ -38,7 +36,7 @@ export const mysqlOnlyTables: Record<string, SqlTable> = new Proxy
 
 export const pgsqlTables: Record<string, SqlTable> = new Proxy
 (	{},
-	{	get(target, tableName)
+	{	get(_target, tableName)
 		{	if (typeof(tableName) != 'string')
 			{	throw new Error("Table name must be string");
 			}
@@ -49,7 +47,7 @@ export const pgsqlTables: Record<string, SqlTable> = new Proxy
 
 export const pgsqlOnlyTables: Record<string, SqlTable> = new Proxy
 (	{},
-	{	get(target, tableName)
+	{	get(_target, tableName)
 		{	if (typeof(tableName) != 'string')
 			{	throw new Error("Table name must be string");
 			}
@@ -60,7 +58,7 @@ export const pgsqlOnlyTables: Record<string, SqlTable> = new Proxy
 
 export const sqliteTables: Record<string, SqlTable> = new Proxy
 (	{},
-	{	get(target, tableName)
+	{	get(_target, tableName)
 		{	if (typeof(tableName) != 'string')
 			{	throw new Error("Table name must be string");
 			}
@@ -71,7 +69,7 @@ export const sqliteTables: Record<string, SqlTable> = new Proxy
 
 export const sqliteOnlyTables: Record<string, SqlTable> = new Proxy
 (	{},
-	{	get(target, tableName)
+	{	get(_target, tableName)
 		{	if (typeof(tableName) != 'string')
 			{	throw new Error("Table name must be string");
 			}
@@ -82,7 +80,7 @@ export const sqliteOnlyTables: Record<string, SqlTable> = new Proxy
 
 export const mssqlTables: Record<string, SqlTable> = new Proxy
 (	{},
-	{	get(target, tableName)
+	{	get(_target, tableName)
 		{	if (typeof(tableName) != 'string')
 			{	throw new Error("Table name must be string");
 			}
@@ -93,7 +91,7 @@ export const mssqlTables: Record<string, SqlTable> = new Proxy
 
 export const mssqlOnlyTables: Record<string, SqlTable> = new Proxy
 (	{},
-	{	get(target, tableName)
+	{	get(_target, tableName)
 		{	if (typeof(tableName) != 'string')
 			{	throw new Error("Table name must be string");
 			}
@@ -126,7 +124,7 @@ export class SqlTable extends Sql
 	private hasSubjTable = false;
 
 	private operation = Operation.NONE;
-	private operationInsertRows: Iterable<Record<string, any>> | undefined;
+	private operationInsertRows: Iterable<Record<string, unknown>> | undefined;
 	private operationInsertOnConflictDo: ''|'nothing'|'replace'|'update'|'patch' = '';
 	private operationInsertNames: string[] | undefined;
 	private operationInsertSelect: Sql | undefined;
@@ -134,13 +132,13 @@ export class SqlTable extends Sql
 	private operationSelectOrderBy: OrderBy = '';
 	private operationSelectOffset = 0;
 	private operationSelectLimit = 0;
-	private operationUpdateRow: Record<string, any> | undefined;
+	private operationUpdateRow: Record<string, unknown> | undefined;
 
 	constructor
 	(	sqlSettings: SqlSettings,
 		public tableName: string,
 		strings?: string[],
-		params?: any[]
+		params?: unknown[]
 	)
 	{	super(sqlSettings, strings, params);
 		this.tableUsed(tableName);
@@ -188,7 +186,7 @@ export class SqlTable extends Sql
 		this.appendTableName(this.tableName);
 		if (this.joins.length != 0)
 		{	this.append(mysql` AS "${baseTable}"`);
-			for (let {tableName, alias, onExpr, isLeft} of this.joins)
+			for (const {tableName, alias, onExpr, isLeft} of this.joins)
 			{	if (!onExpr)
 				{	this.strings[this.strings.length - 1] += ' CROSS JOIN ';
 					this.estimatedByteLength += 12;
@@ -214,10 +212,10 @@ export class SqlTable extends Sql
 	}
 
 	private appendJoinsExceptFirst(baseTable: string)
-	{	let {tableName, alias} = this.joins[0];
+	{	const {tableName, alias} = this.joins[0];
 		this.append(!alias ? mysql` "${tableName}"` : mysql` "${tableName}" AS "${alias}"`);
 		for (let i=1, iEnd=this.joins.length; i<iEnd; i++)
-		{	let {tableName, alias, onExpr, isLeft} = this.joins[i];
+		{	const {tableName, alias, onExpr, isLeft} = this.joins[i];
 			if (!onExpr)
 				{	this.strings[this.strings.length - 1] += ' CROSS JOIN ';
 					this.estimatedByteLength += 12;
@@ -246,7 +244,7 @@ export class SqlTable extends Sql
 		{	throw new Error(`Please, call where() first`);
 		}
 		let hasWhere = false;
-		for (let whereExpr of this.whereExprs)
+		for (const whereExpr of this.whereExprs)
 		{	if (whereExpr)
 			{	this.append(!hasWhere ? mysql` WHERE (${baseTable}.${whereExpr})` : mysql` AND (${baseTable}.${whereExpr})`);
 				hasWhere = true;
@@ -336,7 +334,7 @@ export class SqlTable extends Sql
 		- `onConflictDo=='update'` is only supported for MySQL. If duplicate key, updates the existing record with the new values.
 		- `onConflictDo=='patch'` is only supported for MySQL If duplicate key, updates **empty** (null, 0 or '') columns of the existing record with the new values.
 	 **/
-	insert(rows: Iterable<Record<string, any>>, onConflictDo: ''|'nothing'|'replace'|'update'|'patch' = '')
+	insert(rows: Iterable<Record<string, unknown>>, onConflictDo: ''|'nothing'|'replace'|'update'|'patch' = '')
 	{	if (this.joins.length)
 		{	throw new Error(`Cannot INSERT with JOIN`);
 		}
@@ -394,7 +392,7 @@ export class SqlTable extends Sql
 	/**	Generates an UPDATE query. You can update with joins, but if the first join is a LEFT JOIN, such query is not supported by PostgreSQL.
 		Columns of the base table (not joined) will be updated.
 	 **/
-	update(row: Record<string, any>)
+	update(row: Record<string, unknown>)
 	{	if (this.groupByExprs != undefined)
 		{	throw new Error(`Cannot UPDATE with GROUP BY`);
 		}
@@ -428,7 +426,7 @@ export class SqlTable extends Sql
 		return this;
 	}
 
-	encode(putParamsTo?: any[], mysqlNoBackslashEscapes=false, useBuffer?: Uint8Array, useBufferFromPos=0, defaultParentName?: Uint8Array): Uint8Array
+	encode(putParamsTo?: unknown[], mysqlNoBackslashEscapes=false, useBuffer?: Uint8Array, useBufferFromPos=0, defaultParentName?: Uint8Array): Uint8Array
 	{	this.doOperation();
 		return super.encode(putParamsTo, mysqlNoBackslashEscapes, useBuffer, useBufferFromPos, defaultParentName);
 	}
@@ -438,8 +436,8 @@ export class SqlTable extends Sql
 
 		switch (this.operation)
 		{	case Operation.INSERT:
-			{	let rows = this.operationInsertRows!;
-				let onConflictDo = this.operationInsertOnConflictDo;
+			{	const rows = this.operationInsertRows!;
+				const onConflictDo = this.operationInsertOnConflictDo;
 				if (!onConflictDo)
 				{	this.strings[this.strings.length - 1] += 'INSERT INTO ';
 					this.estimatedByteLength += 12;
@@ -447,7 +445,7 @@ export class SqlTable extends Sql
 					this.append(mysql` <${rows}>`);
 				}
 				else if (onConflictDo == 'nothing')
-				{	let {mode} = this.sqlSettings;
+				{	const {mode} = this.sqlSettings;
 					switch (mode)
 					{	case SqlMode.MYSQL:
 							throw new Error("ON CONFLICT DO NOTHING is not supported across all engines. Please use mysqlOnly`...`");
@@ -463,7 +461,7 @@ export class SqlTable extends Sql
 							throw new Error("ON CONFLICT DO NOTHING is not supported on MS SQL");
 
 						case SqlMode.MYSQL_ONLY:
-						{	let {names, rows: rowsW} = wrapRowsIterator(rows);
+						{	const {names, rows: rowsW} = wrapRowsIterator(rows);
 							this.strings[this.strings.length - 1] += 'INSERT INTO ';
 							this.estimatedByteLength += 12;
 							this.appendTableName(this.tableName);
@@ -512,7 +510,7 @@ export class SqlTable extends Sql
 				}
 				else
 				{	debugAssert(onConflictDo=='update' || onConflictDo=='patch');
-					let isPatch = onConflictDo == 'patch';
+					const isPatch = onConflictDo == 'patch';
 					switch (this.sqlSettings.mode)
 					{	case SqlMode.MYSQL:
 							throw new Error("ON CONFLICT DO UPDATE is not supported across all engines. Please use mysqlOnly`...`");
@@ -531,13 +529,13 @@ export class SqlTable extends Sql
 
 						default:
 						{	debugAssert(this.sqlSettings.mode == SqlMode.MYSQL_ONLY);
-							let {names, rows: rowsW} = wrapRowsIterator(rows);
+							const {names, rows: rowsW} = wrapRowsIterator(rows);
 							this.strings[this.strings.length - 1] += 'INSERT INTO ';
 							this.estimatedByteLength += 12;
-							let tableName = this.appendTableName(this.tableName);
+							const tableName = this.appendTableName(this.tableName);
 							this.append(mysql` <${rowsW}> AS excluded ON DUPLICATE KEY UPDATE `);
 							let wantComma = false;
-							for (let name of names)
+							for (const name of names)
 							{	if (wantComma)
 								{	this.append(mysql`, `);
 								}
@@ -557,15 +555,15 @@ export class SqlTable extends Sql
 			}
 
 			case Operation.INSERT_SELECT:
-			{	let names = this.operationInsertNames!;
-				let select = this.operationInsertSelect!;
-				let onConflictDo = this.operationInsertOnConflictDo;
+			{	const names = this.operationInsertNames!;
+				const select = this.operationInsertSelect!;
+				const onConflictDo = this.operationInsertOnConflictDo;
 				if (!onConflictDo)
 				{	this.strings[this.strings.length - 1] += 'INSERT INTO ';
 					this.estimatedByteLength += 12;
 				}
 				else if (onConflictDo == 'nothing')
-				{	let {mode} = this.sqlSettings;
+				{	const {mode} = this.sqlSettings;
 					switch (mode)
 					{	case SqlMode.MYSQL:
 							throw new Error("ON CONFLICT DO NOTHING is not supported across all engines. Please use mysqlOnly`...`");
@@ -639,15 +637,15 @@ export class SqlTable extends Sql
 				this.operationSelectOrderBy = select.operationSelectOrderBy;
 				this.operationSelectOffset = select.operationSelectOffset;
 				this.operationSelectLimit = select.operationSelectLimit;
-				// fallthrough to Operation.SELECT
 			}
+			// fallthrough to Operation.SELECT
 
 			case Operation.SELECT:
-			{	let columns = this.operationSelectColumns;
-				let orderBy = this.operationSelectOrderBy;
-				let offset = this.operationSelectOffset;
-				let limit = this.operationSelectLimit;
-				let baseTable = this.getBaseTableAlias();
+			{	const columns = this.operationSelectColumns;
+				const orderBy = this.operationSelectOrderBy;
+				const offset = this.operationSelectOffset;
+				const limit = this.operationSelectLimit;
+				const baseTable = this.getBaseTableAlias();
 				if (!columns)
 				{	this.append(mysql`SELECT * FROM`);
 				}
@@ -677,8 +675,8 @@ export class SqlTable extends Sql
 						hasOrderBy = true;
 					}
 					else
-					{	let {columns, desc} = orderBy;
-						let nColumns = columns.length;
+					{	const {columns, desc} = orderBy;
+						const nColumns = columns.length;
 						hasOrderBy = nColumns != 0;
 						if (hasOrderBy)
 						{	if (!desc)
@@ -699,6 +697,7 @@ export class SqlTable extends Sql
 							if (!hasOrderBy)
 							{	throw new Error("SELECT with LIMIT but without ORDER BY is not supported across all engines. Please use mysqlOnly`...`");
 							}
+							// fallthrough
 						case SqlMode.MYSQL_ONLY:
 							this.append(offset>0 ? mysql` LIMIT '${limit}' OFFSET '${offset}'` : mysql` LIMIT '${limit}'`);
 							break;
@@ -707,6 +706,7 @@ export class SqlTable extends Sql
 							if (!hasOrderBy)
 							{	throw new Error("SELECT with LIMIT but without ORDER BY is not supported across all engines. Please use pgsqlOnly`...`");
 							}
+							// fallthrough
 						case SqlMode.PGSQL_ONLY:
 							this.append(offset>0 ? mysql` LIMIT '${limit}' OFFSET '${offset}'` : mysql` LIMIT '${limit}'`);
 							break;
@@ -715,6 +715,7 @@ export class SqlTable extends Sql
 							if (!hasOrderBy)
 							{	throw new Error("SELECT with LIMIT but without ORDER BY is not supported across all engines. Please use sqliteOnly`...`");
 							}
+							// fallthrough
 						case SqlMode.SQLITE_ONLY:
 							this.append(offset>0 ? mysql` LIMIT '${limit}' OFFSET '${offset}'` : mysql` LIMIT '${limit}'`);
 							break;
@@ -733,6 +734,7 @@ export class SqlTable extends Sql
 							if (!hasOrderBy)
 							{	throw new Error("SELECT with OFFSET but without ORDER BY is not supported across all engines. Please use mysqlOnly`...`");
 							}
+							// fallthrough
 						case SqlMode.MYSQL_ONLY:
 							this.append(mysql` LIMIT 2147483647 OFFSET '${offset}'`);
 							break;
@@ -741,6 +743,7 @@ export class SqlTable extends Sql
 							if (!hasOrderBy)
 							{	throw new Error("SELECT with OFFSET but without ORDER BY is not supported across all engines. Please use pgsqlOnly`...`");
 							}
+							// fallthrough
 						case SqlMode.PGSQL_ONLY:
 							this.append(mysql` OFFSET '${offset}'`);
 							break;
@@ -749,6 +752,7 @@ export class SqlTable extends Sql
 							if (!hasOrderBy)
 							{	throw new Error("SELECT with OFFSET but without ORDER BY is not supported across all engines. Please use sqliteOnly`...`");
 							}
+							// fallthrough
 						case SqlMode.SQLITE_ONLY:
 							this.append(mysql` LIMIT 2147483647 OFFSET '${offset}'`);
 							break;
@@ -768,8 +772,8 @@ export class SqlTable extends Sql
 			}
 
 			case Operation.UPDATE:
-			{	let row = this.operationUpdateRow!;
-				let {mode} = this.sqlSettings;
+			{	const row = this.operationUpdateRow!;
+				const {mode} = this.sqlSettings;
 				if (this.joins.length == 0)
 				{	this.strings[this.strings.length - 1] += 'UPDATE ';
 					this.estimatedByteLength += 7;
@@ -778,8 +782,8 @@ export class SqlTable extends Sql
 					this.appendWhereExprs('');
 				}
 				else
-				{	let baseTable = this.getBaseTableAlias();
-					let [{onExpr, isLeft}] = this.joins;
+				{	const baseTable = this.getBaseTableAlias();
+					const [{onExpr, isLeft}] = this.joins;
 					if (isLeft)
 					{	switch (mode)
 						{	case SqlMode.MYSQL:
@@ -806,13 +810,13 @@ export class SqlTable extends Sql
 
 						case SqlMode.SQLITE_ONLY:
 							if (isLeft)
-							{	let subj = this.getSubjTableAlias();
+							{	const subj = this.getSubjTableAlias();
 								this.strings[this.strings.length - 1] += 'UPDATE ';
 								this.estimatedByteLength += 7;
 								this.appendTableName(this.tableName);
 								this.append(mysql` AS "${subj}" SET {.${baseTable}.${row}} FROM`);
 								this.appendJoins(baseTable);
-								let hasWhere = this.appendWhereExprs(baseTable);
+								const hasWhere = this.appendWhereExprs(baseTable);
 								this.append(hasWhere ? mysql` AND "${subj}".rowid = "${baseTable}".rowid` : mysql` WHERE "${subj}".rowid = "${baseTable}".rowid`);
 								break;
 							}
@@ -826,7 +830,7 @@ export class SqlTable extends Sql
 							this.appendTableName(this.tableName);
 							this.append(mysql` AS "${baseTable}" SET {.${baseTable}.${row}} FROM`);
 							this.appendJoinsExceptFirst(baseTable);
-							let hasWhere = this.appendWhereExprs(baseTable);
+							const hasWhere = this.appendWhereExprs(baseTable);
 							this.append(hasWhere ? mysql` AND (${baseTable}.${onExpr})` : mysql` WHERE (${baseTable}.${onExpr})`);
 							break;
 						}
@@ -846,7 +850,7 @@ export class SqlTable extends Sql
 			}
 
 			case Operation.DELETE:
-			{	let {mode} = this.sqlSettings;
+			{	const {mode} = this.sqlSettings;
 				if (this.joins.length == 0)
 				{	this.strings[this.strings.length - 1] += 'DELETE FROM ';
 					this.estimatedByteLength += 12;
@@ -854,8 +858,8 @@ export class SqlTable extends Sql
 					this.appendWhereExprs('');
 				}
 				else
-				{	let baseTable = this.getBaseTableAlias();
-					let [{onExpr, isLeft}] = this.joins;
+				{	const baseTable = this.getBaseTableAlias();
+					const [{onExpr, isLeft}] = this.joins;
 					if (isLeft)
 					{	switch (mode)
 						{	case SqlMode.MYSQL:
@@ -887,14 +891,14 @@ export class SqlTable extends Sql
 							this.appendTableName(this.tableName);
 							this.append(mysql` AS "${baseTable}" USING`);
 							this.appendJoinsExceptFirst(baseTable);
-							let hasWhere = this.appendWhereExprs(baseTable);
+							const hasWhere = this.appendWhereExprs(baseTable);
 							this.append(hasWhere ? mysql` AND (${baseTable}.${onExpr})` : mysql` WHERE (${baseTable}.${onExpr})`);
 							break;
 						}
 
 						default:
 						{	debugAssert(mode==SqlMode.SQLITE || mode==SqlMode.SQLITE_ONLY);
-							let subj = this.getSubjTableAlias();
+							const subj = this.getSubjTableAlias();
 							this.strings[this.strings.length - 1] += 'DELETE FROM ';
 							this.estimatedByteLength += 12;
 							this.appendTableName(this.tableName);
@@ -943,7 +947,7 @@ export class SqlTable extends Sql
 	}
 }
 
-function wrapRowsIterator(rows: Iterable<Record<string, any>>)
+function wrapRowsIterator(rows: Iterable<Record<string, unknown>>)
 {	let names;
 	if (Array.isArray(rows))
 	{	if (rows.length == 0)
@@ -952,13 +956,14 @@ function wrapRowsIterator(rows: Iterable<Record<string, any>>)
 		names = Object.keys(rows[0]);
 	}
 	else
-	{	let itInner = rows[Symbol.iterator]();
-		let {value, done} = itInner.next();
+	{	const itInner = rows[Symbol.iterator]();
+		const {value, done} = itInner.next();
 		if (done || !value)
 		{	throw new Error("0 rows in <${param}>");
 		}
-		let firstRow = value;
+		let firstRow: Record<string, unknown>|undefined = value;
 		names = Object.keys(firstRow);
+		// deno-lint-ignore no-inner-declarations
 		function *itOuter()
 		{	while (true)
 			{	if (firstRow)
@@ -966,7 +971,7 @@ function wrapRowsIterator(rows: Iterable<Record<string, any>>)
 					firstRow = undefined;
 				}
 				else
-				{	let {value, done} = itInner.next();
+				{	const {value, done} = itInner.next();
 					if (done || !value)
 					{	break;
 					}

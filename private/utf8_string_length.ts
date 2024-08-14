@@ -1,9 +1,7 @@
-// deno-lint-ignore-file
-
 export function utf8StringLength(str: string)
 {	let len = str.length;
 	for (let i=0, iEnd=str.length; i<iEnd; i++)
-	{	let c = str.charCodeAt(i);
+	{	const c = str.charCodeAt(i);
 		if (c > 0x7F)
 		{	len++;
 			if (c > 0x7FF)

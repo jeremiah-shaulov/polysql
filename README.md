@@ -22,7 +22,7 @@ This library provides the following functions:
 Usually you need to import only one of these functions into your project.
 
 ```ts
-import {mysqlQuote as sqlQuote} from 'https://deno.land/x/polysql/mod.ts';
+import {mysqlQuote as sqlQuote} from 'https://deno.land/x/polysql@v0.0.10/mod.ts';
 
 console.log(sqlQuote(import.meta.url));
 ```
@@ -39,11 +39,11 @@ The "value" parameter can be one of the following types:
 - Date produces string like `2021-08-26` or `2021-08-26 10:00:00` or `2021-08-26 10:00:00.123`
 - typed arrays (like Uint8Array) produce literals like `x'00112233'` (`0x00112233` for Microsoft SQL Server)
 - Sql object will print a string with it's query
-- Deno.Reader will be rejected with exception
+- ReadableStream will be rejected with exception
 - other types will be converted to strings and printed as an SQL string literal
 
 ```ts
-import {mysqlQuote as sqlQuote} from 'https://deno.land/x/polysql/mod.ts';
+import {mysqlQuote as sqlQuote} from 'https://deno.land/x/polysql@v0.0.10/mod.ts';
 
 console.log(sqlQuote(null)); // prints: NULL
 console.log(sqlQuote(false)); // prints: FALSE
@@ -67,7 +67,7 @@ This library provides the following string-template functions:
 Usually you need to import only one of these functions into your project.
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.10/mod.ts';
 
 let message = `It's the message`;
 let number = 0.1;
@@ -97,7 +97,7 @@ If it's boolean `false` or `true`, it will be substituted with `FALSE` or `TRUE`
 
 Typed arrays will be printed like `x'0102...'` (`0x0102...` on Microsoft SQL Server).
 
-`Deno.Reader` objects will be put to `putParamsTo` array, if it's provided to `toString()` or `encode()` - see below, and the value will be replaced with '?' character.
+`ReadableStream` objects will be put to `putParamsTo` array, if it's provided to `toString()` or `encode()` - see below, and the value will be replaced with '?' character.
 If `putParamsTo` not provided, exception will be thrown.
 
 Objects will be JSON-stringified.
@@ -119,7 +119,7 @@ Generates comma-separated list of quoted identifiers from iterable collection "p
 `"${param},"` - doesn't generate any output, if the collection is empty. If it's not empty, prints a comma after the last identifier.
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.10/mod.ts';
 
 let noNames: never[] = [];
 let names = ['one', 'two'];
@@ -135,7 +135,7 @@ console.log(sql`SELECT "${names}," three` + ''); // prints: SELECT `one`, `two`,
 The same as [3], but qualifies each identifier with specified parent name.
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.10/mod.ts';
 
 let noNames: never[] = [];
 let names = ['one', 'two'];
@@ -151,7 +151,7 @@ console.log(sql`SELECT "t1.${names}," three` + ''); // prints: SELECT `t1`.`one`
 Square brackets will be replaced with parentheses. The parameter must be iterable.
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.10/mod.ts';
 
 const ids = [10, 11, 12];
 let s = sql`SELECT * FROM articles WHERE id IN [${ids}]`;
@@ -165,7 +165,7 @@ If items in the collection are also iterable, this will generate multidimensiona
 More than 2 dimensions are only supported by MySQL.
 
 ```ts
-import {mysqlOnly as sql} from 'https://deno.land/x/polysql/mod.ts';
+import {mysqlOnly as sql} from 'https://deno.land/x/polysql@v0.0.10/mod.ts';
 
 const list = [[10, 1], [11, 3], [12, 8]];
 let s = sql
@@ -184,7 +184,7 @@ The inserted SQL fragment will be validated, so it doesn't contain the following
 Strings in the SQL fragment are always treated as `mysqlNoBackslashEscapes` (backslash is regular character), so to represent a string with a new line, you need `const expr = "Char_length('Line\n')"`, not `const expr = "Char_length('Line\\n')"`.
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.10/mod.ts';
 
 const expr = "Char_length('Line\n')";
 let s = sql`SELECT (${expr})`;
@@ -194,7 +194,7 @@ console.log('' + s);
 It's possible to prefix all unqualified identifiers in the SQL fragment with a parent qualifier:
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.10/mod.ts';
 
 const expr = "article_id = 10 AND `article_version` = 1 AND a.name <> ''";
 let s = sql
@@ -209,7 +209,7 @@ console.log('' + s); // prints ...WHERE (`av`.article_id = 10 AND `av`.`article_
 ### 6. `${param}` or `parent_name.${param}` (not enclosed) - Like `(${param})`, but allows commas on top level.
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.10/mod.ts';
 
 const columns = "name, value";
 let s = sql`SELECT ${columns} FROM something WHERE id=1`;
@@ -221,7 +221,7 @@ console.log('' + s); // prints: SELECT `name`, `value` FROM something WHERE id=1
 The first form throws exception, if there are no fields in the param. The Second form doesn't complain, and prints comma after the last field.
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.10/mod.ts';
 
 const row = {name: 'About all', author: 'Johnny'};
 let s = sql`UPDATE articles AS a SET {a.${row}} WHERE id=1`;
@@ -229,7 +229,7 @@ console.log('' + s); // prints: UPDATE articles AS a SET `a`.`name`='About all',
 ```
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.10/mod.ts';
 
 const row = {name: 'About all', author: 'Johnny'};
 let s = sql`UPDATE articles AS a SET {a.${row},} article_date=Now() WHERE id=1`;
@@ -239,7 +239,7 @@ console.log('' + s); // prints: UPDATE articles AS a SET `a`.`name`='About all',
 If a value is an `Sql` object, it's expression will be used.
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.10/mod.ts';
 
 const row = {name: 'About all', author: sql`Get_author(id)`};
 let s = sql`UPDATE articles AS a SET {a.${row}} WHERE id=1`;
@@ -251,7 +251,7 @@ console.log('' + s); // prints: UPDATE articles AS a SET `a`.`name`='About all',
 Converts braces to parentheses. If the `param` contains no fields, this will be converted to a `FALSE` literal.
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.10/mod.ts';
 
 const row = {name: 'About all', author: sql`Get_author(id)`};
 let s = sql`SELECT * FROM articles AS a WHERE {a.${row}&}`;
@@ -263,7 +263,7 @@ console.log('' + s); // prints: SELECT * FROM articles AS a WHERE (`a`.`name`='A
 Converts braces to parentheses. If the `param` contains no fields, this will be converted to a `TRUE` literal.
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.10/mod.ts';
 
 const row = {name: 'About all', author: sql`Get_author(id)`};
 let s = sql`SELECT * FROM articles AS a WHERE {a.${row}|}`;
@@ -275,7 +275,7 @@ console.log('' + s); // prints: SELECT * FROM articles AS a WHERE (`a`.`name`='A
 In [7], [8] and [9], you can specify 2 parent qualifiers: one for the left-hand side of the equation, and one for the right. Any of the names can be empty.
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.10/mod.ts';
 
 const row = {name: 'About all', author: sql`Get_author(id)`};
 let s = sql`SELECT * FROM articles AS a INNER JOIN article_content AS ac ON a.id = ac.article_id WHERE {a.ac.${row}&}`;
@@ -285,7 +285,7 @@ console.log('' + s); // prints: SELECT * FROM articles AS a INNER JOIN article_c
 Example of left name empty:
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.10/mod.ts';
 
 const row = {name: 'About all', author: sql`Get_author(id)`};
 let s = sql`UPDATE articles AS a SET {.a.${row}} WHERE id=1`;
@@ -297,7 +297,7 @@ console.log('' + s); // prints: UPDATE articles AS a SET `name`='About all', `au
 Parameter must be iterable object that contains rows to insert. Will print column names from the first row. On following rows, only columns from the first row will be used.
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.10/mod.ts';
 
 let rows =
 [	{value: 10, name: 'text 1'},
@@ -321,7 +321,7 @@ In [3b], [5], [6], [7], [8], [9] and [10] the parent qualifier name can be taken
 `sql` template function returns object of `Sql` class.
 
 ```ts
-import {mysql as sql, Sql} from 'https://deno.land/x/polysql/mod.ts';
+import {mysql as sql, Sql} from 'https://deno.land/x/polysql@v0.0.10/mod.ts';
 
 let s: Sql = sql`SELECT 2*2`;
 ```
@@ -338,7 +338,7 @@ Sql.concat(other: Sql): Sql
 `append()` modifies current object, and `concat()` returns a new one.
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.10/mod.ts';
 
 const id = 10;
 const s = sql`SELECT * FROM articles WHERE id='${id}'`;
@@ -361,11 +361,11 @@ Sql.encode(putParamsTo?: any[], mysqlNoBackslashEscapes=false, useBuffer?: Uint8
 ```
 This function converts the SQL query to `Uint8Array`, that you probably need to pass to your SQL driver.
 
-You can pass an array to the `putParamsTo` parameter, so long strings and long typed arrays, and `Deno.Reader` objects, that appear in quoted `'${value}'` parameters, will be put to this array,
+You can pass an array to the `putParamsTo` parameter, so long strings and long typed arrays, and `ReadableStream` objects, that appear in quoted `'${value}'` parameters, will be put to this array,
 and their SQL representation will be produced as `?` character.
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.10/mod.ts';
 
 let message = 'a'.repeat(100);
 let params: any[] = [];
@@ -373,7 +373,7 @@ console.log(sql`SELECT '${message}'`.toString(params)); // prints: SELECT ?
 console.log(params); // prints: ['aaa...']
 ```
 
-If `putParamsTo` is not provided, `Deno.Reader` objects will be rejected with exception.
+If `putParamsTo` is not provided, `ReadableStream` objects will be rejected with exception.
 
 The `mysqlNoBackslashEscapes` parameter is only respected when using MySQL dialect.
 If it's true, backslashes in SQL string literals will be assumed not to have special meaning, so `` mysql`'${value}'` `` will not double backslashes.
@@ -420,7 +420,7 @@ The quoting policy has either a whitelist or a blacklist of allowed identifiers,
 There're 2 separate lists for functions (any identifier that is followed by a parenthesis is considered to be a function name), and for other identifiers.
 
 ```ts
-import {mysql as sql, SqlSettings, SqlMode} from 'https://deno.land/x/polysql/mod.ts';
+import {mysql as sql, SqlSettings, SqlMode} from 'https://deno.land/x/polysql@v0.0.10/mod.ts';
 
 const value1 = "The string is: 'name'. The backslash is: \\";
 const value2 = 123.4;
@@ -455,7 +455,7 @@ For `functions` is: `! FROM HAVING JOIN LIMIT OFFSET ON SELECT WHERE`.
 To print the default policy, you can do:
 
 ```ts
-import {SqlSettings, SqlMode} from 'https://deno.land/x/polysql/mod.ts';
+import {SqlSettings, SqlMode} from 'https://deno.land/x/polysql@v0.0.10/mod.ts';
 
 let settings = new SqlSettings(SqlMode.MYSQL);
 
@@ -468,7 +468,7 @@ Please note, that quoting policy is only applied to safe SQL fragments that you 
 If you want to use custom policy all the time, you can write your own version of `sql()` function, and of `sqlTables`:
 
 ```ts
-import {Sql, SqlSettings, SqlMode, SqlTable} from 'https://deno.land/x/polysql/mod.ts';
+import {Sql, SqlSettings, SqlMode, SqlTable} from 'https://deno.land/x/polysql@v0.0.10/mod.ts';
 
 const SQL_SETTINGS_MYSQL = new SqlSettings(SqlMode.MYSQL, '!bad forbidden', 'calc_stats');
 
@@ -507,7 +507,7 @@ This library provides the following constant objects:
 Usually you need to import only one of these into your project.
 
 ```ts
-import {mysqlTables as sqlTables} from 'https://deno.land/x/polysql/mod.ts';
+import {mysqlTables as sqlTables} from 'https://deno.land/x/polysql@v0.0.10/mod.ts';
 
 console.log('' + sqlTables.messages.where("id=1").select()); // prints: SELECT * FROM `messages` WHERE (`id`=1)
 ```
@@ -539,7 +539,7 @@ let table: SqlTable = sqlTables[tableName];
 All these methods only log what you asked, and the actual query generation will happen when you convert the object to string or bytes.
 
 ```ts
-import {mysqlTables as sqlTables} from 'https://deno.land/x/polysql/mod.ts';
+import {mysqlTables as sqlTables} from 'https://deno.land/x/polysql@v0.0.10/mod.ts';
 
 let s = sqlTables.messages.join('content', 'c', 'content_id = c.id').where("id=1").select("c.*");
 console.log('' + s); // prints: SELECT `c`.* FROM `messages` AS `b` INNER JOIN `content` AS `c` ON (`b`.content_id = `c`.id) WHERE (`b`.id=1)
@@ -644,7 +644,7 @@ SqlTable.insertFrom(names: string[], select: Sql, on_conflict_do: ''|'nothing'|'
 Generates "INSERT INTO (...) SELECT ..." query.
 
 ```ts
-import {mysqlTables as sqlTables} from 'https://deno.land/x/polysql/mod.ts';
+import {mysqlTables as sqlTables} from 'https://deno.land/x/polysql@v0.0.10/mod.ts';
 
 let s = sqlTables.t_log.insertFrom(['c1', 'c2'], sqlTables.t_log_bak.where('id<=100').select(['c1', 'c2']));
 console.log('' + s); // prints: INSERT INTO `t_log` (`c1`, `c2`) SELECT `c1`, `c2` FROM `t_log_bak` WHERE (`id`<=100)
@@ -663,7 +663,7 @@ Generates TRUNCATE TABLE query where supported (all but SQLite), and for others 
 `SqlTable` extends `Sql`. You can extend it with your class to add your own methods. For example you can add method that will perform the actual query to database server.
 
 ```ts
-import {SqlSettings, SqlMode, SqlTable} from 'https://deno.land/x/polysql/mod.ts';
+import {SqlSettings, SqlMode, SqlTable} from 'https://deno.land/x/polysql@v0.0.10/mod.ts';
 
 const SQL_SETTINGS_MYSQL = new SqlSettings(SqlMode.MYSQL);
 
@@ -711,7 +711,7 @@ The default implementation shown above doesn't change the name, and doesn't add 
 The following implementation will convert:
 
 ```ts
-import {SqlSettings, SqlMode, SqlTable} from 'https://deno.land/x/polysql/mod.ts';
+import {SqlSettings, SqlMode, SqlTable} from 'https://deno.land/x/polysql@v0.0.10/mod.ts';
 
 const SQL_SETTINGS_MYSQL = new SqlSettings(SqlMode.MYSQL);
 

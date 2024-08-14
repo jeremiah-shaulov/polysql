@@ -1,5 +1,3 @@
-// deno-lint-ignore-file
-
 const C_A_CAP = 'A'.charCodeAt(0);
 const C_A = 'a'.charCodeAt(0);
 const C_Z = 'z'.charCodeAt(0);
@@ -34,12 +32,12 @@ class SqlWordsList
 		{	this.isWhitelist = false;
 			initDef = initDef.slice(1).trimStart();
 		}
-		let initIdentsArr = initDef.split(RE_S);
-		let idents = [];
+		const initIdentsArr = initDef.split(RE_S);
+		const idents = [];
 		for (let id of initIdentsArr)
 		{	id = id.toUpperCase();
-			let word = encoder.encode(id);
-			let key = word[0] | (word[1] << 8) | (word[word.length-1] << 16) | (word.length << 24);
+			const word = encoder.encode(id);
+			const key = word[0] | (word[1] << 8) | (word[word.length-1] << 16) | (word.length << 24);
 			let list = this.map.get(key);
 			if (!list)
 			{	list = [];
@@ -68,12 +66,12 @@ class SqlWordsList
 		if (cN>=C_A && cN<=C_Z)
 		{	cN += C_A_CAP - C_A; // to upper case
 		}
-		let key = c0 | (c1 << 8) | (cN << 16) | (len << 24);
-		let list = this.map.get(key);
+		const key = c0 | (c1 << 8) | (cN << 16) | (len << 24);
+		const list = this.map.get(key);
 		if (list)
 		{	len--; // no need to compare the last char, as it's part of key
 			// is subj in list?
-L:			for (let word of list)
+L:			for (const word of list)
 			{	for (let i=2; i<len; i++) // no need to compare the first 2 chars, as they're part of key
 				{	let c = subj[i];
 					if (c>=C_A && c<=C_Z)
@@ -117,7 +115,7 @@ export class SqlSettings
 }
 
 function uint8arrayCmp(a: Uint8Array, b: Uint8Array)
-{	let len = Math.min(a.length, b.length);
+{	const len = Math.min(a.length, b.length);
 	for (let i=0; i<len; i++)
 	{	if (a[i] < b[i])
 		{	return -1;

@@ -1,7 +1,7 @@
 // deno-lint-ignore-file
 
-import {utf8StringLength} from '../utf8_string_length.ts';
-import {assert, assertEquals} from "https://deno.land/std@0.106.0/testing/asserts.ts";
+import {utf8StringLength} from '../private/utf8_string_length.ts';
+import {assertEquals} from 'https://deno.land/std@0.224.0/assert/assert_equals.ts';
 
 Deno.test
 (	'Basic',

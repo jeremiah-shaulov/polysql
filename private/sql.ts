@@ -1,5 +1,3 @@
-// deno-lint-ignore-file
-
 import {debugAssert} from './debug_assert.ts';
 import
 {	SqlMode,
@@ -94,15 +92,16 @@ const enum Change
 	QUOTE_IDENT,
 }
 
-type Param = any;
+// deno-lint-ignore no-explicit-any
+type Any = any;
 
 export class Sql
 {	estimatedByteLength: number;
 
 	protected strings: string[];
-	protected params: Param[];
+	protected params: unknown[];
 
-	constructor(public sqlSettings: SqlSettings, strings?: string[], params?: Param[])
+	constructor(public sqlSettings: SqlSettings, strings?: string[], params?: unknown[])
 	{	if (!strings)
 		{	strings = [''];
 		}
@@ -119,7 +118,7 @@ export class Sql
 		{	len += s.length + GUESS_STRING_BYTE_LEN_LONGER; // if byte length of s is longer than s.length+GUESS_STRING_BYTE_LEN_LONGER, will realloc later
 		}
 		for (let i=0, iEnd=params.length; i<iEnd; i++)
-		{	let param = params[i];
+		{	const param = params[i];
 			if (param == null)
 			{	len += 4; // 'NULL'.length
 			}
@@ -148,19 +147,20 @@ export class Sql
 			else if (param instanceof Sql)
 			{	len += param.estimatedByteLength;
 			}
-			else if (param.buffer instanceof ArrayBuffer)
-			{	len += param.byteLength*2 + 3; // like x'01020304'
+			else if ((param as Any).buffer instanceof ArrayBuffer)
+			{	const view = param instanceof Uint8Array ? param : new Uint8Array((param as Uint8Array).buffer, (param as Uint8Array).byteOffset, (param as Uint8Array).byteLength);
+				len += view.byteLength*2 + 3; // like x'01020304'
 			}
-			else if (typeof(param.read) == 'function')
+			else if (param instanceof ReadableStream || typeof((param as Any).read)=='function')
 			{	// assume, will use "put_params_to"
 			}
 			else
 			{	const prevString = strings[i];
 				const paramTypeDescriminator = prevString.charCodeAt(prevString.length-1);
 				if (paramTypeDescriminator==C_APOS || (paramTypeDescriminator==C_QUOT || paramTypeDescriminator==C_BACKTICK) && strings[i+1]?.charCodeAt(0)==paramTypeDescriminator)
-				{	param = JSON.stringify(param);
-					len += param.length + GUESS_STRING_BYTE_LEN_LONGER; // if byte length of param is longer than param.length+GUESS_STRING_BYTE_LEN_LONGER, will realloc later
-					params[i] = param;
+				{	const str = JSON.stringify(param);
+					len += str.length + GUESS_STRING_BYTE_LEN_LONGER; // if byte length of param is longer than param.length+GUESS_STRING_BYTE_LEN_LONGER, will realloc later
+					params[i] = str;
 				}
 				else
 				{	len += 30; // just guess
@@ -171,7 +171,7 @@ export class Sql
 	}
 
 	concat(other: Sql)
-	{	const sql: Sql = new (this.constructor as any)(this.sqlSettings);
+	{	const sql: Sql = new (this.constructor as Any)(this.sqlSettings);
 		Object.assign(sql, this);
 		sql.strings = sql.strings.slice();
 		sql.params = sql.params.slice();
@@ -197,7 +197,7 @@ export class Sql
 		Else, will return a subarray of a new Uint8Array.
 		If `useBufferFromPos` is provided, will append to the `useBuffer` after this position.
 	 **/
-	encode(putParamsTo?: Param[], mysqlNoBackslashEscapes=false, useBuffer?: Uint8Array, useBufferFromPos=0, defaultParentName?: Uint8Array): Uint8Array
+	encode(putParamsTo?: unknown[], mysqlNoBackslashEscapes=false, useBuffer?: Uint8Array, useBufferFromPos=0, defaultParentName?: Uint8Array): Uint8Array
 	{	const {strings, params, sqlSettings} = this;
 		const {mode} = sqlSettings;
 		// 1. Allocate the buffer
@@ -224,9 +224,6 @@ export class Sql
 			{	if (strings[i+1].charCodeAt(0) != C_SQUARE_CLOSE)
 				{	throw new Error(`Inappropriately enclosed parameter`);
 				}
-				if (param==null || typeof(param)!='object' || !(Symbol.iterator in param))
-				{	throw new Error("In SQL fragment: parameter for [${...}] must be iterable");
-				}
 				serializer.setChar(-1, C_PAREN_OPEN); // [ -> (
 				serializer.appendIterable(param);
 				want = Want.CONVERT_CLOSE_TO_PAREN_CLOSE;
@@ -234,9 +231,6 @@ export class Sql
 			else if (qt == C_LT)
 			{	if (strings[i+1].charCodeAt(0) != C_GT)
 				{	throw new Error(`Inappropriately enclosed parameter`);
-				}
-				if (param==null || typeof(param)!='object' || !(Symbol.iterator in param))
-				{	throw new Error("In SQL fragment: parameter for <${...}> must be iterable");
 				}
 				serializer.setChar(-1, C_PAREN_OPEN); // '<' -> '('
 				serializer.appendNamesValues(param);
@@ -302,44 +296,44 @@ export class Sql
 		return serializer.getResult();
 	}
 
-	toString(putParamsTo?: Param[], mysqlNoBackslashEscapes=false)
+	toString(putParamsTo?: unknown[], mysqlNoBackslashEscapes=false)
 	{	return decoder.decode(this.encode(putParamsTo, mysqlNoBackslashEscapes));
 	}
 
-	toSqlBytesWithParamsBackslashAndBuffer(putParamsTo: Param[]|undefined, mysqlNoBackslashEscapes: boolean, useBuffer: Uint8Array)
+	toSqlBytesWithParamsBackslashAndBuffer(putParamsTo: unknown[]|undefined, mysqlNoBackslashEscapes: boolean, useBuffer: Uint8Array)
 	{	return this.encode(putParamsTo, mysqlNoBackslashEscapes, useBuffer);
 	}
 }
 
-export function mysql(strings: TemplateStringsArray, ...params: Param[])
+export function mysql(strings: TemplateStringsArray, ...params: unknown[])
 {	return new Sql(DEFAULT_SETTINGS_MYSQL, [...strings], params);
 }
 
-export function pgsql(strings: TemplateStringsArray, ...params: Param[])
+export function pgsql(strings: TemplateStringsArray, ...params: unknown[])
 {	return new Sql(DEFAULT_SETTINGS_PGSQL, [...strings], params);
 }
 
-export function sqlite(strings: TemplateStringsArray, ...params: Param[])
+export function sqlite(strings: TemplateStringsArray, ...params: unknown[])
 {	return new Sql(DEFAULT_SETTINGS_SQLITE, [...strings], params);
 }
 
-export function mssql(strings: TemplateStringsArray, ...params: Param[])
+export function mssql(strings: TemplateStringsArray, ...params: unknown[])
 {	return new Sql(DEFAULT_SETTINGS_MSSQL, [...strings], params);
 }
 
-export function mysqlOnly(strings: TemplateStringsArray, ...params: Param[])
+export function mysqlOnly(strings: TemplateStringsArray, ...params: unknown[])
 {	return new Sql(DEFAULT_SETTINGS_MYSQL_ONLY, [...strings], params);
 }
 
-export function pgsqlOnly(strings: TemplateStringsArray, ...params: Param[])
+export function pgsqlOnly(strings: TemplateStringsArray, ...params: unknown[])
 {	return new Sql(DEFAULT_SETTINGS_PGSQL_ONLY, [...strings], params);
 }
 
-export function sqliteOnly(strings: TemplateStringsArray, ...params: Param[])
+export function sqliteOnly(strings: TemplateStringsArray, ...params: unknown[])
 {	return new Sql(DEFAULT_SETTINGS_SQLITE_ONLY, [...strings], params);
 }
 
-export function mssqlOnly(strings: TemplateStringsArray, ...params: Param[])
+export function mssqlOnly(strings: TemplateStringsArray, ...params: unknown[])
 {	return new Sql(DEFAULT_SETTINGS_MSSQL_ONLY, [...strings], params);
 }
 
@@ -352,7 +346,7 @@ class Serializer
 	private parentName = EMPTY_ARRAY;
 	private parentNameLeft = EMPTY_ARRAY;
 
-	constructor(private putParamsTo: Param[]|undefined, private noBackslashEscapes: boolean, useBuffer: Uint8Array|undefined, useBufferFromPos: number, private sqlSettings: SqlSettings, estimatedByteLength: number)
+	constructor(private putParamsTo: unknown[]|undefined, private noBackslashEscapes: boolean, useBuffer: Uint8Array|undefined, useBufferFromPos: number, private sqlSettings: SqlSettings, estimatedByteLength: number)
 	{	if (useBuffer)
 		{	this.result = useBuffer;
 			this.pos = useBufferFromPos;
@@ -502,14 +496,15 @@ class Serializer
 	/**	Append a "${param}*", "${param}+" or a `${param},`.
 		I assume that i'm after opening '"' or '`' char.
 	 **/
-	appendQuotedIdents(param: Param, paramTypeDescriminator: number)
+	appendQuotedIdents(param: unknown, paramTypeDescriminator: number)
 	{	if (param==null || typeof(param)!='object' || !(Symbol.iterator in param))
 		{	throw new Error('Parameter for "${...}' + String.fromCharCode(paramTypeDescriminator) + '" must be iterable');
 		}
+		const it = param as Iterable<unknown>;
 		const {qtId, parentName} = this;
 		let isNext = false;
 		this.pos--; // backspace "
-		for (const p of param)
+		for (const p of it)
 		{	if (!isNext)
 			{	isNext = true;
 			}
@@ -549,7 +544,7 @@ class Serializer
 	/**	Append a '${param}'.
 		I assume that i'm after opening "'" char.
 	 **/
-	appendSqlValue(param: Param)
+	appendSqlValue(param: unknown)
 	{	debugAssert(this.result[this.pos-1] == C_APOS);
 		if (param == null)
 		{	this.pos--; // backspace '
@@ -588,11 +583,12 @@ class Serializer
 			this.pos += dateEncodeInto(param, this.result.subarray(this.pos));
 			return Want.NOTHING;
 		}
-		if (param.buffer instanceof ArrayBuffer)
-		{	const paramLen = param.byteLength;
+		if ((param as Any).buffer instanceof ArrayBuffer)
+		{	const view = param instanceof Uint8Array ? param : new Uint8Array((param as Uint8Array).buffer, (param as Uint8Array).byteOffset, (param as Uint8Array).byteLength);
+			const paramLen = view.byteLength;
 			if (this.putParamsTo && this.putParamsTo.length<MAX_PLACEHOLDERS && paramLen>INLINE_BLOB_MAX_LEN)
 			{	this.result[this.pos - 1] = C_QUEST; // ' -> ?
-				this.putParamsTo.push(param);
+				this.putParamsTo.push(view);
 				return Want.REMOVE_APOS_OR_BRACE_CLOSE_OR_GT;
 			}
 			const {result} = this;
@@ -609,7 +605,7 @@ class Serializer
 				result[this.pos++] = C_APOS;
 			}
 			for (let j=0; j<paramLen; j++)
-			{	const byte = param[j];
+			{	const byte = view[j];
 				const high = byte >> 4;
 				const low = byte & 0xF;
 				result[this.pos++] = high < 10 ? C_ZERO+high : high-10+C_A_CAP;
@@ -617,29 +613,29 @@ class Serializer
 			}
 			return altHexLiterals ? Want.REMOVE_APOS_OR_BRACE_CLOSE_OR_GT : Want.NOTHING;
 		}
-		if (typeof(param.read) == 'function')
+		if (param instanceof ReadableStream || typeof((param as Any).read)=='function')
 		{	if (this.putParamsTo && this.putParamsTo.length<MAX_PLACEHOLDERS)
 			{	this.result[this.pos - 1] = C_QUEST; // ' -> ?
 				this.putParamsTo.push(param);
 				return Want.REMOVE_APOS_OR_BRACE_CLOSE_OR_GT;
 			}
-			throw new Error(`Cannot stringify Deno.Reader`);
+			throw new Error(param instanceof ReadableStream ? `Cannot stringify ReadableStream` : `Cannot stringify Deno.Reader`);
 		}
 		// Assume: param is string, Sql, or something else that must be converted to string
-		param += '';
+		let str = param+'';
 		// put_params_to?
-		if (this.putParamsTo && this.putParamsTo.length<MAX_PLACEHOLDERS && param.length>INLINE_STRING_MAX_LEN)
+		if (this.putParamsTo && this.putParamsTo.length<MAX_PLACEHOLDERS && str.length>INLINE_STRING_MAX_LEN)
 		{	this.result[this.pos - 1] = C_QUEST; // ' -> ?
-			this.putParamsTo.push(param);
+			this.putParamsTo.push(str);
 			return Want.REMOVE_APOS_OR_BRACE_CLOSE_OR_GT;
 		}
 		// Append param, as is
-		this.appendRawString(param);
+		this.appendRawString(str);
 		// Escape chars in param
 		let {result, pos} = this;
 		let nAdd = 0;
-		for (let j=0, jEnd=param.length; j<jEnd; j++)
-		{	const c = param.charCodeAt(j);
+		for (let j=0, jEnd=str.length; j<jEnd; j++)
+		{	const c = str.charCodeAt(j);
 			if (c==C_APOS || c==C_BACKSLASH && !this.noBackslashEscapes)
 			{	nAdd++;
 			}
@@ -662,19 +658,23 @@ class Serializer
 	/**	Append a [${param}].
 		I assume that i'm after opening '[' char, that was converted to '('.
 	 **/
-	appendIterable(param: Iterable<Param>, level=0)
-	{	let nItemsAdded = 0;
-		for (const p of param)
+	appendIterable(param: unknown, level=0)
+	{	if (param==null || typeof(param)!='object' || !(Symbol.iterator in param))
+		{	throw new Error("In SQL fragment: parameter for [${...}] must be iterable");
+		}
+		const it = param as Iterable<unknown>;
+		let nItemsAdded = 0;
+		for (const p of it)
 		{	if (nItemsAdded++ != 0)
 			{	this.appendRawChar(C_COMMA);
 			}
-			if (typeof(p)!='object' && typeof(p)!='function' || (p instanceof Date) || (p.buffer instanceof ArrayBuffer))
+			if (typeof(p)!='object' && typeof(p)!='function' || (p instanceof Date) || ((p as Any).buffer instanceof ArrayBuffer))
 			{	this.appendRawChar(C_APOS);
 				if (this.appendSqlValue(p) != Want.REMOVE_APOS_OR_BRACE_CLOSE_OR_GT)
 				{	this.appendRawChar(C_APOS);
 				}
 			}
-			else if (Symbol.iterator in p)
+			else if (p!=null && Symbol.iterator in p)
 			{	switch (this.sqlSettings.mode)
 				{	case SqlMode.MYSQL:
 						throw new Error("Multidimensional [${param}] lists are not supported across all engines. Please use mysqlOnly`...`");
@@ -707,11 +707,18 @@ class Serializer
 	/**	Append a <${param}>.
 		I assume that i'm after opening '<' char, that was converted to '('.
 	 **/
-	appendNamesValues(param: Iterable<Record<string, Param>>)
-	{	const {qtId} = this;
+	appendNamesValues(param: unknown)
+	{	if (param==null || typeof(param)!='object' || !(Symbol.iterator in param))
+		{	throw new Error("In SQL fragment: parameter for <${...}> must be iterable");
+		}
+		const it = param as Iterable<unknown>;
+		const {qtId} = this;
 		let names: string[] | undefined;
-		for (const row of param)
-		{	if (!names)
+		for (const row of it)
+		{	if (row==null || typeof(row)!='object')
+			{	throw new Error("In SQL fragment: parameter for <${...}> must be iterable of objects");
+			}
+			if (!names)
 			{	names = Object.keys(row);
 				if (names.length == 0)
 				{	throw new Error("No fields for <${param}>");
@@ -737,7 +744,7 @@ class Serializer
 			for (const name of names)
 			{	this.appendRawChar(delim);
 				this.appendRawChar(C_APOS);
-				if (this.appendSqlValue(row[name]) != Want.REMOVE_APOS_OR_BRACE_CLOSE_OR_GT)
+				if (this.appendSqlValue((row as Any)[name]) != Want.REMOVE_APOS_OR_BRACE_CLOSE_OR_GT)
 				{	this.appendRawChar(C_APOS);
 				}
 				delim = C_COMMA;
@@ -798,7 +805,7 @@ class Serializer
 		}
 	}
 
-	appendEqList(param: Param, paramTypeDescriminator: number)
+	appendEqList(param: unknown, paramTypeDescriminator: number)
 	{	if (param==null || typeof(param)!='object')
 		{	throw new Error("In SQL fragment: parameter for {${...}} must be object");
 		}
@@ -868,12 +875,11 @@ class Serializer
 	/**	Append a (${param}).
 		I assume that i'm after opening '(' char (if enclosed).
 	 **/
-	appendSafeSqlFragment(param: Param, isExpression=false)
+	appendSafeSqlFragment(param: unknown, isExpression=false)
 	{	// Remember end position before appending
 		const from = this.pos;
-		const paramIsSql = param instanceof Sql;
 		// Append param, as is
-		if (paramIsSql)
+		if (param instanceof Sql)
 		{	const tmp = param.sqlSettings;
 			param.sqlSettings = this.sqlSettings;
 			try
@@ -888,8 +894,9 @@ class Serializer
 			}
 		}
 		else
-		{	param += '';
-			this.appendRawString(param);
+		{	const str = param+'';
+			param = str;
+			this.appendRawString(str);
 		}
 		// Escape chars in param
 		// 1. Find how many bytes to add
@@ -1027,7 +1034,7 @@ L:		for (let j=from; j<pos; j++)
 				case C_BRACE_CLOSE:
 					throw new Error(`Invalid character in SQL fragment: ${param}`);
 				case C_QUEST:
-					if (!paramIsSql)
+					if (!(param instanceof Sql))
 					{	throw new Error(`Invalid character in SQL fragment: ${param}`);
 					}
 					// fallthrough
@@ -1094,6 +1101,7 @@ L:		for (let j=from; j<pos; j++)
 		{	this.ensureRoom(nAdd);
 			result = this.result;
 			let nChange = changes.length;
+			// deno-lint-ignore no-inner-declarations no-var
 			var {change, changeFrom, changeTo} = changes[--nChange];
 			for (let j=pos-1, k=j+nAdd; true; k--, j--)
 			{	const c = result[j];
@@ -1168,6 +1176,7 @@ L:		for (let j=from; j<pos; j++)
 					if (nChange <= 0)
 					{	break;
 					}
+					// deno-lint-ignore no-inner-declarations no-var no-redeclare
 					var {change, changeFrom, changeTo} = changes[--nChange];
 				}
 				else
@@ -1186,7 +1195,7 @@ L:		for (let j=from; j<pos; j++)
 	}
 }
 
-function encodeParentName(param: Param)
+function encodeParentName(param: unknown)
 {	if (param == null)
 	{	return EMPTY_ARRAY;
 	}

@@ -1,5 +1,3 @@
-// deno-lint-ignore-file
-
 import {debugAssert} from './debug_assert.ts';
 import {Sql} from "./sql.ts";
 import {utf8StringLength} from "./utf8_string_length.ts";
@@ -23,29 +21,32 @@ const encoder = new TextEncoder;
 const decoder = new TextDecoder;
 const decoderLatin1 = new TextDecoder('latin1');
 
-export function mysqlQuote(param: any, noBackslashEscapes=false)
+// deno-lint-ignore no-explicit-any
+type Any = any;
+
+export function mysqlQuote(param: unknown, noBackslashEscapes=false)
 {	return quote(param, noBackslashEscapes, false);
 }
 
-export function pgsqlQuote(param: any, unused=false)
+export function pgsqlQuote(param: unknown, _unused=false)
 {	return quote(param, true, false);
 }
 
-export function sqliteQuote(param: any, unused=false)
+export function sqliteQuote(param: unknown, _unused=false)
 {	return quote(param, true, false);
 }
 
-export function mssqlQuote(param: any, noBackslashEscapes=false)
+export function mssqlQuote(param: unknown, noBackslashEscapes=false)
 {	return quote(param, noBackslashEscapes, true);
 }
 
 export function dateEncodeInto(date: Date, buffer: Uint8Array)
 {	let year = date.getFullYear();
-	let month = date.getMonth() + 1;
-	let day = date.getDate();
-	let hours = date.getHours();
-	let minutes = date.getMinutes();
-	let seconds = date.getSeconds();
+	const month = date.getMonth() + 1;
+	const day = date.getDate();
+	const hours = date.getHours();
+	const minutes = date.getMinutes();
+	const seconds = date.getSeconds();
 	let millis = date.getMilliseconds();
 	// year
 	buffer[3] = C_ZERO + year % 10;
@@ -98,7 +99,7 @@ export function dateEncodeInto(date: Date, buffer: Uint8Array)
 	return 23;
 }
 
-function quote(value: any, noBackslashEscapes=false, isMssql=false)
+function quote(value: unknown, noBackslashEscapes=false, isMssql=false)
 {	if (value==null || typeof(value)=='function' || typeof(value)=='symbol')
 	{	return 'NULL';
 	}
@@ -112,11 +113,12 @@ function quote(value: any, noBackslashEscapes=false, isMssql=false)
 	{	return value+'';
 	}
 	if (value instanceof Date)
-	{	let len = dateEncodeInto(value, BUFFER_FOR_DATE);
+	{	const len = dateEncodeInto(value, BUFFER_FOR_DATE);
 		return decoderLatin1.decode(BUFFER_FOR_DATE.subarray(0, len));
 	}
-	if (value.buffer instanceof ArrayBuffer)
-	{	let paramLen = value.byteLength;
+	if ((value as Any).buffer instanceof ArrayBuffer)
+	{	const view = value instanceof Uint8Array ? value : new Uint8Array((value as Uint8Array).buffer, (value as Uint8Array).byteOffset, (value as Uint8Array).byteLength);
+		const paramLen = view.byteLength;
 		let result;
 		if (isMssql)
 		{	result = new Uint8Array(paramLen*2 + 2); // like 0x01020304
@@ -130,9 +132,9 @@ function quote(value: any, noBackslashEscapes=false, isMssql=false)
 		}
 		let pos = 2;
 		for (let j=0; j<paramLen; j++)
-		{	let byte = value[j];
-			let high = byte >> 4;
-			let low = byte & 0xF;
+		{	const byte = view[j];
+			const high = byte >> 4;
+			const low = byte & 0xF;
 			result[pos++] = high < 10 ? C_ZERO+high : high-10+C_A_CAP;
 			result[pos++] = low < 10 ? C_ZERO+low : low-10+C_A_CAP;
 		}
@@ -141,32 +143,36 @@ function quote(value: any, noBackslashEscapes=false, isMssql=false)
 		}
 		return decoderLatin1.decode(result);
 	}
-	if (typeof(value.read) == 'function')
+	if (value instanceof ReadableStream)
+	{	throw new Error(`Cannot stringify ReadableStream`);
+	}
+	if (typeof((value as Any).read) == 'function')
 	{	throw new Error(`Cannot stringify Deno.Reader`);
 	}
-	// Assume: value is string
+	// Convert value to string
+	let str;
 	if (typeof(value)=='object' && !(value instanceof Sql))
-	{	value = JSON.stringify(value);
+	{	str = JSON.stringify(value);
 	}
 	else
-	{	value += '';
+	{	str = value+'';
 	}
 	let nAdd = 0;
-	for (let j=0, jEnd=value.length; j<jEnd; j++)
-	{	let c = value.charCodeAt(j);
+	for (let j=0, jEnd=str.length; j<jEnd; j++)
+	{	const c = str.charCodeAt(j);
 		if (c==C_APOS || c==C_BACKSLASH && !noBackslashEscapes)
 		{	nAdd++;
 		}
 	}
 	if (nAdd == 0)
-	{	return "'" + value + "'";
+	{	return "'" + str + "'";
 	}
-	let result = new Uint8Array(2 + utf8StringLength(value) + nAdd);
-	let {read, written} = encoder.encodeInto(value, result.subarray(1));
-	debugAssert(read == value.length);
+	const result = new Uint8Array(2 + utf8StringLength(str) + nAdd);
+	const {read, written} = encoder.encodeInto(str, result.subarray(1));
+	debugAssert(read == str.length);
 	result[0] = C_APOS;
 	for (let j=written, k=j+nAdd; k!=j; k--, j--)
-	{	let c = result[j];
+	{	const c = result[j];
 		if (c==C_APOS || c==C_BACKSLASH && !noBackslashEscapes)
 		{	result[k--] = c;
 		}

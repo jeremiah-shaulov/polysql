@@ -1,13 +1,13 @@
 // deno-lint-ignore-file
 
-import {mysql, pgsql, INLINE_STRING_MAX_LEN} from '../sql.ts';
+import {mysql, pgsql, INLINE_STRING_MAX_LEN} from '../private/sql.ts';
 import
 {	mysqlTables, mysqlOnlyTables,
 	pgsqlTables, pgsqlOnlyTables,
 	sqliteTables, sqliteOnlyTables,
 	mssqlTables, mssqlOnlyTables,
-} from '../sql_table.ts';
-import {assert, assertEquals} from "https://deno.land/std@0.106.0/testing/asserts.ts";
+} from '../private/sql_table.ts';
+import {assertEquals} from 'https://deno.land/std@0.224.0/assert/assert_equals.ts';
 
 Deno.test
 (	'Table name must be string',

@@ -1,9 +1,10 @@
 // deno-lint-ignore-file
 
-import {mysql, pgsql, sqlite, mssql, mysqlOnly, pgsqlOnly, sqliteOnly, mssqlOnly, Sql, INLINE_STRING_MAX_LEN, INLINE_BLOB_MAX_LEN} from '../sql.ts';
-import {mysqlQuote, pgsqlQuote, sqliteQuote, mssqlQuote} from '../quote.ts';
-import {SqlSettings, SqlMode} from '../sql_settings.ts';
-import {assert, assertEquals} from "https://deno.land/std@0.106.0/testing/asserts.ts";
+import {mysql, pgsql, sqlite, mssql, mysqlOnly, pgsqlOnly, sqliteOnly, mssqlOnly, Sql, INLINE_STRING_MAX_LEN, INLINE_BLOB_MAX_LEN} from '../private/sql.ts';
+import {mysqlQuote, pgsqlQuote, sqliteQuote, mssqlQuote} from '../private/quote.ts';
+import {SqlSettings, SqlMode} from '../private/sql_settings.ts';
+import {assert} from 'https://deno.land/std@0.224.0/assert/assert.ts';
+import {assertEquals} from 'https://deno.land/std@0.224.0/assert/assert_equals.ts';
 
 const decoder = new TextDecoder;
 
@@ -109,6 +110,15 @@ Deno.test
 		{	error = e;
 		}
 		assertEquals(error?.message, `Cannot represent such bigint: ${2n ** 64n}`);
+
+		error = undefined;
+		try
+		{	mysql`'${new ReadableStream}'`.toString();
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, `Cannot stringify ReadableStream`);
 
 		error = undefined;
 		try
@@ -711,7 +721,7 @@ Deno.test
 		assertEquals(s.toString(putParamsTo, false), `Ax'${data[0].toString(16).repeat(data.length)}'B`);
 		assertEquals(putParamsTo, []);
 
-		let reader = {read() {}};
+		let reader = new ReadableStream;
 		s = mysql`A'${reader}'B`;
 		putParamsTo = [];
 		assertEquals(s.toString(putParamsTo, false), `A?B`);
@@ -895,5 +905,14 @@ Deno.test
 		{	error = e;
 		}
 		assertEquals(error?.message, "Cannot stringify Deno.Reader");
+
+		error = undefined;
+		try
+		{	mysqlQuote(new ReadableStream);
+		}
+		catch (e)
+		{	error = e;
+		}
+		assertEquals(error?.message, "Cannot stringify ReadableStream");
 	}
 );

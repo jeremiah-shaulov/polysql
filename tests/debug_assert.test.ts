@@ -1,7 +1,7 @@
 // deno-lint-ignore-file
 
-import {ASSERTIONS_ENABLED, debugAssert} from '../debug_assert.ts';
-import {assert} from "https://deno.land/std@0.106.0/testing/asserts.ts";
+import {ASSERTIONS_ENABLED, debugAssert} from '../private/debug_assert.ts';
+import {assert} from 'https://deno.land/std@0.224.0/assert/assert.ts';
 
 Deno.test
 (	'debugAssert',

@@ -3,27 +3,26 @@ export
 	pgsqlQuote,
 	sqliteQuote,
 	mssqlQuote,
-} from './quote.ts';
+} from './private/quote.ts';
 
 export
 {	mysql, mysqlOnly,
 	pgsql, pgsqlOnly,
 	sqlite, sqliteOnly,
 	mssql, mssqlOnly,
-	Sql
-} from './sql.ts';
+	Sql,
+} from './private/sql.ts';
 
 export
 {	mysqlTables, mysqlOnlyTables,
 	pgsqlTables, pgsqlOnlyTables,
 	sqliteTables, sqliteOnlyTables,
 	mssqlTables, mssqlOnlyTables,
-	SqlTable
-} from './sql_table.ts';
-
-export type {OrderBy} from './sql_table.ts';
+	SqlTable,
+	type OrderBy,
+} from './private/sql_table.ts';
 
 export
 {	SqlSettings,
-	SqlMode
-} from './sql_settings.ts';
+	SqlMode,
+} from './private/sql_settings.ts';
