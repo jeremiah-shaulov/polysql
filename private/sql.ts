@@ -7,7 +7,7 @@ import
 	DEFAULT_SETTINGS_SQLITE, DEFAULT_SETTINGS_SQLITE_ONLY,
 	DEFAULT_SETTINGS_MSSQL, DEFAULT_SETTINGS_MSSQL_ONLY,
 } from './sql_settings.ts';
-import {dateEncodeInto} from "./quote.ts";
+import {dateEncodeInto} from './quote.ts';
 
 export const INLINE_STRING_MAX_LEN = 60;
 export const INLINE_BLOB_MAX_LEN = 40;
@@ -152,7 +152,7 @@ export class Sql
 				len += view.byteLength*2 + 3; // like x'01020304'
 			}
 			else if (param instanceof ReadableStream || typeof((param as Any).read)=='function')
-			{	// assume, will use "put_params_to"
+			{	// assume, will use `putParamsTo`
 			}
 			else
 			{	const prevString = strings[i];
@@ -238,7 +238,7 @@ export class Sql
 			}
 			else
 			{	// ``, "", {}, () or not enclosed
-				// Have parent_name?
+				// Have parentName?
 				let varParentNameLeft: Uint8Array | undefined;
 				let varParentName: Uint8Array | undefined;
 				const next = strings[i+1];
@@ -622,8 +622,8 @@ class Serializer
 			throw new Error(param instanceof ReadableStream ? `Cannot stringify ReadableStream` : `Cannot stringify Deno.Reader`);
 		}
 		// Assume: param is string, Sql, or something else that must be converted to string
-		let str = param+'';
-		// put_params_to?
+		const str = param+'';
+		// putParamsTo?
 		if (this.putParamsTo && this.putParamsTo.length<MAX_PLACEHOLDERS && str.length>INLINE_STRING_MAX_LEN)
 		{	this.result[this.pos - 1] = C_QUEST; // ' -> ?
 			this.putParamsTo.push(str);
@@ -771,14 +771,14 @@ class Serializer
 			this.parentNameLeft = this.parentName;
 			return;
 		}
-		// parent_name
+		// parentName
 		const from = --pos; // from '.'
 		let c = result[--pos];
 		while (c>=C_A && c<=C_Z || c>=C_A_CAP && c<=C_Z_CAP || c>=C_ZERO && c<=C_NINE || c==C_UNDERSCORE || c>=0x80)
 		{	c = result[--pos];
 		}
 		const parentNameLen = from - pos - 1;
-		// parent_name_left
+		// parentNameLeft
 		let fromLeft = -1;
 		if (c==C_DOT && !varParentName)
 		{	fromLeft = pos; // from '.'
@@ -1084,7 +1084,7 @@ L:		for (let j=from; j<pos; j++)
 							else
 							{	if (!this.sqlSettings.isIdentAllowed(name))
 								{	changes[changes.length] = {change: Change.QUOTE_COLUMN_NAME, changeFrom, changeTo: jAfterIdent-1};
-									nAdd += !parentName.length ? 2 : !alwaysQuoteIdents ? parentName.length+3 : parentName.length+5; // no parent_name ? `` : !always_quote_idents ? ``. : ``.``
+									nAdd += !parentName.length ? 2 : !alwaysQuoteIdents ? parentName.length+3 : parentName.length+5; // no parentName ? `` : !alwaysQuoteIdents ? ``. : ``.``
 								}
 							}
 						}

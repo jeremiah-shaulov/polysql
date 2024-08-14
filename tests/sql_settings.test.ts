@@ -1,14 +1,12 @@
-// deno-lint-ignore-file
-
 import {SqlMode, SqlSettings} from '../private/sql_settings.ts';
 import {assertEquals} from 'https://deno.land/std@0.224.0/assert/assert_equals.ts';
 
-let encoder = new TextEncoder;
+const encoder = new TextEncoder;
 
 Deno.test
 (	'Basic',
-	async () =>
-	{	let policy = new SqlSettings(SqlMode.MYSQL, 'abcd ABCD abYd abAd abZd', '!abcd ABCD abYd abAd abZd');
+	() =>
+	{	const policy = new SqlSettings(SqlMode.MYSQL, 'abcd ABCD abYd abAd abZd', '!abcd ABCD abYd abAd abZd');
 		assertEquals(policy.idents, 'ABAD ABCD ABYD ABZD');
 		assertEquals(policy.functions, '!ABAD ABCD ABYD ABZD');
 

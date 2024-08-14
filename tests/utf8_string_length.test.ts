@@ -1,12 +1,10 @@
-// deno-lint-ignore-file
-
 import {utf8StringLength} from '../private/utf8_string_length.ts';
 import {assertEquals} from 'https://deno.land/std@0.224.0/assert/assert_equals.ts';
 
 Deno.test
 (	'Basic',
 	() =>
-	{	const encoder = new TextEncoder();
+	{	const encoder = new TextEncoder;
 
 		const strs =
 		[	'',
@@ -16,7 +14,7 @@ Deno.test
 			'😁'
 		];
 
-		for (let str of strs)
+		for (const str of strs)
 		{	assertEquals(utf8StringLength(str), encoder.encode(str).length);
 		}
 	}

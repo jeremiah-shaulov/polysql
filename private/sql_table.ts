@@ -1,5 +1,5 @@
-import {debugAssert} from "./debug_assert.ts";
-import {mysql, Sql} from "./sql.ts";
+import {debugAssert} from './debug_assert.ts';
+import {mysql, Sql} from './sql.ts';
 import
 {	SqlSettings,
 	SqlMode,

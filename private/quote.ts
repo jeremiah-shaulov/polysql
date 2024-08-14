@@ -1,6 +1,6 @@
 import {debugAssert} from './debug_assert.ts';
-import {Sql} from "./sql.ts";
-import {utf8StringLength} from "./utf8_string_length.ts";
+import {Sql} from './sql.ts';
+import {utf8StringLength} from './utf8_string_length.ts';
 
 const BUFFER_FOR_DATE = new Uint8Array(23);
 

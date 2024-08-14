@@ -1,5 +1,3 @@
-// deno-lint-ignore-file
-
 import {mysql, pgsql, INLINE_STRING_MAX_LEN} from '../private/sql.ts';
 import
 {	mysqlTables, mysqlOnlyTables,
@@ -9,12 +7,15 @@ import
 } from '../private/sql_table.ts';
 import {assertEquals} from 'https://deno.land/std@0.224.0/assert/assert_equals.ts';
 
+// deno-lint-ignore no-explicit-any
+type Any = any;
+
 Deno.test
 (	'Table name must be string',
-	async () =>
+	() =>
 	{	let error;
 		try
-		{	mysqlTables[Symbol.iterator as any];
+		{	mysqlTables[Symbol.iterator as Any];
 		}
 		catch (e)
 		{	error = e;
@@ -23,7 +24,7 @@ Deno.test
 
 		error = undefined;
 		try
-		{	mysqlOnlyTables[Symbol.iterator as any];
+		{	mysqlOnlyTables[Symbol.iterator as Any];
 		}
 		catch (e)
 		{	error = e;
@@ -32,7 +33,7 @@ Deno.test
 
 		error = undefined;
 		try
-		{	pgsqlTables[Symbol.iterator as any];
+		{	pgsqlTables[Symbol.iterator as Any];
 		}
 		catch (e)
 		{	error = e;
@@ -41,7 +42,7 @@ Deno.test
 
 		error = undefined;
 		try
-		{	pgsqlOnlyTables[Symbol.iterator as any];
+		{	pgsqlOnlyTables[Symbol.iterator as Any];
 		}
 		catch (e)
 		{	error = e;
@@ -50,7 +51,7 @@ Deno.test
 
 		error = undefined;
 		try
-		{	sqliteTables[Symbol.iterator as any];
+		{	sqliteTables[Symbol.iterator as Any];
 		}
 		catch (e)
 		{	error = e;
@@ -59,7 +60,7 @@ Deno.test
 
 		error = undefined;
 		try
-		{	sqliteOnlyTables[Symbol.iterator as any];
+		{	sqliteOnlyTables[Symbol.iterator as Any];
 		}
 		catch (e)
 		{	error = e;
@@ -68,7 +69,7 @@ Deno.test
 
 		error = undefined;
 		try
-		{	mssqlTables[Symbol.iterator as any];
+		{	mssqlTables[Symbol.iterator as Any];
 		}
 		catch (e)
 		{	error = e;
@@ -77,7 +78,7 @@ Deno.test
 
 		error = undefined;
 		try
-		{	mssqlOnlyTables[Symbol.iterator as any];
+		{	mssqlOnlyTables[Symbol.iterator as Any];
 		}
 		catch (e)
 		{	error = e;
@@ -88,7 +89,7 @@ Deno.test
 
 Deno.test
 (	'Test sqlTables.select()',
-	async () =>
+	() =>
 	{	const TABLE = 'Hello `All`!';
 		assertEquals(mysqlTables[TABLE].tableName, TABLE);
 
@@ -107,10 +108,10 @@ Deno.test
 		s = mysqlTables[TABLE].join('more').where("").select(['a', 'b b']);
 		assertEquals(s+'', "SELECT `b`.`a`, `b`.`b b` FROM `Hello ``All``!` AS `b` CROSS JOIN `more`");
 
-		{	let a = 'a'.repeat(INLINE_STRING_MAX_LEN+1);
-			let b = 'b'.repeat(INLINE_STRING_MAX_LEN+1);
-			let params: any[] = [];
-			let str = mysqlTables.t_log.where(pgsql`a='${a}'`).select(pgsql`b+'${b}'`).toString(params);
+		{	const a = 'a'.repeat(INLINE_STRING_MAX_LEN+1);
+			const b = 'b'.repeat(INLINE_STRING_MAX_LEN+1);
+			const params: unknown[] = [];
+			const str = mysqlTables.t_log.where(pgsql`a='${a}'`).select(pgsql`b+'${b}'`).toString(params);
 			assertEquals(str, "SELECT `b`+? FROM `t_log` WHERE (`a`=?)");
 			assertEquals(params, [b, a]);
 		}
@@ -124,7 +125,7 @@ Deno.test
 		}
 		assertEquals(error?.message, "Please, call where() first");
 
-		let table = mysqlTables.t_log.where('id IN (1, 2)');
+		const table = mysqlTables.t_log.where('id IN (1, 2)');
 
 		s = table.where("name <> ''").select("col1*2, Count(*)");
 		assertEquals(s+'', "SELECT `col1`*2, Count(*) FROM `t_log` WHERE (`id` IN( 1, 2)) AND (`name` <> '')");
@@ -388,7 +389,7 @@ Deno.test
 
 Deno.test
 (	'Test sqlTables.update()',
-	async () =>
+	() =>
 	{	// Simple:
 
 		let s = mysqlTables.t_log.where("id=1").update({message: "Message '1'"});
@@ -544,7 +545,7 @@ Deno.test
 
 Deno.test
 (	'Test sqlTables.delete()',
-	async () =>
+	() =>
 	{	// Simple:
 
 		let s = mysqlTables.t_log.where("id=1").delete();
@@ -648,10 +649,10 @@ Deno.test
 
 Deno.test
 (	'Test sqlTables.insert()',
-	async () =>
+	() =>
 	{	const ROWS = [{a: 1, b: '2'}, {a: 10, b: '20'}];
-		function *itRows(rows: Record<string, any>[])
-		{	for (let row of rows)
+		function *itRows(rows: Record<string, unknown>[])
+		{	for (const row of rows)
 			{	yield row;
 			}
 		}
@@ -848,7 +849,7 @@ Deno.test
 
 Deno.test
 (	'Test sqlTables.insertFrom()',
-	async () =>
+	() =>
 	{	let s = mysqlTables.t_log.insertFrom(['c1', 'c2'], mysqlTables.t_log_bak.where('').select('cb1, cb2'));
 		assertEquals(s+'', "INSERT INTO `t_log` (`c1`, `c2`) SELECT `cb1`, `cb2` FROM `t_log_bak`");
 
@@ -1013,7 +1014,7 @@ Deno.test
 
 Deno.test
 (	'Test sqlTables.truncate()',
-	async () =>
+	() =>
 	{	let s = mysqlTables.t_log.truncate();
 		assertEquals(s+'', "TRUNCATE TABLE `t_log`");
 

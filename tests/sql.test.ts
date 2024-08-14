@@ -1,5 +1,3 @@
-// deno-lint-ignore-file
-
 import {mysql, pgsql, sqlite, mssql, mysqlOnly, pgsqlOnly, sqliteOnly, mssqlOnly, Sql, INLINE_STRING_MAX_LEN, INLINE_BLOB_MAX_LEN} from '../private/sql.ts';
 import {mysqlQuote, pgsqlQuote, sqliteQuote, mssqlQuote} from '../private/quote.ts';
 import {SqlSettings, SqlMode} from '../private/sql_settings.ts';
@@ -10,7 +8,7 @@ const decoder = new TextDecoder;
 
 Deno.test
 (	'Basic',
-	async () =>
+	() =>
 	{	assertEquals(mysql`'${''}'` + '', `''`);
 		assertEquals(mysql`'${'A\nB'}'` + '', `'A\nB'`);
 		assertEquals(mysql`'${'A\\B'}'` + '', `'A\\\\B'`);
@@ -99,7 +97,7 @@ Deno.test
 
 		// json
 		const value = {a: 1, b: 'the b'};
-		let str = mysql`'${value}'` + '';
+		const str = mysql`'${value}'` + '';
 		assertEquals(JSON.parse(str.slice(1, -1)), value);
 
 		let error;
@@ -197,7 +195,7 @@ Deno.test
 
 Deno.test
 (	'SQL (${param})',
-	async () =>
+	() =>
 	{	let expr = `The string - 'It''s string \\'`;
 		let s = mysql`A.(${expr}).B`;
 		assertEquals(s+'', `A.(\`The\` \`string\` - 'It''s string \\\\').B`);
@@ -560,7 +558,7 @@ Deno.test
 		s = mysql`SELECT (${null}.${expr})`;
 		assertEquals(s+'', "SELECT (`a``b`)");
 
-		let expr2 = mysql`a || 'фффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффф'`;
+		const expr2 = mysql`a || 'фффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффф'`;
 		s = mysql`S (${expr2})`;
 		assertEquals(s+'', "S (`a` || 'фффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффффф')");
 
@@ -574,7 +572,7 @@ Deno.test
 
 Deno.test
 (	'SQL ${param}',
-	async () =>
+	() =>
 	{	let expr = `The string - 'It''s string \\'`;
 		let s = mysql`A-${expr}-B`;
 		assertEquals(s+'', `A-\`The\` \`string\` - 'It''s string \\\\'-B`);
@@ -590,7 +588,7 @@ Deno.test
 
 		expr = "col1, `col2`, 3.0, fn()";
 		let alias = 'the_alias';
-		let alias2 = 'the_alias 2!';
+		const alias2 = 'the_alias 2!';
 		s = mysql`A-${alias}.${expr}-${alias2}.${expr}-B`;
 		assertEquals(s+'', "A-`the_alias`.col1, `the_alias`.`col2`, 3.0, fn()-`the_alias 2!`.col1, `the_alias 2!`.`col2`, 3.0, fn()-B");
 
@@ -612,19 +610,19 @@ Deno.test
 
 Deno.test
 (	'SQL [${param}]',
-	async () =>
-	{	let list = [12.5, 'ABC\'D\'EF', new Date(2000, 0, 1)];
+	() =>
+	{	const list = [12.5, 'ABC\'D\'EF', new Date(2000, 0, 1)];
 		let s = mysql`A[${list}]B`;
 		assertEquals(s+'', `A(12.5,'ABC''D''EF','2000-01-01')B`);
 
-		let list2 = [[12.5, 13], ['ABC\'D\'EF'], new Date(2000, 0, 1)];
+		const list2 = [[12.5, 13], ['ABC\'D\'EF'], new Date(2000, 0, 1)];
 		s = mysqlOnly`A[${list2}]B`;
 		assertEquals(s+'', `A((12.5,13),('ABC''D''EF'),'2000-01-01')B`);
 
 		s = mysql`A[${[]}]B`;
 		assertEquals(s+'', `A(NULL)B`);
 
-		let list3 = [[1, {}, () => {}]];
+		const list3 = [[1, {}, () => {}]];
 		s = mysqlOnly`A[${list3}]B`;
 		assertEquals(s+'', `A((1,NULL,NULL))B`);
 
@@ -695,10 +693,10 @@ Deno.test
 
 Deno.test
 (	'SQL put_params_to',
-	async () =>
+	() =>
 	{	let value = "*".repeat(INLINE_STRING_MAX_LEN+1);
 		let s = mysql`A'${value}'B`;
-		let putParamsTo: any[] = [];
+		let putParamsTo: unknown[] = [];
 		assertEquals(s.toString(putParamsTo, false), `A?B`);
 		assertEquals(putParamsTo, [value]);
 
@@ -721,7 +719,7 @@ Deno.test
 		assertEquals(s.toString(putParamsTo, false), `Ax'${data[0].toString(16).repeat(data.length)}'B`);
 		assertEquals(putParamsTo, []);
 
-		let reader = new ReadableStream;
+		const reader = new ReadableStream;
 		s = mysql`A'${reader}'B`;
 		putParamsTo = [];
 		assertEquals(s.toString(putParamsTo, false), `A?B`);
@@ -731,8 +729,8 @@ Deno.test
 
 Deno.test
 (	'Sql.concat(), Sql.append(), Sql.toSqlBytesWithParamsBackslashAndBuffer()',
-	async () =>
-	{	let s = mysql`A, '${'B'}', C`;
+	() =>
+	{	const s = mysql`A, '${'B'}', C`;
 		let s2 = s.concat(mysql`, '${'D'}'`).concat(mysql`.`).concat(mysql``);
 		assertEquals(s2+'', `A, 'B', C, 'D'.`);
 		assert(s != s2);
@@ -741,11 +739,11 @@ Deno.test
 		assertEquals(s2+'', `A, 'B', C, 'D'.`);
 		assertEquals(s, s2);
 
-		let expectedResult = "`id` = ?";
-		let putParamsTo: any = [];
-		let buffer = new Uint8Array(expectedResult.length);
-		let param = 'a'.repeat(INLINE_STRING_MAX_LEN+1);
-		let buffer2 = mysql`"${'id'}" = '${param}'`.toSqlBytesWithParamsBackslashAndBuffer(putParamsTo, false, buffer);
+		const expectedResult = "`id` = ?";
+		const putParamsTo: unknown[] = [];
+		const buffer = new Uint8Array(expectedResult.length);
+		const param = 'a'.repeat(INLINE_STRING_MAX_LEN+1);
+		const buffer2 = mysql`"${'id'}" = '${param}'`.toSqlBytesWithParamsBackslashAndBuffer(putParamsTo, false, buffer);
 		assert(buffer2.buffer == buffer.buffer);
 		assertEquals(decoder.decode(buffer2), expectedResult);
 		assertEquals(putParamsTo[0], param);
@@ -754,12 +752,12 @@ Deno.test
 
 Deno.test
 (	'SQL <${param}>',
-	async () =>
-	{	let rows =
+	() =>
+	{	const rows =
 		[	{value: 10, name: 'text 1'},
 			{value: 11, name: 'text 2', junk: 'j'},
 		];
-		let s = mysql`INSERT INTO t_log <${rows}>`;
+		const s = mysql`INSERT INTO t_log <${rows}>`;
 		assertEquals(s+'', "INSERT INTO t_log (`value`, `name`) VALUES\n(10,'text 1'),\n(11,'text 2')");
 
 		let error;
@@ -775,7 +773,7 @@ Deno.test
 
 Deno.test
 (	'SQL {${param}}',
-	async () =>
+	() =>
 	{	let row = {a: 10, val: 'text 1'};
 		let s = mysql`SET {${row}}`;
 		assertEquals(s+'', "SET `a`=10, `val`='text 1'");
@@ -836,7 +834,7 @@ Deno.test
 		s = mssql`SET {ta.${row2}|}`;
 		assertEquals(s+'', "SET 0");
 
-		let row3 = {one: 1.1, two: mysql`a + f(b)`};
+		const row3 = {one: 1.1, two: mysql`a + f(b)`};
 		s = mysql`SET {t1.${row3}}`;
 		assertEquals(s+'', "SET `t1`.`one`=1.1, `t1`.`two`=`t1`.a + f(`t1`.b)");
 
@@ -868,7 +866,7 @@ Deno.test
 
 Deno.test
 (	'SQL sqlQuote()',
-	async () =>
+	() =>
 	{	assertEquals(mysqlQuote(null), "NULL");
 		assertEquals(mysqlQuote(false), "FALSE");
 		assertEquals(mysqlQuote(true), "TRUE");
