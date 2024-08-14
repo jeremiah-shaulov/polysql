@@ -680,7 +680,7 @@ Deno.test
 			assertEquals(s+'', "INSERT INTO `t_log` (`a`, `b`) VALUES\n(1,'2'),\n(10,'20') AS excluded ON DUPLICATE KEY UPDATE `a`=excluded.`a`, `b`=excluded.`b`");
 
 			s = mysqlOnlyTables.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'patch');
-			assertEquals(s+'', "INSERT INTO `t_log` (`a`, `b`) VALUES\n(1,'2'),\n(10,'20') AS excluded ON DUPLICATE KEY UPDATE `a`=CASE WHEN excluded.`a` IS NOT NULL AND (`t_log`.`a` IS NULL OR Cast(excluded.`a` AS char) NOT IN ('', '0') OR Cast(`t_log`.`a` AS char) IN ('', '0')) THEN excluded.`a` ELSE `t_log`.`a` END, `b`=CASE WHEN excluded.`b` IS NOT NULL AND (`t_log`.`b` IS NULL OR Cast(excluded.`b` AS char) NOT IN ('', '0') OR Cast(`t_log`.`b` AS char) IN ('', '0')) THEN excluded.`b` ELSE `t_log`.`b` END");
+			assertEquals(s+'', "INSERT INTO `t_log` (`a`, `b`) VALUES\n(1,'2'),\n(10,'20') AS excluded ON DUPLICATE KEY UPDATE `a`=CASE WHEN `t_log`.`a` IS NULL OR Cast(`t_log`.`a` AS char) IN ('', '0') THEN excluded.`a` ELSE `t_log`.`a` END, `b`=CASE WHEN `t_log`.`b` IS NULL OR Cast(`t_log`.`b` AS char) IN ('', '0') THEN excluded.`b` ELSE `t_log`.`b` END");
 
 			let error;
 			try
@@ -833,7 +833,7 @@ Deno.test
 			catch (e)
 			{	error = e;
 			}
-			assertEquals(error?.message, "ON CONFLICT DO UPDATE is not supported on SQLite");
+			assertEquals(error?.message, "ON CONFLICT DO UPDATE is not supported across all engines. Please use sqliteOnly`...`");
 
 			error = undefined;
 			try
