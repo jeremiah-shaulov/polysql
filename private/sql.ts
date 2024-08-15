@@ -1,12 +1,5 @@
 import {debugAssert} from './debug_assert.ts';
-import
-{	SqlMode,
-	SqlSettings,
-	DEFAULT_SETTINGS_MYSQL, DEFAULT_SETTINGS_MYSQL_ONLY,
-	DEFAULT_SETTINGS_PGSQL, DEFAULT_SETTINGS_PGSQL_ONLY,
-	DEFAULT_SETTINGS_SQLITE, DEFAULT_SETTINGS_SQLITE_ONLY,
-	DEFAULT_SETTINGS_MSSQL, DEFAULT_SETTINGS_MSSQL_ONLY,
-} from './sql_settings.ts';
+import {SqlMode, SqlSettings} from './sql_settings.ts';
 import {dateEncodeInto} from './quote.ts';
 
 export const INLINE_STRING_MAX_LEN = 60;
@@ -303,38 +296,6 @@ export class Sql
 	toSqlBytesWithParamsBackslashAndBuffer(putParamsTo: unknown[]|undefined, mysqlNoBackslashEscapes: boolean, useBuffer: Uint8Array)
 	{	return this.encode(putParamsTo, mysqlNoBackslashEscapes, useBuffer);
 	}
-}
-
-export function mysql(strings: TemplateStringsArray, ...params: unknown[])
-{	return new Sql(DEFAULT_SETTINGS_MYSQL, [...strings], params);
-}
-
-export function pgsql(strings: TemplateStringsArray, ...params: unknown[])
-{	return new Sql(DEFAULT_SETTINGS_PGSQL, [...strings], params);
-}
-
-export function sqlite(strings: TemplateStringsArray, ...params: unknown[])
-{	return new Sql(DEFAULT_SETTINGS_SQLITE, [...strings], params);
-}
-
-export function mssql(strings: TemplateStringsArray, ...params: unknown[])
-{	return new Sql(DEFAULT_SETTINGS_MSSQL, [...strings], params);
-}
-
-export function mysqlOnly(strings: TemplateStringsArray, ...params: unknown[])
-{	return new Sql(DEFAULT_SETTINGS_MYSQL_ONLY, [...strings], params);
-}
-
-export function pgsqlOnly(strings: TemplateStringsArray, ...params: unknown[])
-{	return new Sql(DEFAULT_SETTINGS_PGSQL_ONLY, [...strings], params);
-}
-
-export function sqliteOnly(strings: TemplateStringsArray, ...params: unknown[])
-{	return new Sql(DEFAULT_SETTINGS_SQLITE_ONLY, [...strings], params);
-}
-
-export function mssqlOnly(strings: TemplateStringsArray, ...params: unknown[])
-{	return new Sql(DEFAULT_SETTINGS_MSSQL_ONLY, [...strings], params);
 }
 
 class Serializer

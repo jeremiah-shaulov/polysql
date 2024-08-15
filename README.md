@@ -22,7 +22,7 @@ This library provides the following functions:
 Usually you need to import only one of these functions into your project.
 
 ```ts
-import {mysqlQuote as sqlQuote} from 'https://deno.land/x/polysql@v0.0.12/mod.ts';
+import {mysqlQuote as sqlQuote} from 'https://deno.land/x/polysql@v1.0.0/mod.ts';
 
 console.log(sqlQuote(import.meta.url));
 ```
@@ -43,7 +43,7 @@ The "value" parameter can be one of the following types:
 - other types will be converted to strings and printed as an SQL string literal
 
 ```ts
-import {mysqlQuote as sqlQuote} from 'https://deno.land/x/polysql@v0.0.12/mod.ts';
+import {mysqlQuote as sqlQuote} from 'https://deno.land/x/polysql@v1.0.0/mod.ts';
 
 console.log(sqlQuote(null)); // prints: NULL
 console.log(sqlQuote(false)); // prints: FALSE
@@ -67,7 +67,7 @@ This library provides the following string-template functions:
 Usually you need to import only one of these functions into your project.
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.12/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v1.0.0/mod.ts';
 
 let message = `It's the message`;
 let number = 0.1;
@@ -119,7 +119,7 @@ Generates comma-separated list of quoted identifiers from iterable collection "p
 `"${param},"` - doesn't generate any output, if the collection is empty. If it's not empty, prints a comma after the last identifier.
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.12/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v1.0.0/mod.ts';
 
 let noNames: never[] = [];
 let names = ['one', 'two'];
@@ -135,7 +135,7 @@ console.log(sql`SELECT "${names}," three` + ''); // prints: SELECT `one`, `two`,
 The same as [3], but qualifies each identifier with specified parent name.
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.12/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v1.0.0/mod.ts';
 
 let noNames: never[] = [];
 let names = ['one', 'two'];
@@ -151,7 +151,7 @@ console.log(sql`SELECT "t1.${names}," three` + ''); // prints: SELECT `t1`.`one`
 Square brackets will be replaced with parentheses. The parameter must be iterable.
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.12/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v1.0.0/mod.ts';
 
 const ids = [10, 11, 12];
 let s = sql`SELECT * FROM articles WHERE id IN [${ids}]`;
@@ -165,7 +165,7 @@ If items in the collection are also iterable, this will generate multidimensiona
 More than 2 dimensions are only supported by MySQL.
 
 ```ts
-import {mysqlOnly as sql} from 'https://deno.land/x/polysql@v0.0.12/mod.ts';
+import {mysqlOnly as sql} from 'https://deno.land/x/polysql@v1.0.0/mod.ts';
 
 const list = [[10, 1], [11, 3], [12, 8]];
 let s = sql
@@ -184,7 +184,7 @@ The inserted SQL fragment will be validated, so it doesn't contain the following
 Strings in the SQL fragment are always treated as `mysqlNoBackslashEscapes` (backslash is regular character), so to represent a string with a new line, you need `const expr = "Char_length('Line\n')"`, not `const expr = "Char_length('Line\\n')"`.
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.12/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v1.0.0/mod.ts';
 
 const expr = "Char_length('Line\n')";
 let s = sql`SELECT (${expr})`;
@@ -194,7 +194,7 @@ console.log('' + s);
 It's possible to prefix all unqualified identifiers in the SQL fragment with a parent qualifier:
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.12/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v1.0.0/mod.ts';
 
 const expr = "article_id = 10 AND `article_version` = 1 AND a.name <> ''";
 let s = sql
@@ -209,7 +209,7 @@ console.log('' + s); // prints ...WHERE (`av`.article_id = 10 AND `av`.`article_
 ### 6. `${param}` or `parent_name.${param}` (not enclosed) - Like `(${param})`, but allows commas on top level.
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.12/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v1.0.0/mod.ts';
 
 const columns = "name, value";
 let s = sql`SELECT ${columns} FROM something WHERE id=1`;
@@ -221,7 +221,7 @@ console.log('' + s); // prints: SELECT `name`, `value` FROM something WHERE id=1
 The first form throws exception, if there are no fields in the param. The Second form doesn't complain, and prints comma after the last field.
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.12/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v1.0.0/mod.ts';
 
 const row = {name: 'About all', author: 'Johnny'};
 let s = sql`UPDATE articles AS a SET {a.${row}} WHERE id=1`;
@@ -229,7 +229,7 @@ console.log('' + s); // prints: UPDATE articles AS a SET `a`.`name`='About all',
 ```
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.12/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v1.0.0/mod.ts';
 
 const row = {name: 'About all', author: 'Johnny'};
 let s = sql`UPDATE articles AS a SET {a.${row},} article_date=Now() WHERE id=1`;
@@ -239,7 +239,7 @@ console.log('' + s); // prints: UPDATE articles AS a SET `a`.`name`='About all',
 If a value is an `Sql` object, it's expression will be used.
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.12/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v1.0.0/mod.ts';
 
 const row = {name: 'About all', author: sql`Get_author(id)`};
 let s = sql`UPDATE articles AS a SET {a.${row}} WHERE id=1`;
@@ -251,7 +251,7 @@ console.log('' + s); // prints: UPDATE articles AS a SET `a`.`name`='About all',
 Converts braces to parentheses. If the `param` contains no fields, this will be converted to a `FALSE` literal.
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.12/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v1.0.0/mod.ts';
 
 const row = {name: 'About all', author: sql`Get_author(id)`};
 let s = sql`SELECT * FROM articles AS a WHERE {a.${row}&}`;
@@ -263,7 +263,7 @@ console.log('' + s); // prints: SELECT * FROM articles AS a WHERE (`a`.`name`='A
 Converts braces to parentheses. If the `param` contains no fields, this will be converted to a `TRUE` literal.
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.12/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v1.0.0/mod.ts';
 
 const row = {name: 'About all', author: sql`Get_author(id)`};
 let s = sql`SELECT * FROM articles AS a WHERE {a.${row}|}`;
@@ -275,7 +275,7 @@ console.log('' + s); // prints: SELECT * FROM articles AS a WHERE (`a`.`name`='A
 In [7], [8] and [9], you can specify 2 parent qualifiers: one for the left-hand side of the equation, and one for the right. Any of the names can be empty.
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.12/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v1.0.0/mod.ts';
 
 const row = {name: 'About all', author: sql`Get_author(id)`};
 let s = sql`SELECT * FROM articles AS a INNER JOIN article_content AS ac ON a.id = ac.article_id WHERE {a.ac.${row}&}`;
@@ -285,7 +285,7 @@ console.log('' + s); // prints: SELECT * FROM articles AS a INNER JOIN article_c
 Example of left name empty:
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.12/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v1.0.0/mod.ts';
 
 const row = {name: 'About all', author: sql`Get_author(id)`};
 let s = sql`UPDATE articles AS a SET {.a.${row}} WHERE id=1`;
@@ -297,7 +297,7 @@ console.log('' + s); // prints: UPDATE articles AS a SET `name`='About all', `au
 Parameter must be iterable object that contains rows to insert. Will print column names from the first row. On following rows, only columns from the first row will be used.
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.12/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v1.0.0/mod.ts';
 
 let rows =
 [	{value: 10, name: 'text 1'},
@@ -321,7 +321,7 @@ In [3b], [5], [6], [7], [8], [9] and [10] the parent qualifier name can be taken
 `sql` template function returns object of `Sql` class.
 
 ```ts
-import {mysql as sql, Sql} from 'https://deno.land/x/polysql@v0.0.12/mod.ts';
+import {mysql as sql, Sql} from 'https://deno.land/x/polysql@v1.0.0/mod.ts';
 
 let s: Sql = sql`SELECT 2*2`;
 ```
@@ -338,7 +338,7 @@ Sql.concat(other: Sql): Sql
 `append()` modifies current object, and `concat()` returns a new one.
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.12/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v1.0.0/mod.ts';
 
 const id = 10;
 const s = sql`SELECT * FROM articles WHERE id='${id}'`;
@@ -365,12 +365,21 @@ You can pass an array to the `putParamsTo` parameter, so long strings and long t
 and their SQL representation will be produced as `?` character.
 
 ```ts
-import {mysql as sql} from 'https://deno.land/x/polysql@v0.0.12/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v1.0.0/mod.ts';
 
-let message = 'a'.repeat(100);
-let params: any[] = [];
-console.log(sql`SELECT '${message}'`.toString(params)); // prints: SELECT ?
-console.log(params); // prints: ['aaa...']
+const message = 'a'.repeat(100);
+const params: unknown[] = [];
+const writer = Deno.stdout.writable.getWriter();
+try
+{	const sqlBytes = sql`SELECT '${message}'`.encode(params);
+
+	await writer.write(sqlBytes); // prints: SELECT ?
+	console.log('');
+	console.log(params); // prints: ['aaa...']
+}
+finally
+{	writer.releaseLock();
+}
 ```
 
 If `putParamsTo` is not provided, `ReadableStream` objects will be rejected with exception.
@@ -420,7 +429,7 @@ The quoting policy has either a whitelist or a blacklist of allowed identifiers,
 There're 2 separate lists for functions (any identifier that is followed by a parenthesis is considered to be a function name), and for other identifiers.
 
 ```ts
-import {mysql as sql, SqlSettings, SqlMode} from 'https://deno.land/x/polysql@v0.0.12/mod.ts';
+import {mysql as sql, SqlSettings, SqlMode} from 'https://deno.land/x/polysql@v1.0.0/mod.ts';
 
 const value1 = "The string is: 'name'. The backslash is: \\";
 const value2 = 123.4;
@@ -455,7 +464,7 @@ For `functions` is: `! FROM HAVING JOIN LIMIT OFFSET ON SELECT WHERE`.
 To print the default policy, you can do:
 
 ```ts
-import {SqlSettings, SqlMode} from 'https://deno.land/x/polysql@v0.0.12/mod.ts';
+import {SqlSettings, SqlMode} from 'https://deno.land/x/polysql@v1.0.0/mod.ts';
 
 let settings = new SqlSettings(SqlMode.MYSQL);
 
@@ -465,62 +474,57 @@ console.log('Functions: ', settings.functions);
 
 Please note, that quoting policy is only applied to safe SQL fragments that you embed using `` sql`(${expr})` `` or `` sql`${expr}` ``.
 
-If you want to use custom policy all the time, you can write your own version of `sql()` function, and of `sqlTables`:
+If you want to use custom policy all the time, you can write your own version of `sql()` function:
 
 ```ts
-import {Sql, SqlSettings, SqlMode, SqlTable} from 'https://deno.land/x/polysql@v0.0.12/mod.ts';
+import {Sql, SqlSettings, SqlMode, SqlTable} from 'https://deno.land/x/polysql@v1.0.0/mod.ts';
 
-const SQL_SETTINGS_MYSQL = new SqlSettings(SqlMode.MYSQL, '!bad forbidden', 'calc_stats');
+const DEFAULT_SETTINGS = new SqlSettings(SqlMode.MYSQL, '!bad forbidden', 'calc_stats');
 
-function sql(strings: TemplateStringsArray, ...params: any[])
-{	return new Sql(SQL_SETTINGS_MYSQL, [...strings], params);
-}
-
-const sqlTables: Record<string, SqlTable> = new Proxy
-(	{},
-	{	get(target, tableName)
+const sql = new Proxy
+(	function sql(strings: TemplateStringsArray, ...params: unknown[])
+	{	return new Sql(DEFAULT_SETTINGS, [...strings], params);
+	} as Record<string, SqlTable> & {(strings: TemplateStringsArray, ...params: unknown[]): SqlTable},
+	{	get(_target, tableName)
 		{	if (typeof(tableName) != 'string')
 			{	throw new Error("Table name must be string");
 			}
-			return new SqlTable(SQL_SETTINGS_MYSQL, tableName);
+			return new SqlTable(DEFAULT_SETTINGS, tableName);
 		}
 	}
 );
 
-let expr = "calc_stats(bad, good)";
-let s = sql`CALL ${expr}`;
+const expr = "calc_stats(bad, good)";
+const s = sql`CALL ${expr}`;
 console.log('' + s); // prints: CALL calc_stats(`bad`, good)
-console.log('' + sqlTables.messages.where('bad=0 AND good=1').select()); // prints SELECT * FROM `messages` WHERE (`bad`=0 AND good=1)
+console.log('' + sql.messages.where('bad=0 AND good=1').select()); // prints SELECT * FROM `messages` WHERE (`bad`=0 AND good=1)
 ```
 
 It's a good idea to create `SqlSettings` object once, and reuse it, because creating new instance takes time (it builds words index).
 
 ## Generate SELECT, INSERT, UPDATE, DELETE and TRUNCATE queries from parts
 
-This library provides the following constant objects:
+As mentioned above there are the following string-template functions:
 
-- mysqlTables and mysqlOnlyTables
-- pgsqlTables and pgsqlOnlyTables
-- sqliteTables and sqliteOnlyTables
-- mssqlTables and mssqlOnlyTables
+- mysql and mysqlOnly
+- pgsql and pgsqlOnly
+- sqlite and sqliteOnly
+- mssql and mssqlOnly
 
-Usually you need to import only one of these into your project.
+These are actually fake functions implemented through `Proxy` class. They act as string-template functions, but they're also act like objects from which
+you can ask properties. Each property that you ask from the object returns instance of `SqlTable` class that represents a table in your database, and you can
+generate SELECT, INSERT, UPDATE, DELETE and TRUNCATE queries for this table.
 
 ```ts
-import {mysqlTables as sqlTables} from 'https://deno.land/x/polysql@v0.0.12/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v1.0.0/mod.ts';
 
-console.log('' + sqlTables.messages.where("id=1").select()); // prints: SELECT * FROM `messages` WHERE (`id`=1)
+console.log('' + sql.messages.where("id=1").select()); // prints: SELECT * FROM `messages` WHERE (`id`=1)
 ```
 
-`*OnlyTables` allows you to use all the supported features for that SQL dialect, even those that are not supported for other dialects.
-
-`*Tables` (without `Only`) throw exception if you ask a feature that is not supported by all of MySQL, PostgreSQL, Sqlite and Microsoft SQL Server.
-So you can switch to different dialect later (e.g. from `mysqlTables` to `mssqlTables`).
-
-All the provided `*Tables` (and `*OnlyTables`) objects are `Proxy` objects. Every property you ask from them becomes a table name, and it's resolved to an `SqlTable` object, that extends `Sql`.
+`SqlTable` class extends `Sql`.
 
 ```ts
-let table: SqlTable = sqlTables[tableName];
+let table: SqlTable = sql[tableName];
 ```
 
 `SqlTable` class has the following methods:
@@ -536,12 +540,14 @@ let table: SqlTable = sqlTables[tableName];
 - insertFrom(): this
 - truncate(): this
 
-All these methods only log what you asked, and the actual query generation will happen when you convert the object to string or bytes.
+All these methods only log what you ask, and the actual query generation will happen when you convert the object to string or bytes.
 
 ```ts
-import {mysqlTables as sqlTables} from 'https://deno.land/x/polysql@v0.0.12/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v1.0.0/mod.ts';
 
-let s = sqlTables.messages.join('content', 'c', 'content_id = c.id').where("id=1").select("c.*");
+let s = sql.messages.join('content', 'c', 'content_id = c.id').where("id=1").select("c.*");
+// Now s is object that remembers what joins, columns and conditions you wanted to generate
+// So, let's convert the object to string to trigger the query generation
 console.log('' + s); // prints: SELECT `c`.* FROM `messages` AS `b` INNER JOIN `content` AS `c` ON (`b`.content_id = `c`.id) WHERE (`b`.id=1)
 ```
 
@@ -644,9 +650,9 @@ SqlTable.insertFrom(names: string[], select: Sql, on_conflict_do: ''|'nothing'|'
 Generates "INSERT INTO (...) SELECT ..." query.
 
 ```ts
-import {mysqlTables as sqlTables} from 'https://deno.land/x/polysql@v0.0.12/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v1.0.0/mod.ts';
 
-let s = sqlTables.t_log.insertFrom(['c1', 'c2'], sqlTables.t_log_bak.where('id<=100').select(['c1', 'c2']));
+let s = sql.t_log.insertFrom(['c1', 'c2'], sql.t_log_bak.where('id<=100').select(['c1', 'c2']));
 console.log('' + s); // prints: INSERT INTO `t_log` (`c1`, `c2`) SELECT `c1`, `c2` FROM `t_log_bak` WHERE (`id`<=100)
 ```
 
@@ -660,39 +666,12 @@ Generates TRUNCATE TABLE query where supported (all but SQLite), and for others 
 
 ### Extending SqlTable
 
-`SqlTable` extends `Sql`. You can extend it with your class to add your own methods. For example you can add method that will perform the actual query to database server.
+`SqlTable` class extends `Sql`. You can also extend `SqlTable` itself in order to add your own custom methods.
+One practical reason for this is to override it's (only one) protected method called `appendTableName()`.
+This method controls how table names are generated in the queries.
+In this method you can for example add prefixes to each table name, or to qualify some or all tables with schema prefix.
 
-```ts
-import {SqlSettings, SqlMode, SqlTable} from 'https://deno.land/x/polysql@v0.0.12/mod.ts';
-
-const SQL_SETTINGS_MYSQL = new SqlSettings(SqlMode.MYSQL);
-
-function sql(strings: TemplateStringsArray, ...params: any[])
-{	return new MySqlTable(SQL_SETTINGS_MYSQL, '', [...strings], params);
-}
-
-class MySqlTable extends SqlTable
-{	async query()
-	{	console.log(`I'm querying: ${this}`);
-	}
-}
-
-const sqlTables: Record<string, MySqlTable> = new Proxy
-(	{},
-	{	get(target, tableName)
-		{	if (typeof(tableName) != 'string')
-			{	throw new Error("Table name must be string");
-			}
-			return new MySqlTable(SQL_SETTINGS_MYSQL, tableName);
-		}
-	}
-);
-
-await sql`SELECT '${import.meta.url}'`.query();
-await sqlTables.messages.where('id=1').select().query(); // prints: SELECT * FROM `messages` WHERE (`id`=1)
-```
-
-`SqlTable` has one protected method, that you can override:
+The default implementation in `SqlTable` class looks like this:
 
 ```ts
 protected appendTableName(tableName: string)
@@ -702,49 +681,104 @@ protected appendTableName(tableName: string)
 ```
 
 This method is called every time a quoted table name must be appended to the query.
-Subclasses can override this function to convert table names and maybe add schema prefixes.
 
 After this function appended the (converted) table name, it must then return this name without qualifiers.
 
 The default implementation shown above doesn't change the name, and doesn't add qualifiers.
 
-The following implementation will convert:
+The following implementation will convert table names.
+In this implementation i redefine the `sql` proxy object in the same way that this library does.
 
 ```ts
-import {SqlSettings, SqlMode, SqlTable} from 'https://deno.land/x/polysql@v0.0.12/mod.ts';
+import {SqlSettings, SqlMode, SqlTable} from 'https://deno.land/x/polysql@v1.0.0/mod.ts';
 
 const SQL_SETTINGS_MYSQL = new SqlSettings(SqlMode.MYSQL);
 
-function sql(strings: TemplateStringsArray, ...params: any[])
-{	return new MySqlTable(SQL_SETTINGS_MYSQL, '', [...strings], params);
-}
-
-class MySqlTable extends SqlTable
-{	private schema = '';
+class SqlTableCustom extends SqlTable
+{	private schema = 'sc';
 
 	protected appendTableName(tableName: string)
 	{	tableName = 't_' + tableName;
 		this.append(!this.schema ? sql`"${tableName}"` : sql`"${this.schema}"."${tableName}"`);
 		return tableName;
 	}
-
-	async query()
-	{	this.schema = 'sc';
-		console.log(`I'm querying: ${this}`);
-	}
 }
 
-const sqlTables: Record<string, MySqlTable> = new Proxy
-(	{},
-	{	get(target, table_name)
+const sql = new Proxy
+(	function sql(strings: TemplateStringsArray, ...params: unknown[])
+	{	return new SqlTableCustom(SQL_SETTINGS_MYSQL, '', [...strings], params);
+	} as Record<string, SqlTableCustom> & {(strings: TemplateStringsArray, ...params: unknown[]): SqlTableCustom},
+	{	get(_target, table_name)
 		{	if (typeof(table_name) != 'string')
 			{	throw new Error("Table name must be string");
 			}
-			return new MySqlTable(SQL_SETTINGS_MYSQL, table_name);
+			return new SqlTableCustom(SQL_SETTINGS_MYSQL, table_name);
 		}
 	}
 );
 
-await sql`SELECT '${import.meta.url}'`.query();
-await sqlTables.messages.where('id=1').select().query(); // prints: SELECT * FROM `sc`.`t_messages` WHERE (`id`=1)
+console.log('' + sql.messages.where('id=1').select()); // prints: SELECT * FROM `sc`.`t_messages` WHERE (`id`=1)
+
+```
+
+Another reason for adding custom methods to `SqlTable` is to add  `query()` method that will cooperate with your database driver.
+
+```ts
+import {SqlSettings, SqlMode, SqlTable} from 'https://deno.land/x/polysql@v1.0.0/mod.ts';
+
+const DEFAULT_SETTINGS = new SqlSettings(SqlMode.MYSQL);
+
+/**	Class for communication with database server (through your preferred driver)
+ **/
+class Connection
+{	constructor(private dsn: string)
+	{	// TODO: Lazy connect to server
+		console.log(`Connecting to ${this.dsn}`);
+	}
+
+	async query(sql: string)
+	{	// TODO: Make actual query to the server
+		console.log(`Querying on ${this.dsn}: ${sql}`);
+	}
+}
+
+/**	Extend `SqlTable` to add custom methods
+ **/
+class SqlTableCustom extends SqlTable
+{	constructor(private connection: Connection, sqlSettings: SqlSettings, tableName: string, strings?: string[], params?: unknown[])
+	{	super(sqlSettings, tableName, strings, params);
+	}
+
+	/**	My custom method on `SqlTable`
+	 **/
+	query()
+	{	return this.connection.query(this+'');
+	}
+}
+
+/**	Connect to the database, and return object for querying it.
+	`dsn` - "Data Source Name" (usually server host, port and database name)
+ **/
+function connect(dsn: string)
+{	const connection = new Connection(dsn);
+	return new Proxy
+	(	function(strings: TemplateStringsArray, ...params: unknown[])
+		{	return new SqlTableCustom(connection, DEFAULT_SETTINGS, '', [...strings], params);
+		} as Record<string, SqlTableCustom> & {(strings: TemplateStringsArray, ...params: unknown[]): SqlTableCustom},
+		{	get(_target, tableName)
+			{	if (typeof(tableName) != 'string')
+				{	throw new Error("Table name must be string");
+				}
+				return new SqlTableCustom(connection, DEFAULT_SETTINGS, tableName);
+			}
+		}
+	);
+}
+
+// Get connection
+const sql = connect('localhost:3306');
+
+// Query
+await sql`SELECT * FROM links WHERE url='${import.meta.url}'`.query(); // Querying on localhost:3306: SELECT * FROM links WHERE url='...'
+await sql.messages.where('id=1').select().query(); // prints: Querying on localhost:3306: SELECT * FROM `messages` WHERE (`id`=1)
 ```

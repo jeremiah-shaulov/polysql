@@ -1,3 +1,7 @@
+export {Sql} from './private/sql.ts';
+export {SqlTable, type OrderBy} from './private/sql_table.ts';
+export {SqlSettings, SqlMode} from './private/sql_settings.ts';
+
 export
 {	mysqlQuote,
 	pgsqlQuote,
@@ -10,19 +14,9 @@ export
 	pgsql, pgsqlOnly,
 	sqlite, sqliteOnly,
 	mssql, mssqlOnly,
-	Sql,
-} from './private/sql.ts';
 
-export
-{	mysqlTables, mysqlOnlyTables,
+	mysqlTables, mysqlOnlyTables,
 	pgsqlTables, pgsqlOnlyTables,
 	sqliteTables, sqliteOnlyTables,
 	mssqlTables, mssqlOnlyTables,
-	SqlTable,
-	type OrderBy,
-} from './private/sql_table.ts';
-
-export
-{	SqlSettings,
-	SqlMode,
-} from './private/sql_settings.ts';
+} from './private/sql_factory.ts';

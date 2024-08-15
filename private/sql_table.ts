@@ -1,104 +1,9 @@
 import {debugAssert} from './debug_assert.ts';
-import {mysql, Sql} from './sql.ts';
-import
-{	SqlSettings,
-	SqlMode,
-	DEFAULT_SETTINGS_MYSQL, DEFAULT_SETTINGS_MYSQL_ONLY,
-	DEFAULT_SETTINGS_PGSQL, DEFAULT_SETTINGS_PGSQL_ONLY,
-	DEFAULT_SETTINGS_SQLITE, DEFAULT_SETTINGS_SQLITE_ONLY,
-	DEFAULT_SETTINGS_MSSQL, DEFAULT_SETTINGS_MSSQL_ONLY,
-} from './sql_settings.ts';
+import {Sql} from './sql.ts';
+import {SqlSettings, SqlMode, DEFAULT_SETTINGS_MYSQL} from './sql_settings.ts';
 
 type Join = {tableName: string, alias: string, onExpr: string|Sql, isLeft: boolean};
 export type OrderBy = string | Sql | {columns: string[], desc?: boolean};
-
-export const mysqlTables: Record<string, SqlTable> = new Proxy
-(	{},
-	{	get(_target, tableName)
-		{	if (typeof(tableName) != 'string')
-			{	throw new Error("Table name must be string");
-			}
-			return new SqlTable(DEFAULT_SETTINGS_MYSQL, tableName);
-		}
-	}
-);
-
-export const mysqlOnlyTables: Record<string, SqlTable> = new Proxy
-(	{},
-	{	get(_target, tableName)
-		{	if (typeof(tableName) != 'string')
-			{	throw new Error("Table name must be string");
-			}
-			return new SqlTable(DEFAULT_SETTINGS_MYSQL_ONLY, tableName);
-		}
-	}
-);
-
-export const pgsqlTables: Record<string, SqlTable> = new Proxy
-(	{},
-	{	get(_target, tableName)
-		{	if (typeof(tableName) != 'string')
-			{	throw new Error("Table name must be string");
-			}
-			return new SqlTable(DEFAULT_SETTINGS_PGSQL, tableName);
-		}
-	}
-);
-
-export const pgsqlOnlyTables: Record<string, SqlTable> = new Proxy
-(	{},
-	{	get(_target, tableName)
-		{	if (typeof(tableName) != 'string')
-			{	throw new Error("Table name must be string");
-			}
-			return new SqlTable(DEFAULT_SETTINGS_PGSQL_ONLY, tableName);
-		}
-	}
-);
-
-export const sqliteTables: Record<string, SqlTable> = new Proxy
-(	{},
-	{	get(_target, tableName)
-		{	if (typeof(tableName) != 'string')
-			{	throw new Error("Table name must be string");
-			}
-			return new SqlTable(DEFAULT_SETTINGS_SQLITE, tableName);
-		}
-	}
-);
-
-export const sqliteOnlyTables: Record<string, SqlTable> = new Proxy
-(	{},
-	{	get(_target, tableName)
-		{	if (typeof(tableName) != 'string')
-			{	throw new Error("Table name must be string");
-			}
-			return new SqlTable(DEFAULT_SETTINGS_SQLITE_ONLY, tableName);
-		}
-	}
-);
-
-export const mssqlTables: Record<string, SqlTable> = new Proxy
-(	{},
-	{	get(_target, tableName)
-		{	if (typeof(tableName) != 'string')
-			{	throw new Error("Table name must be string");
-			}
-			return new SqlTable(DEFAULT_SETTINGS_MSSQL, tableName);
-		}
-	}
-);
-
-export const mssqlOnlyTables: Record<string, SqlTable> = new Proxy
-(	{},
-	{	get(_target, tableName)
-		{	if (typeof(tableName) != 'string')
-			{	throw new Error("Table name must be string");
-			}
-			return new SqlTable(DEFAULT_SETTINGS_MSSQL_ONLY, tableName);
-		}
-	}
-);
 
 const enum Operation
 {	NONE,
@@ -108,6 +13,10 @@ const enum Operation
 	UPDATE,
 	DELETE,
 	TRUNCATE,
+}
+
+function sql(strings: TemplateStringsArray, ...params: unknown[])
+{	return new Sql(DEFAULT_SETTINGS_MYSQL, [...strings], params);
 }
 
 export class SqlTable extends Sql
@@ -185,27 +94,27 @@ export class SqlTable extends Sql
 		this.estimatedByteLength++;
 		this.appendTableName(this.tableName);
 		if (this.joins.length != 0)
-		{	this.append(mysql` AS "${baseTable}"`);
+		{	this.append(sql` AS "${baseTable}"`);
 			for (const {tableName, alias, onExpr, isLeft} of this.joins)
 			{	if (!onExpr)
 				{	this.strings[this.strings.length - 1] += ' CROSS JOIN ';
 					this.estimatedByteLength += 12;
 					this.appendTableName(tableName);
 					if (alias)
-					{	this.append(mysql` AS "${alias}"`);
+					{	this.append(sql` AS "${alias}"`);
 					}
 				}
 				else if (!isLeft)
 				{	this.strings[this.strings.length - 1] += ' INNER JOIN ';
 					this.estimatedByteLength += 12;
 					this.appendTableName(tableName);
-					this.append(!alias ? mysql` ON (${baseTable}.${onExpr})` : mysql` AS "${alias}" ON (${baseTable}.${onExpr})`);
+					this.append(!alias ? sql` ON (${baseTable}.${onExpr})` : sql` AS "${alias}" ON (${baseTable}.${onExpr})`);
 				}
 				else
 				{	this.strings[this.strings.length - 1] += ' LEFT JOIN ';
 					this.estimatedByteLength += 11;
 					this.appendTableName(tableName);
-					this.append(!alias ? mysql` ON (${baseTable}.${onExpr})` : mysql` AS "${alias}" ON (${baseTable}.${onExpr})`);
+					this.append(!alias ? sql` ON (${baseTable}.${onExpr})` : sql` AS "${alias}" ON (${baseTable}.${onExpr})`);
 				}
 			}
 		}
@@ -213,7 +122,7 @@ export class SqlTable extends Sql
 
 	private appendJoinsExceptFirst(baseTable: string)
 	{	const {tableName, alias} = this.joins[0];
-		this.append(!alias ? mysql` "${tableName}"` : mysql` "${tableName}" AS "${alias}"`);
+		this.append(!alias ? sql` "${tableName}"` : sql` "${tableName}" AS "${alias}"`);
 		for (let i=1, iEnd=this.joins.length; i<iEnd; i++)
 		{	const {tableName, alias, onExpr, isLeft} = this.joins[i];
 			if (!onExpr)
@@ -221,20 +130,20 @@ export class SqlTable extends Sql
 					this.estimatedByteLength += 12;
 					this.appendTableName(tableName);
 					if (alias)
-					{	this.append(mysql` AS "${alias}"`);
+					{	this.append(sql` AS "${alias}"`);
 					}
 				}
 				else if (!isLeft)
 				{	this.strings[this.strings.length - 1] += ' INNER JOIN ';
 					this.estimatedByteLength += 12;
 					this.appendTableName(tableName);
-					this.append(!alias ? mysql` ON (${baseTable}.${onExpr})` : mysql` AS "${alias}" ON (${baseTable}.${onExpr})`);
+					this.append(!alias ? sql` ON (${baseTable}.${onExpr})` : sql` AS "${alias}" ON (${baseTable}.${onExpr})`);
 				}
 				else
 				{	this.strings[this.strings.length - 1] += ' LEFT JOIN ';
 					this.estimatedByteLength += 11;
 					this.appendTableName(tableName);
-					this.append(!alias ? mysql` ON (${baseTable}.${onExpr})` : mysql` AS "${alias}" ON (${baseTable}.${onExpr})`);
+					this.append(!alias ? sql` ON (${baseTable}.${onExpr})` : sql` AS "${alias}" ON (${baseTable}.${onExpr})`);
 				}
 		}
 	}
@@ -246,7 +155,7 @@ export class SqlTable extends Sql
 		let hasWhere = false;
 		for (const whereExpr of this.whereExprs)
 		{	if (whereExpr)
-			{	this.append(!hasWhere ? mysql` WHERE (${baseTable}.${whereExpr})` : mysql` AND (${baseTable}.${whereExpr})`);
+			{	this.append(!hasWhere ? sql` WHERE (${baseTable}.${whereExpr})` : sql` AND (${baseTable}.${whereExpr})`);
 				hasWhere = true;
 			}
 		}
@@ -324,7 +233,7 @@ export class SqlTable extends Sql
 		```
 	 **/
 	protected appendTableName(tableName: string)
-	{	this.append(mysql`"${tableName}"`);
+	{	this.append(sql`"${tableName}"`);
 		return tableName;
 	}
 
@@ -442,7 +351,7 @@ export class SqlTable extends Sql
 				{	this.strings[this.strings.length - 1] += 'INSERT INTO ';
 					this.estimatedByteLength += 12;
 					this.appendTableName(this.tableName);
-					this.append(mysql` <${rows}>`);
+					this.append(sql` <${rows}>`);
 				}
 				else if (onConflictDo == 'nothing')
 				{	const {mode} = this.sqlSettings;
@@ -465,7 +374,7 @@ export class SqlTable extends Sql
 							this.strings[this.strings.length - 1] += 'INSERT INTO ';
 							this.estimatedByteLength += 12;
 							this.appendTableName(this.tableName);
-							this.append(mysql` <${rowsW}> ON DUPLICATE KEY UPDATE "${names[0]}"="${names[0]}"`);
+							this.append(sql` <${rowsW}> ON DUPLICATE KEY UPDATE "${names[0]}"="${names[0]}"`);
 							break;
 						}
 
@@ -474,7 +383,7 @@ export class SqlTable extends Sql
 							this.strings[this.strings.length - 1] += 'INSERT INTO ';
 							this.estimatedByteLength += 12;
 							this.appendTableName(this.tableName);
-							this.append(mysql` <${rows}> ON CONFLICT DO NOTHING`);
+							this.append(sql` <${rows}> ON CONFLICT DO NOTHING`);
 					}
 				}
 				else if (onConflictDo == 'replace')
@@ -498,7 +407,7 @@ export class SqlTable extends Sql
 							this.strings[this.strings.length - 1] += 'REPLACE ';
 							this.estimatedByteLength += 8;
 							this.appendTableName(this.tableName);
-							this.append(mysql` <${rows}>`);
+							this.append(sql` <${rows}>`);
 							break;
 
 						default:
@@ -506,7 +415,7 @@ export class SqlTable extends Sql
 							this.strings[this.strings.length - 1] += 'REPLACE INTO ';
 							this.estimatedByteLength += 13;
 							this.appendTableName(this.tableName);
-							this.append(mysql` <${rows}>`);
+							this.append(sql` <${rows}>`);
 					}
 				}
 				else
@@ -535,22 +444,22 @@ export class SqlTable extends Sql
 							this.estimatedByteLength += 12;
 							const tableName = this.appendTableName(this.tableName);
 							if (mode==SqlMode.MYSQL_ONLY)
-							{	this.append(mysql` <${rowsW}> AS excluded ON DUPLICATE KEY UPDATE `);
+							{	this.append(sql` <${rowsW}> AS excluded ON DUPLICATE KEY UPDATE `);
 							}
 							else
-							{	this.append(mysql` <${rowsW}> ON CONFLICT DO UPDATE SET `);
+							{	this.append(sql` <${rowsW}> ON CONFLICT DO UPDATE SET `);
 							}
 							let wantComma = false;
 							for (const name of names)
 							{	if (wantComma)
-								{	this.append(mysql`, `);
+								{	this.append(sql`, `);
 								}
 								wantComma = true;
 								if (!isPatch)
-								{	this.append(mysql`"${name}"=excluded."${name}"`);
+								{	this.append(sql`"${name}"=excluded."${name}"`);
 								}
 								else
-								{	this.append(mysql`"${name}"=CASE WHEN "${tableName}"."${name}" IS NULL OR Cast("${tableName}"."${name}" AS char) IN ('', '0') THEN excluded."${name}" ELSE "${tableName}"."${name}" END`);
+								{	this.append(sql`"${name}"=CASE WHEN "${tableName}"."${name}" IS NULL OR Cast("${tableName}"."${name}" AS char) IN ('', '0') THEN excluded."${name}" ELSE "${tableName}"."${name}" END`);
 								}
 							}
 							break;
@@ -587,14 +496,14 @@ export class SqlTable extends Sql
 						case SqlMode.MYSQL_ONLY:
 							this.strings[this.strings.length - 1] += 'INSERT INTO ';
 							this.estimatedByteLength += 12;
-							afterSelect = mysql` ON DUPLICATE KEY UPDATE "${names[0]}"="${names[0]}"`;
+							afterSelect = sql` ON DUPLICATE KEY UPDATE "${names[0]}"="${names[0]}"`;
 							break;
 
 						default:
 							debugAssert(mode==SqlMode.PGSQL_ONLY || mode==SqlMode.SQLITE_ONLY);
 							this.strings[this.strings.length - 1] += 'INSERT INTO ';
 							this.estimatedByteLength += 12;
-							afterSelect = mysql` ON CONFLICT DO NOTHING`;
+							afterSelect = sql` ON CONFLICT DO NOTHING`;
 					}
 				}
 				else
@@ -626,7 +535,7 @@ export class SqlTable extends Sql
 					}
 				}
 				this.appendTableName(this.tableName);
-				this.append(mysql` ("${names}+") `);
+				this.append(sql` ("${names}+") `);
 				if (!(select instanceof SqlTable) || select.operation!=Operation.SELECT)
 				{	this.append(select);
 					if (afterSelect)
@@ -653,31 +562,31 @@ export class SqlTable extends Sql
 				const limit = this.operationSelectLimit;
 				const baseTable = this.getBaseTableAlias();
 				if (!columns)
-				{	this.append(mysql`SELECT * FROM`);
+				{	this.append(sql`SELECT * FROM`);
 				}
 				else if (Array.isArray(columns))
-				{	this.append(mysql`SELECT "${baseTable}.${columns}*" FROM`);
+				{	this.append(sql`SELECT "${baseTable}.${columns}*" FROM`);
 				}
 				else
-				{	this.append(mysql`SELECT ${baseTable}.${columns} FROM`);
+				{	this.append(sql`SELECT ${baseTable}.${columns} FROM`);
 				}
 				this.appendJoins(baseTable);
 				this.appendWhereExprs(baseTable);
 				if (this.groupByExprs)
 				{	if (!Array.isArray(this.groupByExprs))
-					{	this.append(mysql` GROUP BY ${baseTable}.${this.groupByExprs}`);
+					{	this.append(sql` GROUP BY ${baseTable}.${this.groupByExprs}`);
 					}
 					else if (this.groupByExprs.length)
-					{	this.append(mysql` GROUP BY "${baseTable}.${this.groupByExprs}+"`);
+					{	this.append(sql` GROUP BY "${baseTable}.${this.groupByExprs}+"`);
 					}
 					if (this.havingExpr)
-					{	this.append(mysql` HAVING (${this.havingExpr})`);
+					{	this.append(sql` HAVING (${this.havingExpr})`);
 					}
 				}
 				let hasOrderBy = false;
 				if (orderBy)
 				{	if (typeof(orderBy)=='string' || (orderBy instanceof Sql))
-					{	this.append(mysql` ORDER BY ${orderBy}`);
+					{	this.append(sql` ORDER BY ${orderBy}`);
 						hasOrderBy = true;
 					}
 					else
@@ -686,12 +595,12 @@ export class SqlTable extends Sql
 						hasOrderBy = nColumns != 0;
 						if (hasOrderBy)
 						{	if (!desc)
-							{	this.append(mysql` ORDER BY "${columns}+"`);
+							{	this.append(sql` ORDER BY "${columns}+"`);
 							}
 							else
-							{	this.append(mysql` ORDER BY "${columns[0]}" DESC`);
+							{	this.append(sql` ORDER BY "${columns[0]}" DESC`);
 								for (let i=1; i<nColumns; i++)
-								{	this.append(mysql`, "${columns[i]}" DESC`);
+								{	this.append(sql`, "${columns[i]}" DESC`);
 								}
 							}
 						}
@@ -705,7 +614,7 @@ export class SqlTable extends Sql
 							}
 							// fallthrough
 						case SqlMode.MYSQL_ONLY:
-							this.append(offset>0 ? mysql` LIMIT '${limit}' OFFSET '${offset}'` : mysql` LIMIT '${limit}'`);
+							this.append(offset>0 ? sql` LIMIT '${limit}' OFFSET '${offset}'` : sql` LIMIT '${limit}'`);
 							break;
 
 						case SqlMode.PGSQL:
@@ -714,7 +623,7 @@ export class SqlTable extends Sql
 							}
 							// fallthrough
 						case SqlMode.PGSQL_ONLY:
-							this.append(offset>0 ? mysql` LIMIT '${limit}' OFFSET '${offset}'` : mysql` LIMIT '${limit}'`);
+							this.append(offset>0 ? sql` LIMIT '${limit}' OFFSET '${offset}'` : sql` LIMIT '${limit}'`);
 							break;
 
 						case SqlMode.SQLITE:
@@ -723,7 +632,7 @@ export class SqlTable extends Sql
 							}
 							// fallthrough
 						case SqlMode.SQLITE_ONLY:
-							this.append(offset>0 ? mysql` LIMIT '${limit}' OFFSET '${offset}'` : mysql` LIMIT '${limit}'`);
+							this.append(offset>0 ? sql` LIMIT '${limit}' OFFSET '${offset}'` : sql` LIMIT '${limit}'`);
 							break;
 
 						default:
@@ -731,7 +640,7 @@ export class SqlTable extends Sql
 							if (!hasOrderBy)
 							{	throw new Error("SELECT with LIMIT but without ORDER BY is not supported on MS SQL");
 							}
-							this.append(mysql` OFFSET '${offset}' ROWS FETCH FIRST '${limit}' ROWS ONLY`);
+							this.append(sql` OFFSET '${offset}' ROWS FETCH FIRST '${limit}' ROWS ONLY`);
 					}
 				}
 				else if (offset > 0)
@@ -742,7 +651,7 @@ export class SqlTable extends Sql
 							}
 							// fallthrough
 						case SqlMode.MYSQL_ONLY:
-							this.append(mysql` LIMIT 2147483647 OFFSET '${offset}'`);
+							this.append(sql` LIMIT 2147483647 OFFSET '${offset}'`);
 							break;
 
 						case SqlMode.PGSQL:
@@ -751,7 +660,7 @@ export class SqlTable extends Sql
 							}
 							// fallthrough
 						case SqlMode.PGSQL_ONLY:
-							this.append(mysql` OFFSET '${offset}'`);
+							this.append(sql` OFFSET '${offset}'`);
 							break;
 
 						case SqlMode.SQLITE:
@@ -760,7 +669,7 @@ export class SqlTable extends Sql
 							}
 							// fallthrough
 						case SqlMode.SQLITE_ONLY:
-							this.append(mysql` LIMIT 2147483647 OFFSET '${offset}'`);
+							this.append(sql` LIMIT 2147483647 OFFSET '${offset}'`);
 							break;
 
 						default:
@@ -768,7 +677,7 @@ export class SqlTable extends Sql
 							if (!hasOrderBy)
 							{	throw new Error("SELECT with OFFSET but without ORDER BY is not supported on MS SQL");
 							}
-							this.append(mysql` OFFSET '${offset}' ROWS`);
+							this.append(sql` OFFSET '${offset}' ROWS`);
 					}
 				}
 				if (afterSelect)
@@ -784,7 +693,7 @@ export class SqlTable extends Sql
 				{	this.strings[this.strings.length - 1] += 'UPDATE ';
 					this.estimatedByteLength += 7;
 					this.appendTableName(this.tableName);
-					this.append(mysql` SET {${row}}`);
+					this.append(sql` SET {${row}}`);
 					this.appendWhereExprs('');
 				}
 				else
@@ -809,7 +718,7 @@ export class SqlTable extends Sql
 						{	this.strings[this.strings.length - 1] += 'UPDATE';
 							this.estimatedByteLength += 6;
 							this.appendJoins(baseTable);
-							this.append(mysql` SET {${baseTable}.${row}}`);
+							this.append(sql` SET {${baseTable}.${row}}`);
 							this.appendWhereExprs(baseTable);
 							break;
 						}
@@ -820,10 +729,10 @@ export class SqlTable extends Sql
 								this.strings[this.strings.length - 1] += 'UPDATE ';
 								this.estimatedByteLength += 7;
 								this.appendTableName(this.tableName);
-								this.append(mysql` AS "${subj}" SET {.${baseTable}.${row}} FROM`);
+								this.append(sql` AS "${subj}" SET {.${baseTable}.${row}} FROM`);
 								this.appendJoins(baseTable);
 								const hasWhere = this.appendWhereExprs(baseTable);
-								this.append(hasWhere ? mysql` AND "${subj}".rowid = "${baseTable}".rowid` : mysql` WHERE "${subj}".rowid = "${baseTable}".rowid`);
+								this.append(hasWhere ? sql` AND "${subj}".rowid = "${baseTable}".rowid` : sql` WHERE "${subj}".rowid = "${baseTable}".rowid`);
 								break;
 							}
 							// fallthrough
@@ -834,10 +743,10 @@ export class SqlTable extends Sql
 						{	this.strings[this.strings.length - 1] += 'UPDATE ';
 							this.estimatedByteLength += 7;
 							this.appendTableName(this.tableName);
-							this.append(mysql` AS "${baseTable}" SET {.${baseTable}.${row}} FROM`);
+							this.append(sql` AS "${baseTable}" SET {.${baseTable}.${row}} FROM`);
 							this.appendJoinsExceptFirst(baseTable);
 							const hasWhere = this.appendWhereExprs(baseTable);
-							this.append(hasWhere ? mysql` AND (${baseTable}.${onExpr})` : mysql` WHERE (${baseTable}.${onExpr})`);
+							this.append(hasWhere ? sql` AND (${baseTable}.${onExpr})` : sql` WHERE (${baseTable}.${onExpr})`);
 							break;
 						}
 
@@ -846,7 +755,7 @@ export class SqlTable extends Sql
 							this.strings[this.strings.length - 1] += 'UPDATE ';
 							this.estimatedByteLength += 7;
 							this.appendTableName(this.tableName);
-							this.append(mysql` SET {.${baseTable}.${row}} FROM`);
+							this.append(sql` SET {.${baseTable}.${row}} FROM`);
 							this.appendJoins(baseTable);
 							this.appendWhereExprs(baseTable);
 						}
@@ -884,7 +793,7 @@ export class SqlTable extends Sql
 						case SqlMode.MYSQL_ONLY:
 						case SqlMode.MSSQL:
 						case SqlMode.MSSQL_ONLY:
-						{	this.append(mysql`DELETE "${baseTable}" FROM`);
+						{	this.append(sql`DELETE "${baseTable}" FROM`);
 							this.appendJoins(baseTable);
 							this.appendWhereExprs(baseTable);
 							break;
@@ -895,10 +804,10 @@ export class SqlTable extends Sql
 						{	this.strings[this.strings.length - 1] += 'DELETE FROM ';
 							this.estimatedByteLength += 12;
 							this.appendTableName(this.tableName);
-							this.append(mysql` AS "${baseTable}" USING`);
+							this.append(sql` AS "${baseTable}" USING`);
 							this.appendJoinsExceptFirst(baseTable);
 							const hasWhere = this.appendWhereExprs(baseTable);
-							this.append(hasWhere ? mysql` AND (${baseTable}.${onExpr})` : mysql` WHERE (${baseTable}.${onExpr})`);
+							this.append(hasWhere ? sql` AND (${baseTable}.${onExpr})` : sql` WHERE (${baseTable}.${onExpr})`);
 							break;
 						}
 
@@ -908,10 +817,10 @@ export class SqlTable extends Sql
 							this.strings[this.strings.length - 1] += 'DELETE FROM ';
 							this.estimatedByteLength += 12;
 							this.appendTableName(this.tableName);
-							this.append(mysql` AS "${subj}" WHERE rowid IN (SELECT "${baseTable}".rowid FROM`);
+							this.append(sql` AS "${subj}" WHERE rowid IN (SELECT "${baseTable}".rowid FROM`);
 							this.appendJoins(baseTable);
 							this.appendWhereExprs(baseTable);
-							this.append(mysql`)`);
+							this.append(sql`)`);
 						}
 					}
 				}

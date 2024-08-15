@@ -1,4 +1,5 @@
-import {mysql, pgsql, sqlite, mssql, mysqlOnly, pgsqlOnly, sqliteOnly, mssqlOnly, Sql, INLINE_STRING_MAX_LEN, INLINE_BLOB_MAX_LEN} from '../private/sql.ts';
+import {Sql, INLINE_STRING_MAX_LEN, INLINE_BLOB_MAX_LEN} from '../private/sql.ts';
+import {mysql, mysqlOnly, pgsql, pgsqlOnly, sqlite, sqliteOnly, mssql, mssqlOnly} from '../private/sql_factory.ts';
 import {mysqlQuote, pgsqlQuote, sqliteQuote, mssqlQuote} from '../private/quote.ts';
 import {SqlSettings, SqlMode} from '../private/sql_settings.ts';
 import {assert} from 'https://deno.land/std@0.224.0/assert/assert.ts';
