@@ -14,10 +14,10 @@ This library can:
 
 This library provides the following functions:
 
-- mysqlQuote(value: any, noBackslashEscapes=false)
-- pgsqlQuote(value: any, unused=false)
-- sqliteQuote(value: any, unused=false)
-- mssqlQuote(value: any, unused=false)
+- mysqlQuote(value: unknown, noBackslashEscapes=false)
+- pgsqlQuote(value: unknown, unused=false)
+- sqliteQuote(value: unknown, unused=false)
+- mssqlQuote(value: unknown, unused=false)
 
 Usually you need to import only one of these functions into your project.
 
@@ -357,7 +357,7 @@ console.log('' + s); // prints the same
 Also `Sql` objects can be converted to bytes.
 
 ```ts
-Sql.encode(putParamsTo?: any[], mysqlNoBackslashEscapes=false, useBuffer?: Uint8Array, useBufferFromPos=0): Uint8Array
+Sql.encode(putParamsTo?: unknown[], mysqlNoBackslashEscapes=false, useBuffer?: Uint8Array, useBufferFromPos=0): Uint8Array
 ```
 This function converts the SQL query to `Uint8Array`, that you probably need to pass to your SQL driver.
 
@@ -399,7 +399,7 @@ If `useBufferFromPos` parameter is provided together with the `useBuffer`, so th
 `Sql` objects can be stringified.
 
 ```ts
-Sql.toString(putParamsTo?: any[], mysqlNoBackslashEscapes=false): string
+Sql.toString(putParamsTo?: unknown[], mysqlNoBackslashEscapes=false): string
 ```
 
 This function calls `Sql.encode()`, and then converts the result to string.
@@ -407,7 +407,7 @@ This function calls `Sql.encode()`, and then converts the result to string.
 ### Sql.toSqlBytesWithParamsBackslashAndBuffer()
 
 ```ts
-Sql.toSqlBytesWithParamsBackslashAndBuffer(putParamsTo: any[]|undefined, mysqlNoBackslashEscapes: boolean, useBuffer: Uint8Array)
+Sql.toSqlBytesWithParamsBackslashAndBuffer(putParamsTo: unknown[]|undefined, mysqlNoBackslashEscapes: boolean, useBuffer: Uint8Array)
 ```
 
 This function is the same as `encode()`, but with 3 mandatory parameters.
@@ -613,7 +613,7 @@ OFFSET and LIMIT without ORDER BY are not supported on Microsoft SQL Server.
 ### SqlTable.update()
 
 ```ts
-SqlTable.update(row: Record<string, any>): Sql
+SqlTable.update(row: Record<string, unknown>): Sql
 ```
 
 Generates an UPDATE query. You can update with joins, but if the first join is a LEFT JOIN, such query is not supported by PostgreSQL.
@@ -631,7 +631,7 @@ Will delete from the base table (not joined).
 ### SqlTable.insert()
 
 ```ts
-SqlTable.insert(rows: Iterable<Record<string, any>>, onConflictDo: ''|'nothing'|'replace'|'update'|'patch' = ''): Sql
+SqlTable.insert(rows: Iterable<Record<string, unknown>>, onConflictDo: ''|'nothing'|'replace'|'update'|'patch' = ''): Sql
 ```
 
 Generates an INSERT query.
@@ -792,6 +792,6 @@ function connect(dsn: string)
 await using sql = connect('localhost:3306');
 
 // Query
-await sql`SELECT * FROM links WHERE url='${import.meta.url}'`.query(); // Querying on localhost:3306: SELECT * FROM links WHERE url='...'
+await sql`SELECT * FROM links WHERE url='${import.meta.url}'`.query(); // prints: Querying on localhost:3306: SELECT * FROM links WHERE url='...'
 await sql.messages.where('id=1').select().query(); // prints: Querying on localhost:3306: SELECT * FROM `messages` WHERE (`id`=1)
 ```
