@@ -124,10 +124,10 @@ import {mysql as sql} from 'https://deno.land/x/polysql@v1.0.0/mod.ts';
 let noNames: never[] = [];
 let names = ['one', 'two'];
 
-console.log(sql`SELECT "${noNames}*"` + ''); // prints: SELECT *
-console.log(sql`SELECT "${names}*"` + ''); // prints: SELECT `one`, `two`
-console.log(sql`SELECT "${noNames}," three` + ''); // prints: SELECT  three
-console.log(sql`SELECT "${names}," three` + ''); // prints: SELECT `one`, `two`, three
+console.log('' + sql`SELECT "${noNames}*"`); // prints: SELECT *
+console.log('' + sql`SELECT "${names}*"`); // prints: SELECT `one`, `two`
+console.log('' + sql`SELECT "${noNames}," three`); // prints: SELECT  three
+console.log('' + sql`SELECT "${names}," three`); // prints: SELECT `one`, `two`, three
 ```
 
 ### 3b. `"parent_name.${param}*"`, `"parent_name.${param}+"`, `"parent_name.${param},"`
@@ -140,10 +140,10 @@ import {mysql as sql} from 'https://deno.land/x/polysql@v1.0.0/mod.ts';
 let noNames: never[] = [];
 let names = ['one', 'two'];
 
-console.log(sql`SELECT "t1.${noNames}*"` + ''); // prints: SELECT *
-console.log(sql`SELECT "t1.${names}*"` + ''); // prints: SELECT `t1`.`one`, `t1`.`two`
-console.log(sql`SELECT "t1.${noNames}," three` + ''); // prints: SELECT  three
-console.log(sql`SELECT "t1.${names}," three` + ''); // prints: SELECT `t1`.`one`, `t1`.`two`, three
+console.log('' + sql`SELECT "t1.${noNames}*"`); // prints: SELECT *
+console.log('' + sql`SELECT "t1.${names}*"`); // prints: SELECT `t1`.`one`, `t1`.`two`
+console.log('' + sql`SELECT "t1.${noNames}," three`); // prints: SELECT  three
+console.log('' + sql`SELECT "t1.${names}," three`); // prints: SELECT `t1`.`one`, `t1`.`two`, three
 ```
 
 ### 4. `[${param}]` - Generate list of SQL values.
