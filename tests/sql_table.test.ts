@@ -1,6 +1,6 @@
 import {INLINE_STRING_MAX_LEN} from '../private/sql.ts';
 import {mysql, mysqlOnly, pgsql, pgsqlOnly, sqlite, sqliteOnly, mssql, mssqlOnly} from '../private/sql_factory.ts';
-import {assertEquals} from 'https://deno.land/std@0.224.0/assert/assert_equals.ts';
+import {assertEquals} from 'jsr:@std/assert@1.0.7/equals';
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
@@ -8,12 +8,12 @@ type Any = any;
 Deno.test
 (	'Table name must be string',
 	() =>
-	{	let error;
+	{	let error: Error|undefined;
 		try
 		{	mysql[Symbol.iterator as Any];
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "Table name must be string");
 
@@ -22,7 +22,7 @@ Deno.test
 		{	mysqlOnly[Symbol.iterator as Any];
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "Table name must be string");
 
@@ -31,7 +31,7 @@ Deno.test
 		{	pgsql[Symbol.iterator as Any];
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "Table name must be string");
 
@@ -40,7 +40,7 @@ Deno.test
 		{	pgsqlOnly[Symbol.iterator as Any];
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "Table name must be string");
 
@@ -49,7 +49,7 @@ Deno.test
 		{	sqlite[Symbol.iterator as Any];
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "Table name must be string");
 
@@ -58,7 +58,7 @@ Deno.test
 		{	sqliteOnly[Symbol.iterator as Any];
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "Table name must be string");
 
@@ -67,7 +67,7 @@ Deno.test
 		{	mssql[Symbol.iterator as Any];
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "Table name must be string");
 
@@ -76,7 +76,7 @@ Deno.test
 		{	mssqlOnly[Symbol.iterator as Any];
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "Table name must be string");
 	}
@@ -111,12 +111,12 @@ Deno.test
 			assertEquals(params, [b, a]);
 		}
 
-		let error;
+		let error: Error|undefined;
 		try
 		{	mysql[TABLE].select("col1*2, Count(*)") + '';
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "Please, call where() first");
 
@@ -130,7 +130,7 @@ Deno.test
 		{	table.join('hello');
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "join() can be called before where()");
 
@@ -139,7 +139,7 @@ Deno.test
 		{	mysql._base_table;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Alias "_base_table" is reserved`);
 
@@ -148,7 +148,7 @@ Deno.test
 		{	mysql.t_log.join('_base_table');
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Alias "_base_table" is reserved`);
 
@@ -157,7 +157,7 @@ Deno.test
 		{	mysql._subj_table;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Alias "_subj_table" is reserved`);
 
@@ -166,7 +166,7 @@ Deno.test
 		{	mysql.t_log.join('_subj_table');
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Alias "_subj_table" is reserved`);
 
@@ -175,7 +175,7 @@ Deno.test
 		{	mysql.t_log.leftJoin('a', 'aa', '');
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `No condition in LEFT JOIN`);
 
@@ -184,7 +184,7 @@ Deno.test
 		{	mysql.t_log.groupBy('').join('a', 'aa', '');
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `join() can be called before groupBy()`);
 
@@ -193,7 +193,7 @@ Deno.test
 		{	mysql.t_log.groupBy('').where('1');
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `where() can be called before groupBy()`);
 
@@ -202,7 +202,7 @@ Deno.test
 		{	mysql.t_log.groupBy('').groupBy('1');
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `groupBy() can be called only once`);
 
@@ -295,7 +295,7 @@ Deno.test
 		{	mysql.t_log.where("").select("", "", 0, 10) + '';
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, 'SELECT with LIMIT but without ORDER BY is not supported across all engines. Please use mysqlOnly`...`');
 
@@ -304,7 +304,7 @@ Deno.test
 		{	pgsql.t_log.where("").select("", "", 0, 10) + '';
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, 'SELECT with LIMIT but without ORDER BY is not supported across all engines. Please use pgsqlOnly`...`');
 
@@ -313,7 +313,7 @@ Deno.test
 		{	sqlite.t_log.where("").select("", "", 0, 10) + '';
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, 'SELECT with LIMIT but without ORDER BY is not supported across all engines. Please use sqliteOnly`...`');
 
@@ -322,7 +322,7 @@ Deno.test
 		{	mssql.t_log.where("").select("", "", 0, 10) + '';
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, 'SELECT with LIMIT but without ORDER BY is not supported on MS SQL');
 
@@ -331,7 +331,7 @@ Deno.test
 		{	mssqlOnly.t_log.where("").select("", "", 0, 10) + '';
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, 'SELECT with LIMIT but without ORDER BY is not supported on MS SQL');
 
@@ -340,7 +340,7 @@ Deno.test
 		{	mysql.t_log.where("").select("", "", 10) + '';
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, 'SELECT with OFFSET but without ORDER BY is not supported across all engines. Please use mysqlOnly`...`');
 
@@ -349,7 +349,7 @@ Deno.test
 		{	pgsql.t_log.where("").select("", "", 10) + '';
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, 'SELECT with OFFSET but without ORDER BY is not supported across all engines. Please use pgsqlOnly`...`');
 
@@ -358,7 +358,7 @@ Deno.test
 		{	sqlite.t_log.where("").select("", "", 10) + '';
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, 'SELECT with OFFSET but without ORDER BY is not supported across all engines. Please use sqliteOnly`...`');
 
@@ -367,7 +367,7 @@ Deno.test
 		{	mssql.t_log.where("").select("", "", 10) + '';
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, 'SELECT with OFFSET but without ORDER BY is not supported on MS SQL');
 
@@ -376,7 +376,7 @@ Deno.test
 		{	mssqlOnly.t_log.where("").select("", "", 10) + '';
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, 'SELECT with OFFSET but without ORDER BY is not supported on MS SQL');
 	}
@@ -471,12 +471,12 @@ Deno.test
 
 		// Errors:
 
-		let error;
+		let error: Error|undefined;
 		try
 		{	'' + mysql.t_log.where("id=1").update({});
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "In SQL fragment: 0 values for {${...}}");
 
@@ -485,7 +485,7 @@ Deno.test
 		{	'' + mysql.t_log.where("id=1").groupBy('').update({a: 1});
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "Cannot UPDATE with GROUP BY");
 
@@ -496,7 +496,7 @@ Deno.test
 		{	'' + mysql.t_log.leftJoin('more', '', 'more_id = more.id').where("id=1").update({message: "Message 1"});
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "UPDATE where the first join is a LEFT JOIN is not supported across all engines. Please use mysqlOnly`...`");
 
@@ -505,7 +505,7 @@ Deno.test
 		{	'' + pgsql.t_log.leftJoin('more', '', 'more_id = more.id').where("id=1").update({message: "Message 1"});
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "UPDATE where the first join is a LEFT JOIN is not supported on PostgreSQL");
 
@@ -514,7 +514,7 @@ Deno.test
 		{	'' + pgsqlOnly.t_log.leftJoin('more', '', 'more_id = more.id').where("id=1").update({message: "Message 1"});
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "UPDATE where the first join is a LEFT JOIN is not supported on PostgreSQL");
 
@@ -523,7 +523,7 @@ Deno.test
 		{	'' + sqlite.t_log.leftJoin('more', '', 'more_id = more.id').where("id=1").update({message: "Message 1"});
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "UPDATE where the first join is a LEFT JOIN is not supported across all engines. Please use sqliteOnly`...`");
 
@@ -532,7 +532,7 @@ Deno.test
 		{	'' + mssql.t_log.leftJoin('more', '', 'more_id = more.id').where("id=1").update({message: "Message 1"});
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "UPDATE where the first join is a LEFT JOIN is not supported across all engines. Please use mssqlOnly`...`");
 	}
@@ -584,12 +584,12 @@ Deno.test
 
 		// Errors:
 
-		let error;
+		let error: Error|undefined;
 		try
 		{	'' + mysql.t_log.where("id=1").groupBy('').delete();
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "Cannot DELETE with GROUP BY");
 
@@ -600,7 +600,7 @@ Deno.test
 		{	'' + mysql.t_log.leftJoin('more', '', 'more_id = more.id').where("id=1").delete();
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "DELETE where the first join is a LEFT JOIN is not supported across all engines. Please use mysqlOnly`...`");
 
@@ -609,7 +609,7 @@ Deno.test
 		{	'' + pgsql.t_log.leftJoin('more', '', 'more_id = more.id').where("id=1").delete();
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "DELETE where the first join is a LEFT JOIN is not supported on PostgreSQL");
 
@@ -618,7 +618,7 @@ Deno.test
 		{	'' + pgsqlOnly.t_log.leftJoin('more', '', 'more_id = more.id').where("id=1").delete();
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "DELETE where the first join is a LEFT JOIN is not supported on PostgreSQL");
 
@@ -627,7 +627,7 @@ Deno.test
 		{	'' + sqlite.t_log.leftJoin('more', '', 'more_id = more.id').where("id=1").delete();
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "DELETE where the first join is a LEFT JOIN is not supported across all engines. Please use sqliteOnly`...`");
 
@@ -636,7 +636,7 @@ Deno.test
 		{	'' + mssql.t_log.leftJoin('more', '', 'more_id = more.id').where("id=1").delete();
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "DELETE where the first join is a LEFT JOIN is not supported across all engines. Please use mssqlOnly`...`");
 	}
@@ -677,12 +677,12 @@ Deno.test
 			s = mysqlOnly.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'patch');
 			assertEquals(s+'', "INSERT INTO `t_log` (`a`, `b`) VALUES\n(1,'2'),\n(10,'20') AS excluded ON DUPLICATE KEY UPDATE `a`=CASE WHEN `t_log`.`a` IS NULL OR Cast(`t_log`.`a` AS char) IN ('', '0') THEN excluded.`a` ELSE `t_log`.`a` END, `b`=CASE WHEN `t_log`.`b` IS NULL OR Cast(`t_log`.`b` AS char) IN ('', '0') THEN excluded.`b` ELSE `t_log`.`b` END");
 
-			let error;
+			let error: Error|undefined;
 			try
 			{	'' + mysql.t_log.join('more').insert(i==0 ? ROWS : itRows(ROWS));
 			}
 			catch (e)
-			{	error = e;
+			{	error = e instanceof Error ? e : new Error(e+'');
 			}
 			assertEquals(error?.message, "Cannot INSERT with JOIN");
 
@@ -691,7 +691,7 @@ Deno.test
 			{	'' + mysql.t_log.where("id=1").insert(i==0 ? ROWS : itRows(ROWS));
 			}
 			catch (e)
-			{	error = e;
+			{	error = e instanceof Error ? e : new Error(e+'');
 			}
 			assertEquals(error?.message, "Cannot INSERT with WHERE");
 
@@ -700,7 +700,7 @@ Deno.test
 			{	'' + mysql.t_log.insert(i==0 ? [] : itRows([]));
 			}
 			catch (e)
-			{	error = e;
+			{	error = e instanceof Error ? e : new Error(e+'');
 			}
 			assertEquals(error?.message, "0 rows in <${param}>");
 
@@ -709,7 +709,7 @@ Deno.test
 			{	'' + mysqlOnly.t_log.insert(i==0 ? [] : itRows([]), 'update');
 			}
 			catch (e)
-			{	error = e;
+			{	error = e instanceof Error ? e : new Error(e+'');
 			}
 			assertEquals(error?.message, "0 rows in <${param}>");
 
@@ -718,7 +718,7 @@ Deno.test
 			{	'' + mysql.t_log.insert(i==0 ? [{}] : itRows([{}]));
 			}
 			catch (e)
-			{	error = e;
+			{	error = e instanceof Error ? e : new Error(e+'');
 			}
 			assertEquals(error?.message, "No fields for <${param}>");
 
@@ -727,7 +727,7 @@ Deno.test
 			{	'' + mysql.t_log.groupBy('').insert(i==0 ? ROWS : itRows(ROWS));
 			}
 			catch (e)
-			{	error = e;
+			{	error = e instanceof Error ? e : new Error(e+'');
 			}
 			assertEquals(error?.message, "Cannot INSERT with GROUP BY");
 
@@ -736,7 +736,7 @@ Deno.test
 			{	'' + mysql.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'nothing');
 			}
 			catch (e)
-			{	error = e;
+			{	error = e instanceof Error ? e : new Error(e+'');
 			}
 			assertEquals(error?.message, "ON CONFLICT DO NOTHING is not supported across all engines. Please use mysqlOnly`...`");
 
@@ -745,7 +745,7 @@ Deno.test
 			{	'' + pgsql.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'nothing');
 			}
 			catch (e)
-			{	error = e;
+			{	error = e instanceof Error ? e : new Error(e+'');
 			}
 			assertEquals(error?.message, "ON CONFLICT DO NOTHING is not supported across all engines. Please use pgsqlOnly`...`");
 
@@ -754,7 +754,7 @@ Deno.test
 			{	'' + sqlite.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'nothing');
 			}
 			catch (e)
-			{	error = e;
+			{	error = e instanceof Error ? e : new Error(e+'');
 			}
 			assertEquals(error?.message, "ON CONFLICT DO NOTHING is not supported across all engines. Please use sqliteOnly`...`");
 
@@ -763,7 +763,7 @@ Deno.test
 			{	'' + mssql.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'nothing');
 			}
 			catch (e)
-			{	error = e;
+			{	error = e instanceof Error ? e : new Error(e+'');
 			}
 			assertEquals(error?.message, "ON CONFLICT DO NOTHING is not supported on MS SQL");
 
@@ -772,7 +772,7 @@ Deno.test
 			{	'' + mysql.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'replace');
 			}
 			catch (e)
-			{	error = e;
+			{	error = e instanceof Error ? e : new Error(e+'');
 			}
 			assertEquals(error?.message, "REPLACE is not supported across all engines. Please use mysqlOnly`...`");
 
@@ -781,7 +781,7 @@ Deno.test
 			{	'' + sqlite.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'replace');
 			}
 			catch (e)
-			{	error = e;
+			{	error = e instanceof Error ? e : new Error(e+'');
 			}
 			assertEquals(error?.message, "REPLACE is not supported across all engines. Please use sqliteOnly`...`");
 
@@ -790,7 +790,7 @@ Deno.test
 			{	'' + pgsql.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'replace');
 			}
 			catch (e)
-			{	error = e;
+			{	error = e instanceof Error ? e : new Error(e+'');
 			}
 			assertEquals(error?.message, "REPLACE is not supported on PostgreSQL");
 
@@ -799,7 +799,7 @@ Deno.test
 			{	'' + mssql.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'replace');
 			}
 			catch (e)
-			{	error = e;
+			{	error = e instanceof Error ? e : new Error(e+'');
 			}
 			assertEquals(error?.message, "REPLACE is not supported on MS SQL");
 
@@ -808,7 +808,7 @@ Deno.test
 			{	'' + mysql.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'update');
 			}
 			catch (e)
-			{	error = e;
+			{	error = e instanceof Error ? e : new Error(e+'');
 			}
 			assertEquals(error?.message, "ON CONFLICT DO UPDATE is not supported across all engines. Please use mysqlOnly`...`");
 
@@ -817,7 +817,7 @@ Deno.test
 			{	'' + pgsql.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'update');
 			}
 			catch (e)
-			{	error = e;
+			{	error = e instanceof Error ? e : new Error(e+'');
 			}
 			assertEquals(error?.message, "ON CONFLICT DO UPDATE is not supported on PostgreSQL");
 
@@ -826,7 +826,7 @@ Deno.test
 			{	'' + sqlite.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'update');
 			}
 			catch (e)
-			{	error = e;
+			{	error = e instanceof Error ? e : new Error(e+'');
 			}
 			assertEquals(error?.message, "ON CONFLICT DO UPDATE is not supported across all engines. Please use sqliteOnly`...`");
 
@@ -835,7 +835,7 @@ Deno.test
 			{	'' + mssql.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'update');
 			}
 			catch (e)
-			{	error = e;
+			{	error = e instanceof Error ? e : new Error(e+'');
 			}
 			assertEquals(error?.message, "ON CONFLICT DO UPDATE is not supported on MS SQL");
 		}
@@ -869,12 +869,12 @@ Deno.test
 		s = mysqlOnly.t_log.insertFrom(['c1', 'c2'], mysql`HELLO ALL`, 'nothing');
 		assertEquals(s+'', "INSERT INTO `t_log` (`c1`, `c2`) HELLO ALL ON DUPLICATE KEY UPDATE `c1`=`c1`");
 
-		let error;
+		let error: Error|undefined;
 		try
 		{	'' + mysql.t_log.join('more').insertFrom(['c1', 'c2'], mysql`HELLO ALL`);
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "Cannot INSERT with JOIN");
 
@@ -883,7 +883,7 @@ Deno.test
 		{	'' + mysql.t_log.where("id=1").insertFrom(['c1', 'c2'], mysql`HELLO ALL`);
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "Cannot INSERT with WHERE");
 
@@ -892,7 +892,7 @@ Deno.test
 		{	'' + mysql.t_log.groupBy('').insertFrom(['c1', 'c2'], mysql`HELLO ALL`);
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "Cannot INSERT with GROUP BY");
 
@@ -901,7 +901,7 @@ Deno.test
 		{	'' + mysql.t_log.insertFrom([], mysql`HELLO ALL`);
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, 'No names for "${param}+"');
 
@@ -910,7 +910,7 @@ Deno.test
 		{	'' + mysql.t_log.insertFrom(['c1', 'c2'], mysql`HELLO ALL`, 'nothing');
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "ON CONFLICT DO NOTHING is not supported across all engines. Please use mysqlOnly`...`");
 
@@ -919,7 +919,7 @@ Deno.test
 		{	'' + pgsql.t_log.insertFrom(['c1', 'c2'], mysql`HELLO ALL`, 'nothing');
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "ON CONFLICT DO NOTHING is not supported across all engines. Please use pgsqlOnly`...`");
 
@@ -928,7 +928,7 @@ Deno.test
 		{	'' + sqlite.t_log.insertFrom(['c1', 'c2'], mysql`HELLO ALL`, 'nothing');
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "ON CONFLICT DO NOTHING is not supported across all engines. Please use sqliteOnly`...`");
 
@@ -937,7 +937,7 @@ Deno.test
 		{	'' + mssql.t_log.insertFrom(['c1', 'c2'], mysql`HELLO ALL`, 'nothing');
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "ON CONFLICT DO NOTHING is not supported on MS SQL");
 
@@ -946,7 +946,7 @@ Deno.test
 		{	'' + mssqlOnly.t_log.insertFrom(['c1', 'c2'], mysql`HELLO ALL`, 'nothing');
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "ON CONFLICT DO NOTHING is not supported on MS SQL");
 
@@ -955,7 +955,7 @@ Deno.test
 		{	'' + mysql.t_log.insertFrom(['c1', 'c2'], mysql`HELLO ALL`, 'replace');
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "REPLACE is not supported across all engines. Please use mysqlOnly`...`");
 
@@ -964,7 +964,7 @@ Deno.test
 		{	'' + sqlite.t_log.insertFrom(['c1', 'c2'], mysql`HELLO ALL`, 'replace');
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "REPLACE is not supported across all engines. Please use sqliteOnly`...`");
 
@@ -973,7 +973,7 @@ Deno.test
 		{	'' + pgsql.t_log.insertFrom(['c1', 'c2'], mysql`HELLO ALL`, 'replace');
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "REPLACE is not supported on PostgreSQL");
 
@@ -982,7 +982,7 @@ Deno.test
 		{	'' + pgsqlOnly.t_log.insertFrom(['c1', 'c2'], mysql`HELLO ALL`, 'replace');
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "REPLACE is not supported on PostgreSQL");
 
@@ -991,7 +991,7 @@ Deno.test
 		{	'' + mssql.t_log.insertFrom(['c1', 'c2'], mysql`HELLO ALL`, 'replace');
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "REPLACE is not supported on MS SQL");
 
@@ -1000,7 +1000,7 @@ Deno.test
 		{	'' + mssqlOnly.t_log.insertFrom(['c1', 'c2'], mysql`HELLO ALL`, 'replace');
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "REPLACE is not supported on MS SQL");
 
@@ -1025,12 +1025,12 @@ Deno.test
 		s = s = sqliteOnly.t_log.truncate();
 		assertEquals(s+'', `DELETE FROM "t_log"`);
 
-		let error;
+		let error: Error|undefined;
 		try
 		{	'' + mysql.t_log.join('more').truncate();
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "Cannot TRUNCATE with JOIN");
 
@@ -1039,7 +1039,7 @@ Deno.test
 		{	'' + mysql.t_log.where("id=1").truncate();
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "Cannot TRUNCATE with WHERE");
 
@@ -1048,8 +1048,19 @@ Deno.test
 		{	'' + mysql.t_log.groupBy('').truncate();
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "Cannot TRUNCATE with GROUP BY");
+	}
+);
+
+Deno.test
+(	'No qualify aliases',
+	() =>
+	{	let s = '' + mysql.links.join('pages', 'p').select('Length(a) AS "la", Length(b) AS `lb`, Length(c) AS lc').where('id = 1');
+		assertEquals(s, "SELECT Length(`b`.a) AS `la`, Length(`b`.b) AS `lb`, Length(`b`.c) AS `lc` FROM `links` AS `b` CROSS JOIN `pages` AS `p` WHERE (`b`.id = 1)");
+
+		s = '' + mysql.new_pages.insertFrom(['pa', 'pb', 'pc'], mysql.links.join('pages', 'p').select('Length(a) AS "la", Length(b) AS `lb`, Length(c) AS lc').where('id = 1'));
+		assertEquals(s, "INSERT INTO `new_pages` (`pa`, `pb`, `pc`) SELECT Length(`b`.a) AS `la`, Length(`b`.b) AS `lb`, Length(`b`.c) AS `lc` FROM `links` AS `b` CROSS JOIN `pages` AS `p` WHERE (`b`.id = 1)");
 	}
 );

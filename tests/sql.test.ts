@@ -2,8 +2,8 @@ import {Sql, INLINE_STRING_MAX_LEN, INLINE_BLOB_MAX_LEN} from '../private/sql.ts
 import {mysql, mysqlOnly, pgsql, pgsqlOnly, sqlite, sqliteOnly, mssql, mssqlOnly} from '../private/sql_factory.ts';
 import {mysqlQuote, pgsqlQuote, sqliteQuote, mssqlQuote} from '../private/quote.ts';
 import {SqlSettings, SqlMode} from '../private/sql_settings.ts';
-import {assert} from 'https://deno.land/std@0.224.0/assert/assert.ts';
-import {assertEquals} from 'https://deno.land/std@0.224.0/assert/assert_equals.ts';
+import {assert} from 'jsr:@std/assert@1.0.7/assert';
+import {assertEquals} from 'jsr:@std/assert@1.0.7/equals';
 
 const decoder = new TextDecoder;
 
@@ -101,12 +101,12 @@ Deno.test
 		const str = mysql`'${value}'` + '';
 		assertEquals(JSON.parse(str.slice(1, -1)), value);
 
-		let error;
+		let error: Error|undefined;
 		try
 		{	mysql`'${2n ** 64n}'`.toString();
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Cannot represent such bigint: ${2n ** 64n}`);
 
@@ -115,7 +115,7 @@ Deno.test
 		{	mysql`'${new ReadableStream}'`.toString();
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Cannot stringify ReadableStream`);
 
@@ -124,7 +124,7 @@ Deno.test
 		{	mysql`'${{read() {}}}'`.toString();
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Cannot stringify Deno.Reader`);
 
@@ -133,7 +133,7 @@ Deno.test
 		{	mysql`'${1}"`.toString();
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Inappropriately quoted parameter`);
 
@@ -142,7 +142,7 @@ Deno.test
 		{	mysql`"par.${1}/"`.toString();
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Inappropriately enclosed parameter`);
 
@@ -151,7 +151,7 @@ Deno.test
 		{	mysql`"par.${1}`.toString();
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Inappropriately enclosed parameter`);
 
@@ -160,7 +160,7 @@ Deno.test
 		{	mysql`"${'\0'}"`.toString();
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Quoted identifier cannot contain 0-char`);
 
@@ -169,7 +169,7 @@ Deno.test
 		{	assertEquals(mysql`"${[]}+"` + '', '*');
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, 'No names for "${param}+"');
 
@@ -178,7 +178,7 @@ Deno.test
 		{	assertEquals(mysql`"${null}+"` + '', '*');
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, 'Parameter for "${...}+" must be iterable');
 
@@ -187,7 +187,7 @@ Deno.test
 		{	new Sql(new SqlSettings(SqlMode.MYSQL), [], []);
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, 'Please, pass arguments from a string template');
 
@@ -270,12 +270,12 @@ Deno.test
 		s = mysql`SELECT (ta.${expr})`;
 		assertEquals(s+'', "SELECT (`ta`.`name` AND `Count`(*) OR Sum(`ta`.`a` = 1)>10)");
 
-		let error;
+		let error: Error|undefined;
 		try
 		{	'' + mysql`SELECT (${`A ' B`})`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Unterminated string literal in SQL fragment: A ' B`);
 
@@ -284,7 +284,7 @@ Deno.test
 		{	'' + mysql`SELECT (${"A ` B"})`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "Unterminated quoted identifier in SQL fragment: A ` B");
 
@@ -293,7 +293,7 @@ Deno.test
 		{	'' + mysql`SELECT (${`'abc'"def`})`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Unterminated quoted identifier in SQL fragment: 'abc'"def`);
 
@@ -302,7 +302,7 @@ Deno.test
 		{	'' + mysql`SELECT (${`"abc"(def`})`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Unbalanced parenthesis in SQL fragment: "abc"(def`);
 
@@ -311,7 +311,7 @@ Deno.test
 		{	'' + mysql`SELECT (${`A -- B`})`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Comment in SQL fragment: A -- B`);
 
@@ -320,7 +320,7 @@ Deno.test
 		{	'' + mysql`SELECT (${`A /* B`})`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Comment in SQL fragment: A /* B`);
 
@@ -329,7 +329,7 @@ Deno.test
 		{	'' + mysql`SELECT (${`A # B`})`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Invalid character in SQL fragment: A # B`);
 
@@ -338,7 +338,7 @@ Deno.test
 		{	'' + mysql`SELECT (${`Char_length(@var)`})`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Invalid character in SQL fragment: Char_length(@var)`);
 
@@ -347,7 +347,7 @@ Deno.test
 		{	'' + mysql`SELECT (${`10/3; DROP ALL`})`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Invalid character in SQL fragment: 10/3; DROP ALL`);
 
@@ -356,7 +356,7 @@ Deno.test
 		{	'' + mysql`SELECT (${`name[0`})`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Invalid character in SQL fragment: name[0`);
 
@@ -365,7 +365,7 @@ Deno.test
 		{	'' + mysql`SELECT (${`0]`})`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Invalid character in SQL fragment: 0]`);
 
@@ -374,7 +374,7 @@ Deno.test
 		{	'' + mysql`SELECT (${`name{0`})`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Invalid character in SQL fragment: name{0`);
 
@@ -383,7 +383,7 @@ Deno.test
 		{	'' + mysql`SELECT (${`0}`})`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Invalid character in SQL fragment: 0}`);
 
@@ -392,7 +392,7 @@ Deno.test
 		{	'' + mysql`SELECT (${`$$Hello$$`})`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Invalid character in SQL fragment: $$Hello$$`);
 
@@ -401,7 +401,7 @@ Deno.test
 		{	'' + mysql`SELECT (${`\0`})`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Invalid character in SQL fragment: \0`);
 
@@ -410,7 +410,7 @@ Deno.test
 		{	'' + mysql`SELECT (${`?`})`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Invalid character in SQL fragment: ?`);
 
@@ -419,7 +419,7 @@ Deno.test
 		{	'' + mysql`SELECT (${`:par`})`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Invalid character in SQL fragment: :par`);
 
@@ -428,7 +428,7 @@ Deno.test
 		{	'' + mysql`SELECT (${`Count(* + 1`})`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Unbalanced parenthesis in SQL fragment: Count(* + 1`);
 
@@ -437,7 +437,7 @@ Deno.test
 		{	'' + mysql`SELECT (${`Count(*) - 1)`})`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Unbalanced parenthesis in SQL fragment: Count(*) - 1)`);
 
@@ -446,7 +446,7 @@ Deno.test
 		{	'' + mysql`SELECT (${`name, Count(*)`})`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Comma in SQL fragment: name, Count(*)`);
 
@@ -455,7 +455,7 @@ Deno.test
 		{	'' + mysql`SELECT "${null})`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Inappropriately enclosed parameter`);
 
@@ -464,7 +464,7 @@ Deno.test
 		{	'' + mysql`SELECT \`${null})`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Inappropriately enclosed parameter`);
 
@@ -473,7 +473,7 @@ Deno.test
 		{	'' + mysql`SELECT [${null})`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Inappropriately enclosed parameter`);
 
@@ -482,7 +482,7 @@ Deno.test
 		{	'' + mysql`SELECT [${null}]`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, 'In SQL fragment: parameter for [${...}] must be iterable');
 
@@ -491,7 +491,7 @@ Deno.test
 		{	'' + mysql`SELECT <${null})`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Inappropriately enclosed parameter`);
 
@@ -500,7 +500,7 @@ Deno.test
 		{	'' + mysql`SELECT <${null}>`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, 'In SQL fragment: parameter for <${...}> must be iterable');
 
@@ -509,7 +509,7 @@ Deno.test
 		{	'' + mysql`SELECT {${null})`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Inappropriately enclosed parameter`);
 
@@ -518,7 +518,7 @@ Deno.test
 		{	'' + mysql`SELECT {${null}}`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, 'In SQL fragment: parameter for {${...}} must be object');
 
@@ -527,7 +527,7 @@ Deno.test
 		{	'' + mysql`SELECT (${`name, Count(*)`}`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, `Inappropriately enclosed parameter`);
 
@@ -598,12 +598,12 @@ Deno.test
 		s = mysql`A-${alias}.${expr}-B`;
 		assertEquals(s+'', "A-`col1`, `col2`, 3.0, fn()-B");
 
-		let error;
+		let error: Error|undefined;
 		try
 		{	'' + mysql`A-${0}.${expr}-B`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "Parent qualifier name must be string");
 	}
@@ -627,12 +627,12 @@ Deno.test
 		s = mysqlOnly`A[${list3}]B`;
 		assertEquals(s+'', `A((1,NULL,NULL))B`);
 
-		let error;
+		let error: Error|undefined;
 		try
 		{	'' + mysql`A[${list3}]B`
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "Multidimensional [${param}] lists are not supported across all engines. Please use mysqlOnly`...`");
 
@@ -641,7 +641,7 @@ Deno.test
 		{	'' + pgsql`A[${list3}]B`
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "Multidimensional [${param}] lists are not supported across all engines. Please use pgsqlOnly`...`");
 
@@ -650,7 +650,7 @@ Deno.test
 		{	'' + sqlite`A[${list3}]B`
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "Multidimensional [${param}] lists are not supported on SQLite");
 
@@ -659,7 +659,7 @@ Deno.test
 		{	'' + sqliteOnly`A[${list3}]B`
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "Multidimensional [${param}] lists are not supported on SQLite");
 
@@ -668,7 +668,7 @@ Deno.test
 		{	'' + mssql`A[${list3}]B`
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "Multidimensional [${param}] lists are not supported on MS SQL");
 
@@ -677,7 +677,7 @@ Deno.test
 		{	'' + mssqlOnly`A[${list3}]B`
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "Multidimensional [${param}] lists are not supported on MS SQL");
 
@@ -686,7 +686,7 @@ Deno.test
 		{	'' + pgsqlOnly`A[${[list3]}]B`
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "More than 2-dimension [${param}] lists are not supported on PostgreSQL");
 	}
@@ -761,12 +761,12 @@ Deno.test
 		const s = mysql`INSERT INTO t_log <${rows}>`;
 		assertEquals(s+'', "INSERT INTO t_log (`value`, `name`) VALUES\n(10,'text 1'),\n(11,'text 2')");
 
-		let error;
+		let error: Error|undefined;
 		try
 		{	'' + mysql`INSERT INTO t_log <${[{}]}>`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "No fields for <${param}>");
 	}
@@ -794,12 +794,12 @@ Deno.test
 		s = mysql`SET {ta.${row},}`;
 		assertEquals(s+'', "SET `ta`.`a`=10, `ta`.`val`='text 1',");
 
-		let error;
+		let error: Error|undefined;
 		try
 		{	'' + mysql`SET {${{}}}`;
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "In SQL fragment: 0 values for {${...}}");
 
@@ -896,12 +896,12 @@ Deno.test
 
 		assertEquals(mysqlQuote([{id: 10, value: 'Val 10'}]), `'[{"id":10,"value":"Val 10"}]'`);
 
-		let error;
+		let error: Error|undefined;
 		try
 		{	mysqlQuote({async read() {}});
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "Cannot stringify Deno.Reader");
 
@@ -910,7 +910,7 @@ Deno.test
 		{	mysqlQuote(new ReadableStream);
 		}
 		catch (e)
-		{	error = e;
+		{	error = e instanceof Error ? e : new Error(e+'');
 		}
 		assertEquals(error?.message, "Cannot stringify ReadableStream");
 	}
