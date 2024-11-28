@@ -25,6 +25,16 @@ const C_NINE = '9'.charCodeAt(0);
 const C_X = 'x'.charCodeAt(0);
 const C_A_CAP = 'A'.charCodeAt(0);
 const C_A = 'a'.charCodeAt(0);
+const C_C_CAP = 'C'.charCodeAt(0);
+const C_C = 'c'.charCodeAt(0);
+const C_E_CAP = 'E'.charCodeAt(0);
+const C_E = 'e'.charCodeAt(0);
+const C_L_CAP = 'L'.charCodeAt(0);
+const C_L = 'l'.charCodeAt(0);
+const C_S_CAP = 'S'.charCodeAt(0);
+const C_S = 's'.charCodeAt(0);
+const C_T_CAP = 'T'.charCodeAt(0);
+const C_T = 't'.charCodeAt(0);
 const C_Z_CAP = 'Z'.charCodeAt(0);
 const C_Z = 'z'.charCodeAt(0);
 const C_DOLLAR = '$'.charCodeAt(0);
@@ -82,6 +92,7 @@ const enum Change
 	DOUBLE_QUOT,
 	INSERT_PARENT_NAME,
 	QUOTE_COLUMN_NAME,
+	QUOTE_COLUMN_NAME_NO_ADD_PARENT,
 	QUOTE_IDENT,
 }
 
@@ -865,6 +876,8 @@ class Serializer
 		let parenLevel = 0;
 		const changes = new Array<{change: Change, changeFrom: number, changeTo: number}>;
 		let nAdd = 0;
+		let changeQuoteColumnName: Change.QUOTE_COLUMN_NAME | Change.QUOTE_COLUMN_NAME_NO_ADD_PARENT = Change.QUOTE_COLUMN_NAME;
+		let howToQuoteColumnName: Change.QUOTE_IDENT /* unknown */ | Change.QUOTE_COLUMN_NAME | Change.QUOTE_COLUMN_NAME_NO_ADD_PARENT = parentName.length ? Change.QUOTE_IDENT : Change.QUOTE_COLUMN_NAME_NO_ADD_PARENT;
 L:		for (let j=from; j<pos; j++)
 		{	let c = result[j];
 			switch (c)
@@ -872,8 +885,10 @@ L:		for (let j=from; j<pos; j++)
 					if (parenLevel==0 && isExpression)
 					{	throw new Error(`Comma in SQL fragment: ${param}`);
 					}
+					changeQuoteColumnName = Change.QUOTE_COLUMN_NAME;
 					break;
 				case C_APOS:
+					changeQuoteColumnName = Change.QUOTE_COLUMN_NAME;
 					while (++j < pos)
 					{	c = result[j];
 						if (c == C_BACKSLASH)
@@ -926,7 +941,7 @@ L:		for (let j=from; j<pos; j++)
 					if (j >= pos)
 					{	throw new Error(`Unterminated quoted identifier in SQL fragment: ${param}`);
 					}
-					if (parentName.length)
+					if (changeQuoteColumnName == Change.QUOTE_COLUMN_NAME)
 					{	while (++j < pos)
 						{	c = result[j];
 							if (c!=C_SPACE && c!=C_TAB && c!=C_CR && c!=C_LF)
@@ -939,27 +954,33 @@ L:		for (let j=from; j<pos; j++)
 						}
 						j--; // will j++ on next iter
 					}
+					changeQuoteColumnName = Change.QUOTE_COLUMN_NAME;
 					break;
 				}
 				case C_PAREN_OPEN:
+					changeQuoteColumnName = Change.QUOTE_COLUMN_NAME;
 					parenLevel++;
 					break;
 				case C_PAREN_CLOSE:
 					if (parenLevel-- <= 0)
 					{	throw new Error(`Unbalanced parenthesis in SQL fragment: ${param}`);
 					}
+					changeQuoteColumnName = Change.QUOTE_COLUMN_NAME;
 					break;
 				case C_SLASH:
 					if (result[j+1] == C_TIMES)
 					{	throw new Error(`Comment in SQL fragment: ${param}`);
 					}
+					changeQuoteColumnName = Change.QUOTE_COLUMN_NAME;
 					break;
 				case C_MINUS:
 					if (result[j+1] == C_MINUS)
 					{	throw new Error(`Comment in SQL fragment: ${param}`);
 					}
+					changeQuoteColumnName = Change.QUOTE_COLUMN_NAME;
 					break;
 				case C_DOT:
+					changeQuoteColumnName = Change.QUOTE_COLUMN_NAME;
 					while (c == C_DOT)
 					{	while (++j < pos)
 						{	c = result[j];
@@ -1037,19 +1058,32 @@ L:		for (let j=from; j<pos; j++)
 									result[jAfterIdent] = C_PAREN_OPEN;
 									parenLevel++;
 								}
+								changeQuoteColumnName = Change.QUOTE_COLUMN_NAME;
 							}
 							else if (c == C_DOT) // if is parent qualifier
 							{	changes[changes.length] = {change: Change.QUOTE_IDENT, changeFrom, changeTo: jAfterIdent-1};
 								nAdd += 2; // ``
+								changeQuoteColumnName = Change.QUOTE_COLUMN_NAME;
 							}
-							else
-							{	if (!this.sqlSettings.isIdentAllowed(name))
-								{	changes[changes.length] = {change: Change.QUOTE_COLUMN_NAME, changeFrom, changeTo: jAfterIdent-1};
-									nAdd += !parentName.length ? 2 : !alwaysQuoteIdents ? parentName.length+3 : parentName.length+5; // no parentName ? `` : !alwaysQuoteIdents ? ``. : ``.``
+							else if (!this.sqlSettings.isIdentAllowed(name))
+							{	changes[changes.length] = {change: changeQuoteColumnName, changeFrom, changeTo: jAfterIdent-1};
+								nAdd += changeQuoteColumnName==Change.QUOTE_COLUMN_NAME_NO_ADD_PARENT ? 2 : !alwaysQuoteIdents ? parentName.length+3 : parentName.length+5; // no parentName ? `` : !alwaysQuoteIdents ? ``. : ``.``
+								changeQuoteColumnName = Change.QUOTE_COLUMN_NAME;
+							}
+							else if (name.length==2 && (name[0]==C_A_CAP || name[0]==C_A) && (name[1]==C_S_CAP || name[1]==C_S))
+							{	if (howToQuoteColumnName == Change.QUOTE_IDENT)
+								{	howToQuoteColumnName = this.howToQuoteColumnName(from);
 								}
+								changeQuoteColumnName = howToQuoteColumnName;
 							}
 						}
+						else
+						{	changeQuoteColumnName = Change.QUOTE_COLUMN_NAME;
+						}
 						j--; // will j++ on next iter
+					}
+					else
+					{	changeQuoteColumnName = Change.QUOTE_COLUMN_NAME;
 					}
 				}
 			}
@@ -1095,6 +1129,14 @@ L:		for (let j=from; j<pos; j++)
 							}
 							result[k--] = qtId;
 							result[k] = c;
+							break;
+						case Change.QUOTE_COLUMN_NAME_NO_ADD_PARENT:
+							result[k--] = qtId;
+							while (j >= changeFrom)
+							{	result[k--] = result[j--];
+							}
+							result[k] = qtId;
+							j++; // will k--, j-- on next iter
 							break;
 						case Change.QUOTE_COLUMN_NAME:
 							// column name to quote
@@ -1147,6 +1189,44 @@ L:		for (let j=from; j<pos; j++)
 			}
 			this.pos = pos + nAdd;
 		}
+	}
+
+	private howToQuoteColumnName(pos: number): Change.QUOTE_COLUMN_NAME_NO_ADD_PARENT | Change.QUOTE_COLUMN_NAME
+	{	const {result} = this;
+		while (--pos >= 0)
+		{	const c = result[pos];
+			if (c!=C_SPACE && c!=C_TAB && c!=C_CR && c!=C_LF)
+			{	break;
+			}
+		}
+		if (pos >= 5)
+		{	const c = result[pos--];
+			if (c==C_T_CAP || c==C_T)
+			{	const c = result[pos--];
+				if (c==C_C_CAP || c==C_C)
+				{	const c = result[pos--];
+					if (c==C_E_CAP || c==C_E)
+					{	const c = result[pos--];
+						if (c==C_L_CAP || c==C_L)
+						{	const c = result[pos--];
+							if (c==C_E_CAP || c==C_E)
+							{	const c = result[pos];
+								if (c==C_S_CAP || c==C_S)
+								{	while (--pos >= 0)
+									{	const c = result[pos];
+										if (c!=C_SPACE && c!=C_TAB && c!=C_CR && c!=C_LF)
+										{	return c==C_PAREN_OPEN || c==C_PAREN_CLOSE ? Change.QUOTE_COLUMN_NAME_NO_ADD_PARENT : Change.QUOTE_COLUMN_NAME;
+										}
+									}
+									return Change.QUOTE_COLUMN_NAME_NO_ADD_PARENT;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		return Change.QUOTE_COLUMN_NAME;
 	}
 
 	/**	Done serializing. Get the produced result.
