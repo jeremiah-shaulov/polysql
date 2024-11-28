@@ -863,7 +863,7 @@ class Serializer
 		// 1. Find how many bytes to add
 		let {result, pos, qtId, alwaysQuoteIdents, parentName} = this;
 		let parenLevel = 0;
-		const changes: {change: Change, changeFrom: number, changeTo: number}[] = [];
+		const changes = new Array<{change: Change, changeFrom: number, changeTo: number}>;
 		let nAdd = 0;
 L:		for (let j=from; j<pos; j++)
 		{	let c = result[j];

@@ -23,13 +23,13 @@ export const enum SqlMode
 class SqlWordsList
 {	def: string;
 
-	private isWhitelist = true;
-	private map: Map<number, Uint8Array[]> = new Map;
+	#isWhitelist = true;
+	#map: Map<number, Uint8Array[]> = new Map;
 
 	constructor(initDef: string)
 	{	initDef = initDef.trim();
 		if (initDef.charAt(0) == '!')
-		{	this.isWhitelist = false;
+		{	this.#isWhitelist = false;
 			initDef = initDef.slice(1).trimStart();
 		}
 		const initIdentsArr = initDef.split(RE_S);
@@ -38,10 +38,10 @@ class SqlWordsList
 		{	id = id.toUpperCase();
 			const word = encoder.encode(id);
 			const key = word[0] | (word[1] << 8) | (word[word.length-1] << 16) | (word.length << 24);
-			let list = this.map.get(key);
+			let list = this.#map.get(key);
 			if (!list)
 			{	list = [];
-				this.map.set(key, list);
+				this.#map.set(key, list);
 			}
 			if (list.findIndex(v => uint8arrayCmp(v, word)==0) == -1)
 			{	list.push(word);
@@ -49,7 +49,7 @@ class SqlWordsList
 			}
 		}
 		idents.sort();
-		this.def = this.isWhitelist ? idents.join(' ') : '!'+idents.join(' ');
+		this.def = this.#isWhitelist ? idents.join(' ') : '!'+idents.join(' ');
 	}
 
 	isAllowed(subj: Uint8Array)
@@ -67,7 +67,7 @@ class SqlWordsList
 		{	cN += C_A_CAP - C_A; // to upper case
 		}
 		const key = c0 | (c1 << 8) | (cN << 16) | (len << 24);
-		const list = this.map.get(key);
+		const list = this.#map.get(key);
 		if (list)
 		{	len--; // no need to compare the last char, as it's part of key
 			// is subj in list?
@@ -81,36 +81,36 @@ L:			for (const word of list)
 					{	continue L;
 					}
 				}
-				return this.isWhitelist;
+				return this.#isWhitelist;
 			}
 		}
-		return !this.isWhitelist;
+		return !this.#isWhitelist;
 	}
 }
 
 export class SqlSettings
-{	private mIdents: SqlWordsList;
-	private mFunctions: SqlWordsList;
+{	#mIdents: SqlWordsList;
+	#mFunctions: SqlWordsList;
 
 	constructor(readonly mode: SqlMode, idents?: string, functions?: string)
-	{	this.mIdents = new SqlWordsList(idents ?? DEFAULT_IDENTS_POLICY);
-		this.mFunctions = new SqlWordsList(functions ?? DEFAULT_FUNCTIONS_POLICY);
+	{	this.#mIdents = new SqlWordsList(idents ?? DEFAULT_IDENTS_POLICY);
+		this.#mFunctions = new SqlWordsList(functions ?? DEFAULT_FUNCTIONS_POLICY);
 	}
 
 	get idents()
-	{	return this.mIdents.def;
+	{	return this.#mIdents.def;
 	}
 
 	get functions()
-	{	return this.mFunctions.def;
+	{	return this.#mFunctions.def;
 	}
 
 	isIdentAllowed(subj: Uint8Array)
-	{	return this.mIdents.isAllowed(subj);
+	{	return this.#mIdents.isAllowed(subj);
 	}
 
 	isFunctionAllowed(subj: Uint8Array)
-	{	return this.mFunctions.isAllowed(subj);
+	{	return this.#mFunctions.isAllowed(subj);
 	}
 }
 
