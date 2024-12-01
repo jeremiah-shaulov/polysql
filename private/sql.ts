@@ -877,8 +877,7 @@ class Serializer
 		const changes = new Array<{change: Change, changeFrom: number, changeTo: number}>;
 		let nAdd = 0;
 		const howToQuoteColumnNameIfYes = parentName.length ? Change.QUOTE_AND_QUALIFY_COLUMN_NAME : Change.QUOTE_COLUMN_NAME; // If there's no `parentName`, use `QUOTE_COLUMN_NAME`
-		let howToQuoteColumnName: Change.QUOTE_IDENT /* this value is used to express "unknown" */ | Change.QUOTE_AND_QUALIFY_COLUMN_NAME /* quote column name and qualify it with parent name */ | Change.QUOTE_COLUMN_NAME /* only quote */ = parentName.length ? Change.QUOTE_IDENT : Change.QUOTE_COLUMN_NAME; // If there's no `parentName`, this variable equals to `QUOTE_COLUMN_NAME`. If there is `parentName`, this variable is initially `QUOTE_IDENT` that means "i don't know", and after first occured AS keyword it's set to one of `QUOTE_COLUMN_NAME` of `QUOTE_AND_QUALIFY_COLUMN_NAME` depending on whether this is SELECT query or not.
-		let changeQuoteColumnName = howToQuoteColumnNameIfYes; // This variable is assigned with `howToQuoteColumnName` after AS keyword, and with `howToQuoteColumnNameIfYes` in other cases. If there's no `parentName`, it will be always equal to `QUOTE_COLUMN_NAME`.
+		let changeQuoteColumnName = howToQuoteColumnNameIfYes; // This variable is assigned with `QUOTE_COLUMN_NAME` after AS keyword, and with `howToQuoteColumnNameIfYes` in other cases. If there's no `parentName`, it will be always equal to `QUOTE_COLUMN_NAME`.
 L:		for (let j=from; j<pos; j++)
 		{	let c = result[j];
 			switch (c)
@@ -942,7 +941,7 @@ L:		for (let j=from; j<pos; j++)
 					if (j >= pos)
 					{	throw new Error(`Unterminated quoted identifier in SQL fragment: ${param}`);
 					}
-					if (changeQuoteColumnName == Change.QUOTE_AND_QUALIFY_COLUMN_NAME) // if not after AS keyword
+					if (changeQuoteColumnName == Change.QUOTE_AND_QUALIFY_COLUMN_NAME) // if not after AS keyword, and there's `parentName`
 					{	while (++j < pos)
 						{	c = result[j];
 							if (c!=C_SPACE && c!=C_TAB && c!=C_CR && c!=C_LF)
@@ -1072,10 +1071,7 @@ L:		for (let j=from; j<pos; j++)
 								changeQuoteColumnName = howToQuoteColumnNameIfYes;
 							}
 							else if (name.length==2 && (name[0]==C_A_CAP || name[0]==C_A) && (name[1]==C_S_CAP || name[1]==C_S))
-							{	if (howToQuoteColumnName == Change.QUOTE_IDENT)
-								{	howToQuoteColumnName = this.howToQuoteColumnName(from);
-								}
-								changeQuoteColumnName = howToQuoteColumnName;
+							{	changeQuoteColumnName = Change.QUOTE_COLUMN_NAME;
 							}
 						}
 						else
@@ -1181,44 +1177,6 @@ L:		for (let j=from; j<pos; j++)
 			}
 			this.pos = pos + nAdd;
 		}
-	}
-
-	private howToQuoteColumnName(pos: number): Change.QUOTE_COLUMN_NAME | Change.QUOTE_AND_QUALIFY_COLUMN_NAME
-	{	const {result} = this;
-		while (--pos >= 0)
-		{	const c = result[pos];
-			if (c!=C_SPACE && c!=C_TAB && c!=C_CR && c!=C_LF)
-			{	break;
-			}
-		}
-		if (pos >= 5)
-		{	const c = result[pos--];
-			if (c==C_T_CAP || c==C_T)
-			{	const c = result[pos--];
-				if (c==C_C_CAP || c==C_C)
-				{	const c = result[pos--];
-					if (c==C_E_CAP || c==C_E)
-					{	const c = result[pos--];
-						if (c==C_L_CAP || c==C_L)
-						{	const c = result[pos--];
-							if (c==C_E_CAP || c==C_E)
-							{	const c = result[pos];
-								if (c==C_S_CAP || c==C_S)
-								{	while (--pos >= 0)
-									{	const c = result[pos];
-										if (c!=C_SPACE && c!=C_TAB && c!=C_CR && c!=C_LF)
-										{	return c==C_PAREN_OPEN || c==C_PAREN_CLOSE ? Change.QUOTE_COLUMN_NAME : Change.QUOTE_AND_QUALIFY_COLUMN_NAME;
-										}
-									}
-									return Change.QUOTE_COLUMN_NAME;
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-		return Change.QUOTE_AND_QUALIFY_COLUMN_NAME;
 	}
 
 	/**	Done serializing. Get the produced result.
