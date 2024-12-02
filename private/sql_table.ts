@@ -20,17 +20,11 @@ function sql(strings: TemplateStringsArray, ...params: unknown[])
 }
 
 export class SqlTable extends Sql
-{	#joins: Join[] = [];
+{	#tableAlias = '';
+	#joins: Join[] = [];
 	#whereExprs: (string | Sql)[] = [];
 	#groupByExprs: string|string[]|Sql|undefined;
 	#havingExpr: string|Sql = '';
-
-	#hasB = false;
-	#hasBase = false;
-	#hasBaseTable = false;
-	#hasS = false;
-	#hasSubj = false;
-	#hasSubjTable = false;
 
 	#operation = Operation.NONE;
 	#operationInsertRows: Iterable<Record<string, unknown>> | undefined;
@@ -43,6 +37,10 @@ export class SqlTable extends Sql
 	#operationSelectLimit = 0;
 	#operationUpdateRow: Record<string, unknown> | undefined;
 
+	protected get joins(): readonly Join[]
+	{	return this.#joins;
+	}
+
 	constructor
 	(	sqlSettings: SqlSettings,
 		public tableName: string,
@@ -50,73 +48,22 @@ export class SqlTable extends Sql
 		params?: unknown[]
 	)
 	{	super(sqlSettings, strings, params);
-		this.#tableUsed(tableName);
 	}
 
-	#getBaseTableAlias()
-	{	return this.#joins.length==0 ? '' : !this.#hasB ? 'b' : !this.#hasBase ? 'base' : !this.#hasBaseTable ? 'base_table' : '_base_table';
-	}
-
-	#getSubjTableAlias()
-	{	return !this.#hasS ? 's' : !this.#hasSubj ? 'subj' : !this.#hasSubjTable ? 'subj_table' : '_subj_table';
-	}
-
-	#tableUsed(alias: string)
-	{	alias = alias.toLowerCase();
-		if (alias == 'b')
-		{	this.#hasB = true;
+	#getTableAlias()
+	{	if (!this.#tableAlias)
+		{	this.#tableAlias = this.genAlias(this.tableName);
 		}
-		else if (alias == 'base')
-		{	this.#hasBase = true;
-		}
-		else if (alias == 'base_table')
-		{	this.#hasBaseTable = true;
-		}
-		else if (alias == '_base_table')
-		{	throw new Error(`Alias "_base_table" is reserved`);
-		}
-		else if (alias == 's')
-		{	this.#hasS = true;
-		}
-		else if (alias == 'subj')
-		{	this.#hasSubj = true;
-		}
-		else if (alias == 'subj_table')
-		{	this.#hasSubjTable = true;
-		}
-		else if (alias == '_subj_table')
-		{	throw new Error(`Alias "_subj_table" is reserved`);
-		}
+		return this.#tableAlias;
 	}
 
 	#appendJoins(baseTable: string)
 	{	this.strings[this.strings.length - 1] += ' ';
 		this.estimatedByteLength++;
 		this.appendTableName(this.tableName);
-		if (this.#joins.length != 0)
-		{	this.append(sql` AS "${baseTable}"`);
-			for (const {tableName, alias, onExpr, isLeft} of this.#joins)
-			{	if (!onExpr)
-				{	this.strings[this.strings.length - 1] += ' CROSS JOIN ';
-					this.estimatedByteLength += 12;
-					this.appendTableName(tableName);
-					if (alias)
-					{	this.append(sql` AS "${alias}"`);
-					}
-				}
-				else if (!isLeft)
-				{	this.strings[this.strings.length - 1] += ' INNER JOIN ';
-					this.estimatedByteLength += 12;
-					this.appendTableName(tableName);
-					this.append(!alias ? sql` ON (${baseTable}.${onExpr})` : sql` AS "${alias}" ON (${baseTable}.${onExpr})`);
-				}
-				else
-				{	this.strings[this.strings.length - 1] += ' LEFT JOIN ';
-					this.estimatedByteLength += 11;
-					this.appendTableName(tableName);
-					this.append(!alias ? sql` ON (${baseTable}.${onExpr})` : sql` AS "${alias}" ON (${baseTable}.${onExpr})`);
-				}
-			}
+		this.append(sql` AS "${baseTable}"`);
+		for (let i=0, iEnd=this.#joins.length; i<iEnd; i++)
+		{	this.#appendJoin(baseTable, i);
 		}
 	}
 
@@ -124,27 +71,31 @@ export class SqlTable extends Sql
 	{	const {tableName, alias} = this.#joins[0];
 		this.append(!alias ? sql` "${tableName}"` : sql` "${tableName}" AS "${alias}"`);
 		for (let i=1, iEnd=this.#joins.length; i<iEnd; i++)
-		{	const {tableName, alias, onExpr, isLeft} = this.#joins[i];
-			if (!onExpr)
-			{	this.strings[this.strings.length - 1] += ' CROSS JOIN ';
-				this.estimatedByteLength += 12;
-				this.appendTableName(tableName);
-				if (alias)
-				{	this.append(sql` AS "${alias}"`);
-				}
+		{	this.#appendJoin(baseTable, i);
+		}
+	}
+
+	#appendJoin(baseTable: string, i: number)
+	{	const {tableName, alias, onExpr, isLeft} = this.#joins[i];
+		if (!onExpr)
+		{	this.strings[this.strings.length - 1] += ' CROSS JOIN ';
+			this.estimatedByteLength += 12;
+			this.appendTableName(tableName);
+			if (alias)
+			{	this.append(sql` AS "${alias}"`);
 			}
-			else if (!isLeft)
-			{	this.strings[this.strings.length - 1] += ' INNER JOIN ';
-				this.estimatedByteLength += 12;
-				this.appendTableName(tableName);
-				this.append(!alias ? sql` ON (${baseTable}.${onExpr})` : sql` AS "${alias}" ON (${baseTable}.${onExpr})`);
-			}
-			else
-			{	this.strings[this.strings.length - 1] += ' LEFT JOIN ';
-				this.estimatedByteLength += 11;
-				this.appendTableName(tableName);
-				this.append(!alias ? sql` ON (${baseTable}.${onExpr})` : sql` AS "${alias}" ON (${baseTable}.${onExpr})`);
-			}
+		}
+		else if (!isLeft)
+		{	this.strings[this.strings.length - 1] += ' INNER JOIN ';
+			this.estimatedByteLength += 12;
+			this.appendTableName(tableName);
+			this.append(!alias ? sql` ON (${baseTable}.${onExpr})` : sql` AS "${alias}" ON (${baseTable}.${onExpr})`);
+		}
+		else
+		{	this.strings[this.strings.length - 1] += ' LEFT JOIN ';
+			this.estimatedByteLength += 11;
+			this.appendTableName(tableName);
+			this.append(!alias ? sql` ON (${baseTable}.${onExpr})` : sql` AS "${alias}" ON (${baseTable}.${onExpr})`);
 		}
 	}
 
@@ -170,7 +121,6 @@ export class SqlTable extends Sql
 		{	throw new Error(`join() can be called before groupBy()`);
 		}
 		this.#joins.push({tableName, alias, onExpr, isLeft});
-		this.#tableUsed(alias || tableName);
 	}
 
 	/**	Adds an INNER (if `onExpr` is given) or a CROSS join (if `onExpr` is blank).
@@ -543,24 +493,24 @@ export class SqlTable extends Sql
 				const orderBy = this.#operationSelectOrderBy;
 				const offset = this.#operationSelectOffset;
 				const limit = this.#operationSelectLimit;
-				const baseTable = this.#getBaseTableAlias();
+				const tableAlias = this.#getTableAlias();
 				if (!columns)
 				{	this.append(sql`SELECT * FROM`);
 				}
 				else if (Array.isArray(columns))
-				{	this.append(sql`SELECT "${baseTable}.${columns}*" FROM`);
+				{	this.append(sql`SELECT "${tableAlias}.${columns}*" FROM`);
 				}
 				else
-				{	this.append(sql`SELECT ${baseTable}.${columns} FROM`);
+				{	this.append(sql`SELECT ${tableAlias}.${columns} FROM`);
 				}
-				this.#appendJoins(baseTable);
-				this.#appendWhereExprs(baseTable);
+				this.#appendJoins(tableAlias);
+				this.#appendWhereExprs(tableAlias);
 				if (this.#groupByExprs)
 				{	if (!Array.isArray(this.#groupByExprs))
-					{	this.append(sql` GROUP BY ${baseTable}.${this.#groupByExprs}`);
+					{	this.append(sql` GROUP BY ${tableAlias}.${this.#groupByExprs}`);
 					}
 					else if (this.#groupByExprs.length)
-					{	this.append(sql` GROUP BY "${baseTable}.${this.#groupByExprs}+"`);
+					{	this.append(sql` GROUP BY "${tableAlias}.${this.#groupByExprs}+"`);
 					}
 					if (this.#havingExpr)
 					{	this.append(sql` HAVING (${this.#havingExpr})`);
@@ -680,7 +630,7 @@ export class SqlTable extends Sql
 					this.#appendWhereExprs('');
 				}
 				else
-				{	const baseTable = this.#getBaseTableAlias();
+				{	const tableAlias = this.#getTableAlias();
 					const [{onExpr, isLeft}] = this.#joins;
 					if (isLeft)
 					{	switch (mode)
@@ -700,22 +650,22 @@ export class SqlTable extends Sql
 						case SqlMode.MYSQL_ONLY:
 						{	this.strings[this.strings.length - 1] += 'UPDATE';
 							this.estimatedByteLength += 6;
-							this.#appendJoins(baseTable);
-							this.append(sql` SET {${baseTable}.${row}}`);
-							this.#appendWhereExprs(baseTable);
+							this.#appendJoins(tableAlias);
+							this.append(sql` SET {${tableAlias}.${row}}`);
+							this.#appendWhereExprs(tableAlias);
 							break;
 						}
 
 						case SqlMode.SQLITE_ONLY:
 							if (isLeft)
-							{	const subj = this.#getSubjTableAlias();
+							{	const subj = this.genAlias('subj_table');
 								this.strings[this.strings.length - 1] += 'UPDATE ';
 								this.estimatedByteLength += 7;
 								this.appendTableName(this.tableName);
-								this.append(sql` AS "${subj}" SET {.${baseTable}.${row}} FROM`);
-								this.#appendJoins(baseTable);
-								const hasWhere = this.#appendWhereExprs(baseTable);
-								this.append(hasWhere ? sql` AND "${subj}".rowid = "${baseTable}".rowid` : sql` WHERE "${subj}".rowid = "${baseTable}".rowid`);
+								this.append(sql` AS "${subj}" SET {.${tableAlias}.${row}} FROM`);
+								this.#appendJoins(tableAlias);
+								const hasWhere = this.#appendWhereExprs(tableAlias);
+								this.append(hasWhere ? sql` AND "${subj}".rowid = "${tableAlias}".rowid` : sql` WHERE "${subj}".rowid = "${tableAlias}".rowid`);
 								break;
 							}
 							// fallthrough
@@ -726,10 +676,10 @@ export class SqlTable extends Sql
 						{	this.strings[this.strings.length - 1] += 'UPDATE ';
 							this.estimatedByteLength += 7;
 							this.appendTableName(this.tableName);
-							this.append(sql` AS "${baseTable}" SET {.${baseTable}.${row}} FROM`);
-							this.#appendJoinsExceptFirst(baseTable);
-							const hasWhere = this.#appendWhereExprs(baseTable);
-							this.append(hasWhere ? sql` AND (${baseTable}.${onExpr})` : sql` WHERE (${baseTable}.${onExpr})`);
+							this.append(sql` AS "${tableAlias}" SET {.${tableAlias}.${row}} FROM`);
+							this.#appendJoinsExceptFirst(tableAlias);
+							const hasWhere = this.#appendWhereExprs(tableAlias);
+							this.append(hasWhere ? sql` AND (${tableAlias}.${onExpr})` : sql` WHERE (${tableAlias}.${onExpr})`);
 							break;
 						}
 
@@ -738,9 +688,9 @@ export class SqlTable extends Sql
 							this.strings[this.strings.length - 1] += 'UPDATE ';
 							this.estimatedByteLength += 7;
 							this.appendTableName(this.tableName);
-							this.append(sql` SET {.${baseTable}.${row}} FROM`);
-							this.#appendJoins(baseTable);
-							this.#appendWhereExprs(baseTable);
+							this.append(sql` SET {.${tableAlias}.${row}} FROM`);
+							this.#appendJoins(tableAlias);
+							this.#appendWhereExprs(tableAlias);
 						}
 					}
 				}
@@ -756,7 +706,7 @@ export class SqlTable extends Sql
 					this.#appendWhereExprs('');
 				}
 				else
-				{	const baseTable = this.#getBaseTableAlias();
+				{	const tableAlias = this.#getTableAlias();
 					const [{onExpr, isLeft}] = this.#joins;
 					if (isLeft)
 					{	switch (mode)
@@ -776,9 +726,9 @@ export class SqlTable extends Sql
 						case SqlMode.MYSQL_ONLY:
 						case SqlMode.MSSQL:
 						case SqlMode.MSSQL_ONLY:
-						{	this.append(sql`DELETE "${baseTable}" FROM`);
-							this.#appendJoins(baseTable);
-							this.#appendWhereExprs(baseTable);
+						{	this.append(sql`DELETE "${tableAlias}" FROM`);
+							this.#appendJoins(tableAlias);
+							this.#appendWhereExprs(tableAlias);
 							break;
 						}
 
@@ -787,22 +737,22 @@ export class SqlTable extends Sql
 						{	this.strings[this.strings.length - 1] += 'DELETE FROM ';
 							this.estimatedByteLength += 12;
 							this.appendTableName(this.tableName);
-							this.append(sql` AS "${baseTable}" USING`);
-							this.#appendJoinsExceptFirst(baseTable);
-							const hasWhere = this.#appendWhereExprs(baseTable);
-							this.append(hasWhere ? sql` AND (${baseTable}.${onExpr})` : sql` WHERE (${baseTable}.${onExpr})`);
+							this.append(sql` AS "${tableAlias}" USING`);
+							this.#appendJoinsExceptFirst(tableAlias);
+							const hasWhere = this.#appendWhereExprs(tableAlias);
+							this.append(hasWhere ? sql` AND (${tableAlias}.${onExpr})` : sql` WHERE (${tableAlias}.${onExpr})`);
 							break;
 						}
 
 						default:
 						{	debugAssert(mode==SqlMode.SQLITE || mode==SqlMode.SQLITE_ONLY);
-							const subj = this.#getSubjTableAlias();
+							const subj = this.genAlias('subj_table');
 							this.strings[this.strings.length - 1] += 'DELETE FROM ';
 							this.estimatedByteLength += 12;
 							this.appendTableName(this.tableName);
-							this.append(sql` AS "${subj}" WHERE rowid IN (SELECT "${baseTable}".rowid FROM`);
-							this.#appendJoins(baseTable);
-							this.#appendWhereExprs(baseTable);
+							this.append(sql` AS "${subj}" WHERE rowid IN (SELECT "${tableAlias}".rowid FROM`);
+							this.#appendJoins(tableAlias);
+							this.#appendWhereExprs(tableAlias);
 							this.append(sql`)`);
 						}
 					}
@@ -859,6 +809,21 @@ export class SqlTable extends Sql
 	protected appendTableName(tableName: string)
 	{	this.append(sql`"${tableName}"`);
 		return tableName;
+	}
+
+	protected genAlias(name: string)
+	{	for (let i=1, iEnd=name.length; i<iEnd; i++)
+		{	const n = name.slice(0, i);
+			if (this.#joins.findIndex(j => (j.alias || j.tableName) == n) == -1)
+			{	return n;
+			}
+		}
+		for (let i=2; true; i++)
+		{	const n = name + '_' + i;
+			if (this.#joins.findIndex(j => (j.alias || j.tableName) == n) == -1)
+			{	return n;
+			}
+		}
 	}
 }
 
