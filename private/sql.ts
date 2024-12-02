@@ -85,7 +85,6 @@ const enum Change
 	INSERT_PARENT_NAME,
 	QUOTE_AND_QUALIFY_COLUMN_NAME,
 	QUOTE_COLUMN_NAME,
-	QUOTE_IDENT,
 }
 
 // deno-lint-ignore no-explicit-any
@@ -978,7 +977,7 @@ L:		for (let j=from; j<pos; j++)
 									}
 								}
 								if (alwaysQuoteIdents && j!=changeFrom)
-								{	changes[changes.length] = {change: Change.QUOTE_IDENT, changeFrom, changeTo: j-1};
+								{	changes[changes.length] = {change: Change.QUOTE_COLUMN_NAME, changeFrom, changeTo: j-1};
 									nAdd += 2; // ``
 								}
 								break;
@@ -1031,7 +1030,7 @@ L:		for (let j=from; j<pos; j++)
 							const name = result.subarray(changeFrom, jAfterIdent);
 							if (c == C_PAREN_OPEN) // if is function
 							{	if (!this.sqlSettings.isFunctionAllowed(name))
-								{	changes[changes.length] = {change: Change.QUOTE_IDENT, changeFrom, changeTo: jAfterIdent-1};
+								{	changes[changes.length] = {change: Change.QUOTE_COLUMN_NAME, changeFrom, changeTo: jAfterIdent-1};
 									nAdd += 2; // ``
 								}
 								else if (jAfterIdent < j)
@@ -1043,7 +1042,7 @@ L:		for (let j=from; j<pos; j++)
 								}
 							}
 							else if (c == C_DOT) // if is parent qualifier
-							{	changes[changes.length] = {change: Change.QUOTE_IDENT, changeFrom, changeTo: jAfterIdent-1};
+							{	changes[changes.length] = {change: Change.QUOTE_COLUMN_NAME, changeFrom, changeTo: jAfterIdent-1};
 								nAdd += 2; // ``
 							}
 							else if (!this.sqlSettings.isIdentAllowed(name))
@@ -1115,7 +1114,8 @@ L:		for (let j=from; j<pos; j++)
 							result[k] = qtId;
 							j++; // will k--, j-- on next iter
 							break;
-						case Change.QUOTE_AND_QUALIFY_COLUMN_NAME:
+						default:
+							debugAssert(change == Change.QUOTE_AND_QUALIFY_COLUMN_NAME);
 							// column name to quote
 							if (alwaysQuoteIdents)
 							{	result[k--] = qtId;
@@ -1134,15 +1134,6 @@ L:		for (let j=from; j<pos; j++)
 							result[k] = qtId;
 							j++; // will k--, j-- on next iter
 							break;
-						default:
-							debugAssert(change == Change.QUOTE_IDENT);
-							// some identifier to quote
-							result[k--] = qtId;
-							while (j >= changeFrom)
-							{	result[k--] = result[j--];
-							}
-							result[k] = qtId;
-							j++; // will k--, j-- on next iter
 					}
 					if (nChange <= 0)
 					{	break;
