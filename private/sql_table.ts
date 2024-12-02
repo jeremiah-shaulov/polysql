@@ -126,25 +126,25 @@ export class SqlTable extends Sql
 		for (let i=1, iEnd=this.#joins.length; i<iEnd; i++)
 		{	const {tableName, alias, onExpr, isLeft} = this.#joins[i];
 			if (!onExpr)
-				{	this.strings[this.strings.length - 1] += ' CROSS JOIN ';
-					this.estimatedByteLength += 12;
-					this.appendTableName(tableName);
-					if (alias)
-					{	this.append(sql` AS "${alias}"`);
-					}
+			{	this.strings[this.strings.length - 1] += ' CROSS JOIN ';
+				this.estimatedByteLength += 12;
+				this.appendTableName(tableName);
+				if (alias)
+				{	this.append(sql` AS "${alias}"`);
 				}
-				else if (!isLeft)
-				{	this.strings[this.strings.length - 1] += ' INNER JOIN ';
-					this.estimatedByteLength += 12;
-					this.appendTableName(tableName);
-					this.append(!alias ? sql` ON (${baseTable}.${onExpr})` : sql` AS "${alias}" ON (${baseTable}.${onExpr})`);
-				}
-				else
-				{	this.strings[this.strings.length - 1] += ' LEFT JOIN ';
-					this.estimatedByteLength += 11;
-					this.appendTableName(tableName);
-					this.append(!alias ? sql` ON (${baseTable}.${onExpr})` : sql` AS "${alias}" ON (${baseTable}.${onExpr})`);
-				}
+			}
+			else if (!isLeft)
+			{	this.strings[this.strings.length - 1] += ' INNER JOIN ';
+				this.estimatedByteLength += 12;
+				this.appendTableName(tableName);
+				this.append(!alias ? sql` ON (${baseTable}.${onExpr})` : sql` AS "${alias}" ON (${baseTable}.${onExpr})`);
+			}
+			else
+			{	this.strings[this.strings.length - 1] += ' LEFT JOIN ';
+				this.estimatedByteLength += 11;
+				this.appendTableName(tableName);
+				this.append(!alias ? sql` ON (${baseTable}.${onExpr})` : sql` AS "${alias}" ON (${baseTable}.${onExpr})`);
+			}
 		}
 	}
 
@@ -218,23 +218,6 @@ export class SqlTable extends Sql
 		this.#groupByExprs = groupByExprs;
 		this.#havingExpr = havingExpr;
 		return this;
-	}
-
-	/**	This function is called every time a quoted table name must be appended to the query.
-		Subclasses can override this function to convert table names and maybe add schema prefixes.
-		The query generation starts when this object is asked to be converted to string or to bytes,
-		so this function will not be called before this.
-		This function must then return the converted table name without qualifiers.
-		Default implementation:
-
-		```
-		this.append(sql`"${tableName}"`);
-		return tableName;
-		```
-	 **/
-	protected appendTableName(tableName: string)
-	{	this.append(sql`"${tableName}"`);
-		return tableName;
 	}
 
 	/**	Generates an INSERT query.
@@ -859,6 +842,23 @@ export class SqlTable extends Sql
 		this.#operationInsertOnConflictDo = '';
 		this.#operationInsertNames = undefined;
 		this.#operationInsertSelect = undefined;
+	}
+
+	/**	This function is called every time a quoted table name must be appended to the query.
+		Subclasses can override this function to convert table names and maybe add schema prefixes.
+		The query generation starts when this object is asked to be converted to string or to bytes,
+		so this function will not be called before this.
+		This function must then return the converted table name without qualifiers.
+		Default implementation:
+
+		```
+		this.append(sql`"${tableName}"`);
+		return tableName;
+		```
+	 **/
+	protected appendTableName(tableName: string)
+	{	this.append(sql`"${tableName}"`);
+		return tableName;
 	}
 }
 

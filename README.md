@@ -697,7 +697,7 @@ const SQL_SETTINGS_MYSQL = new SqlSettings(SqlMode.MYSQL);
 class SqlTableCustom extends SqlTable
 {	private schema = 'sc';
 
-	protected appendTableName(tableName: string)
+	protected override appendTableName(tableName: string)
 	{	tableName = 't_' + tableName;
 		this.append(!this.schema ? sql`"${tableName}"` : sql`"${this.schema}"."${tableName}"`);
 		return tableName;
@@ -718,7 +718,6 @@ const sql = new Proxy
 );
 
 console.log('' + sql.messages.where('id=1').select()); // prints: SELECT * FROM `sc`.`t_messages` WHERE (`id`=1)
-
 ```
 
 Another reason for adding custom methods to `SqlTable` is to add  `query()` method that will cooperate with your database driver.
