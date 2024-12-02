@@ -79,9 +79,9 @@ const enum Want
 }
 
 const enum Change
-{	DOUBLE_BACKSLASH,
-	DOUBLE_BACKTICK,
-	DOUBLE_QUOT,
+{	INSERT_BACKSLASH,
+	INSERT_BACKTICK,
+	INSERT_QUOT,
 	INSERT_PARENT_NAME,
 	QUOTE_AND_QUALIFY_COLUMN_NAME,
 	QUOTE_COLUMN_NAME,
@@ -881,7 +881,7 @@ L:		for (let j=from; j<pos; j++)
 					{	c = result[j];
 						if (c == C_BACKSLASH)
 						{	if (!this.noBackslashEscapes)
-							{	changes[changes.length] = {change: Change.DOUBLE_BACKSLASH, changeFrom: j, changeTo: j};
+							{	changes[changes.length] = {change: Change.INSERT_BACKSLASH, changeFrom: j, changeTo: j};
 								nAdd++;
 							}
 						}
@@ -921,7 +921,7 @@ L:		for (let j=from; j<pos; j++)
 								result.copyWithin(j+1, j+2, pos--); // undouble the quote
 							}
 							else if (c == qtId)
-							{	changes[changes.length] = {change: qtId==C_BACKTICK ? Change.DOUBLE_BACKTICK : Change.DOUBLE_QUOT, changeFrom: j, changeTo: j};
+							{	changes[changes.length] = {change: qtId==C_BACKTICK ? Change.INSERT_BACKTICK : Change.INSERT_QUOT, changeFrom: j, changeTo: j};
 								nAdd++;
 							}
 						}
@@ -937,7 +937,7 @@ L:		for (let j=from; j<pos; j++)
 							}
 						}
 						if (c!=C_PAREN_OPEN && c!=C_DOT)
-						{	changes.splice(changesPos, 0, {change: Change.INSERT_PARENT_NAME, changeFrom: jFrom-1, changeTo: jFrom-1});
+						{	changes.splice(changesPos, 0, {change: Change.INSERT_PARENT_NAME, changeFrom: jFrom, changeTo: jFrom});
 							nAdd += parentName.length + 3; // plus ``.
 						}
 						j--; // will j++ on next iter
@@ -977,7 +977,7 @@ L:		for (let j=from; j<pos; j++)
 									}
 								}
 								if (alwaysQuoteIdents && j!=changeFrom)
-								{	changes[changes.length] = {change: Change.QUOTE_COLUMN_NAME, changeFrom, changeTo: j-1};
+								{	changes[changes.length] = {change: Change.QUOTE_COLUMN_NAME, changeFrom, changeTo: j};
 									nAdd += 2; // ``
 								}
 								break;
@@ -1030,7 +1030,7 @@ L:		for (let j=from; j<pos; j++)
 							const name = result.subarray(changeFrom, jAfterIdent);
 							if (c == C_PAREN_OPEN) // if is function
 							{	if (!this.sqlSettings.isFunctionAllowed(name))
-								{	changes[changes.length] = {change: Change.QUOTE_COLUMN_NAME, changeFrom, changeTo: jAfterIdent-1};
+								{	changes[changes.length] = {change: Change.QUOTE_COLUMN_NAME, changeFrom, changeTo: jAfterIdent};
 									nAdd += 2; // ``
 								}
 								else if (jAfterIdent < j)
@@ -1042,16 +1042,16 @@ L:		for (let j=from; j<pos; j++)
 								}
 							}
 							else if (c == C_DOT) // if is parent qualifier
-							{	changes[changes.length] = {change: Change.QUOTE_COLUMN_NAME, changeFrom, changeTo: jAfterIdent-1};
+							{	changes[changes.length] = {change: Change.QUOTE_COLUMN_NAME, changeFrom, changeTo: jAfterIdent};
 								nAdd += 2; // ``
 							}
 							else if (!this.sqlSettings.isIdentAllowed(name))
 							{	if (lastAsAt!=changeFrom && parentName.length) // if not after AS keyword, and there's `parentName`
-								{	changes[changes.length] = {change: Change.QUOTE_AND_QUALIFY_COLUMN_NAME, changeFrom, changeTo: jAfterIdent-1};
+								{	changes[changes.length] = {change: Change.QUOTE_AND_QUALIFY_COLUMN_NAME, changeFrom, changeTo: jAfterIdent};
 									nAdd += !alwaysQuoteIdents ? parentName.length+3 : parentName.length+5; // !alwaysQuoteIdents ? ``. : ``.``
 								}
 								else
-								{	changes[changes.length] = {change: Change.QUOTE_COLUMN_NAME, changeFrom, changeTo: jAfterIdent-1};
+								{	changes[changes.length] = {change: Change.QUOTE_COLUMN_NAME, changeFrom, changeTo: jAfterIdent};
 									nAdd += 2; // ``
 								}
 							}
@@ -1074,65 +1074,59 @@ L:		for (let j=from; j<pos; j++)
 			let nChange = changes.length;
 			// deno-lint-ignore no-inner-declarations no-var
 			var {change, changeFrom, changeTo} = changes[--nChange];
-			for (let j=pos-1, k=j+nAdd; true; k--, j--)
-			{	const c = result[j];
+			const end = pos + nAdd;
+			let j = pos;
+			let k = end;
+			while (true)
+			{	debugAssert(j > 0);
 				if (j == changeTo)
 				{	// take actions
 					switch (change)
-					{	case Change.DOUBLE_BACKSLASH:
-							// backslash to double
-							debugAssert(c == C_BACKSLASH);
-							result[k--] = C_BACKSLASH;
-							result[k] = C_BACKSLASH;
+					{	case Change.INSERT_BACKSLASH:
+							// backslash to insert
+							result[--k] = C_BACKSLASH;
 							break;
-						case Change.DOUBLE_BACKTICK:
-							// backtick to double
-							debugAssert(c == C_BACKTICK);
-							result[k--] = C_BACKTICK;
-							result[k] = C_BACKTICK;
+						case Change.INSERT_BACKTICK:
+							// backtick to insert
+							result[--k] = C_BACKTICK;
 							break;
-						case Change.DOUBLE_QUOT:
-							// qout to double
-							debugAssert(c == C_QUOT);
-							result[k--] = C_QUOT;
-							result[k] = C_QUOT;
+						case Change.INSERT_QUOT:
+							// qout to insert
+							result[--k] = C_QUOT;
 							break;
 						case Change.INSERT_PARENT_NAME:
-							result[k--] = C_DOT;
-							result[k--] = qtId;
-							for (let p=parentName.length-1; p>=0; p--)
-							{	result[k--] = parentName![p];
+							result[--k] = C_DOT;
+							result[--k] = qtId;
+							for (let p=parentName.length; p>0;)
+							{	result[--k] = parentName[--p];
 							}
-							result[k--] = qtId;
-							result[k] = c;
+							result[--k] = qtId;
 							break;
 						case Change.QUOTE_COLUMN_NAME:
-							result[k--] = qtId;
-							while (j >= changeFrom)
-							{	result[k--] = result[j--];
+							result[--k] = qtId;
+							while (j > changeFrom)
+							{	result[--k] = result[--j];
 							}
-							result[k] = qtId;
-							j++; // will k--, j-- on next iter
+							result[--k] = qtId;
 							break;
 						default:
 							debugAssert(change == Change.QUOTE_AND_QUALIFY_COLUMN_NAME);
 							// column name to quote
 							if (alwaysQuoteIdents)
-							{	result[k--] = qtId;
+							{	result[--k] = qtId;
 							}
-							while (j >= changeFrom)
-							{	result[k--] = result[j--];
+							while (j > changeFrom)
+							{	result[--k] = result[--j];
 							}
 							if (alwaysQuoteIdents)
-							{	result[k--] = qtId;
+							{	result[--k] = qtId;
 							}
-							result[k--] = C_DOT;
-							result[k--] = qtId;
-							for (let p=parentName.length-1; p>=0; p--)
-							{	result[k--] = parentName[p];
+							result[--k] = C_DOT;
+							result[--k] = qtId;
+							for (let p=parentName.length; p>0;)
+							{	result[--k] = parentName[--p];
 							}
-							result[k] = qtId;
-							j++; // will k--, j-- on next iter
+							result[--k] = qtId;
 							break;
 					}
 					if (nChange <= 0)
@@ -1143,10 +1137,10 @@ L:		for (let j=from; j<pos; j++)
 				}
 				else
 				{	// copy char
-					result[k] = c;
+					result[--k] = result[--j];
 				}
 			}
-			this.pos = pos + nAdd;
+			this.pos = end;
 		}
 	}
 
