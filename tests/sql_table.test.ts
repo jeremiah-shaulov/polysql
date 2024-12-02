@@ -1,4 +1,6 @@
 import {INLINE_STRING_MAX_LEN} from '../private/sql.ts';
+import {SqlTable} from '../private/sql_table.ts';
+import {SqlSettings, SqlMode} from '../private/sql_settings.ts';
 import {mysql, mysqlOnly, pgsql, pgsqlOnly, sqlite, sqliteOnly, mssql, mssqlOnly} from '../private/sql_factory.ts';
 import {assertEquals} from 'jsr:@std/assert@1.0.7/equals';
 
@@ -1026,5 +1028,120 @@ Deno.test
 
 		s = '' + mysql.new_pages.insertFrom(['pa', 'pb', 'pc'], mysql.links.join('pages', 'p').select('Length(a) AS "la", Length(b) AS `lb`, Length(c) AS lc').where('id = 1'));
 		assertEquals(s, "INSERT INTO `new_pages` (`pa`, `pb`, `pc`) SELECT Length(`l`.a) AS `la`, Length(`l`.b) AS `lb`, Length(`l`.c) AS `lc` FROM `links` AS `l` CROSS JOIN `pages` AS `p` WHERE (`l`.id = 1)");
+	}
+);
+
+Deno.test
+(	'Arrow',
+	() =>
+	{	const SQL_SETTINGS_MYSQL = new SqlSettings(SqlMode.MYSQL);
+
+		let lastParentName = '';
+		let lastName = '';
+
+		class SqlTableCustom extends SqlTable
+		{	protected override onArrow(parentName: string, name: string): string|undefined
+			{	lastParentName = parentName;
+				lastName = name;
+				return `${parentName}#${name}`;
+			}
+		}
+
+		const sql = new Proxy
+		(	function sql(strings: TemplateStringsArray, ...params: unknown[])
+			{	return new SqlTableCustom(SQL_SETTINGS_MYSQL, '', [...strings], params);
+			} as Record<string, SqlTableCustom> & {(strings: TemplateStringsArray, ...params: unknown[]): SqlTableCustom},
+			{	get(_target, table_name)
+				{	if (typeof(table_name) != 'string')
+					{	throw new Error("Table name must be string");
+					}
+					return new SqlTableCustom(SQL_SETTINGS_MYSQL, table_name);
+				}
+			}
+		);
+
+		assertEquals
+		(	sql.transactions.where(`id = 1`).select(`product_id->name`) + "",
+			"SELECT `#product_id`.`name` FROM `transactions` AS `t` WHERE (`t`.id = 1)"
+		);
+		assertEquals(lastParentName, '');
+		assertEquals(lastName, 'product_id');
+
+		assertEquals
+		(	sql.transactions.where(`id = 1`).select(`"product_id"->name`) + "",
+			"SELECT `#product_id`.`name` FROM `transactions` AS `t` WHERE (`t`.id = 1)"
+		);
+		assertEquals(lastParentName, '');
+		assertEquals(lastName, 'product_id');
+
+		assertEquals
+		(	sql.transactions.where(`id = 1`).select(`par.product_id->name`) + "",
+			"SELECT `par#product_id`.`name` FROM `transactions` AS `t` WHERE (`t`.id = 1)"
+		);
+		assertEquals(lastParentName, 'par');
+		assertEquals(lastName, 'product_id');
+
+		assertEquals
+		(	sql.transactions.where(`id = 1`).select(`par."product_id"->name`) + "",
+			"SELECT `par#product_id`.`name` FROM `transactions` AS `t` WHERE (`t`.id = 1)"
+		);
+		assertEquals(lastParentName, 'par');
+		assertEquals(lastName, 'product_id');
+
+		assertEquals
+		(	sql.transactions.where(`id = 1`).select(`"par".product_id->name`) + "",
+			"SELECT `par#product_id`.`name` FROM `transactions` AS `t` WHERE (`t`.id = 1)"
+		);
+		assertEquals(lastParentName, 'par');
+		assertEquals(lastName, 'product_id');
+
+		assertEquals
+		(	sql.transactions.where(`id = 1`).select(`"par"."product_id"->name`) + "",
+			"SELECT `par#product_id`.`name` FROM `transactions` AS `t` WHERE (`t`.id = 1)"
+		);
+		assertEquals(lastParentName, 'par');
+		assertEquals(lastName, 'product_id');
+
+		assertEquals
+		(	sql.transactions.where(`id = 1`).select(`"par"."product_\`id"->name`) + "",
+			"SELECT `par#product_``id`.`name` FROM `transactions` AS `t` WHERE (`t`.id = 1)"
+		);
+		assertEquals(lastParentName, 'par');
+		assertEquals(lastName, 'product_`id');
+
+		assertEquals
+		(	sql.transactions.where(`id = 1`).select(`"par"."product_\`\`id"->name`) + "",
+			"SELECT `par#product_````id`.`name` FROM `transactions` AS `t` WHERE (`t`.id = 1)"
+		);
+		assertEquals(lastParentName, 'par');
+		assertEquals(lastName, 'product_``id');
+
+		assertEquals
+		(	sql.transactions.where(`id = 1`).select(`"par"."product_""id"->name`) + "",
+			"SELECT `par#product_\"id`.`name` FROM `transactions` AS `t` WHERE (`t`.id = 1)"
+		);
+		assertEquals(lastParentName, 'par');
+		assertEquals(lastName, 'product_"id');
+
+		assertEquals
+		(	sql.transactions.where(`id = 1`).select(`"par".\`product_"id\`->name`) + "",
+			"SELECT `par#product_\"id`.`name` FROM `transactions` AS `t` WHERE (`t`.id = 1)"
+		);
+		assertEquals(lastParentName, 'par');
+		assertEquals(lastName, 'product_"id');
+
+		assertEquals
+		(	sql.transactions.where(`id = 1`).select(`"par".\`product_""id\`->name`) + "",
+			"SELECT `par#product_\"\"id`.`name` FROM `transactions` AS `t` WHERE (`t`.id = 1)"
+		);
+		assertEquals(lastParentName, 'par');
+		assertEquals(lastName, 'product_""id');
+
+		assertEquals
+		(	sql.transactions.where(`id = 1`).select('"par".`product_``id`->name') + "",
+			"SELECT `par#product_``id`.`name` FROM `transactions` AS `t` WHERE (`t`.id = 1)"
+		);
+		assertEquals(lastParentName, 'par');
+		assertEquals(lastName, 'product_`id');
 	}
 );

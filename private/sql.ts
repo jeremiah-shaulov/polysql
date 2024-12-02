@@ -82,9 +82,13 @@ const enum Change
 {	INSERT_BACKSLASH,
 	INSERT_BACKTICK,
 	INSERT_QUOT,
+	INSERT_DOUBLE_BACKTICK,
+	INSERT_DOUBLE_QUOT,
 	INSERT_PARENT_NAME,
+	INSERT_CHARS_DOUBLE_QTID,
 	QUOTE_AND_QUALIFY_COLUMN_NAME,
 	QUOTE_COLUMN_NAME,
+	REMOVE,
 }
 
 // deno-lint-ignore no-explicit-any
@@ -196,7 +200,7 @@ export class Sql
 	{	const {strings, params, sqlSettings} = this;
 		const {mode} = sqlSettings;
 		// 1. Allocate the buffer
-		const serializer = new Serializer(putParamsTo, mode!=SqlMode.MYSQL && mode!=SqlMode.MYSQL_ONLY || mysqlNoBackslashEscapes, useBuffer, useBufferFromPos, sqlSettings, this.estimatedByteLength);
+		const serializer = new Serializer(putParamsTo, mode!=SqlMode.MYSQL && mode!=SqlMode.MYSQL_ONLY || mysqlNoBackslashEscapes, useBuffer, useBufferFromPos, sqlSettings, this.estimatedByteLength, this.onArrow.bind(this));
 		// 2. Append strings and params to the buffer
 		let want = Want.NOTHING;
 		const iEnd = strings.length - 1;
@@ -298,6 +302,10 @@ export class Sql
 	toSqlBytesWithParamsBackslashAndBuffer(putParamsTo: unknown[]|undefined, mysqlNoBackslashEscapes: boolean, useBuffer: Uint8Array)
 	{	return this.encode(putParamsTo, mysqlNoBackslashEscapes, useBuffer);
 	}
+
+	protected onArrow(_parentName: string, _name: string): string|undefined
+	{	return undefined;
+	}
 }
 
 class Serializer
@@ -308,8 +316,9 @@ class Serializer
 	private bufferForParentName = EMPTY_ARRAY;
 	private parentName = EMPTY_ARRAY;
 	private parentNameLeft = EMPTY_ARRAY;
+	private onArrow;
 
-	constructor(private putParamsTo: unknown[]|undefined, private noBackslashEscapes: boolean, useBuffer: Uint8Array|undefined, useBufferFromPos: number, private sqlSettings: SqlSettings, estimatedByteLength: number)
+	constructor(private putParamsTo: unknown[]|undefined, private noBackslashEscapes: boolean, useBuffer: Uint8Array|undefined, useBufferFromPos: number, private sqlSettings: SqlSettings, estimatedByteLength: number, onArrow: (parentName: string, name: string) => string|undefined)
 	{	if (useBuffer)
 		{	this.result = useBuffer;
 			this.pos = useBufferFromPos;
@@ -320,6 +329,7 @@ class Serializer
 		}
 		this.qtId = sqlSettings.mode==SqlMode.MYSQL || sqlSettings.mode==SqlMode.MYSQL_ONLY ? C_BACKTICK : C_QUOT;
 		this.alwaysQuoteIdents = sqlSettings.mode==SqlMode.SQLITE || sqlSettings.mode==SqlMode.SQLITE_ONLY || sqlSettings.mode==SqlMode.MSSQL || sqlSettings.mode==SqlMode.MSSQL_ONLY;
+		this.onArrow = onArrow;
 	}
 
 	private appendRawString(s: string)
@@ -865,8 +875,16 @@ class Serializer
 		// 1. Find how many bytes to add
 		let {result, pos, qtId, alwaysQuoteIdents, parentName} = this;
 		let parenLevel = 0;
-		const changes = new Array<{change: Change, changeFrom: number, changeTo: number}>;
+		const changes = new Array<{change: Change, changeFrom: number, changeTo: number, arg: Uint8Array}>;
 		let nAdd = 0;
+		let nRemove = 0;
+		let curParentNameFrom = 0;
+		let curParentNameTo = 0;
+		let curParentNameQt = 0;
+		let curNameFrom = 0;
+		let curNameTo = 0;
+		let curNameQt = 0;
+		let curNameValidAt = 0;
 		let lastAsAt = 0;
 L:		for (let j=from; j<pos; j++)
 		{	let c = result[j];
@@ -881,7 +899,7 @@ L:		for (let j=from; j<pos; j++)
 					{	c = result[j];
 						if (c == C_BACKSLASH)
 						{	if (!this.noBackslashEscapes)
-							{	changes[changes.length] = {change: Change.INSERT_BACKSLASH, changeFrom: j, changeTo: j};
+							{	changes[changes.length] = {change: Change.INSERT_BACKSLASH, changeFrom: j, changeTo: j, arg: EMPTY_ARRAY};
 								nAdd++;
 							}
 						}
@@ -921,7 +939,7 @@ L:		for (let j=from; j<pos; j++)
 								result.copyWithin(j+1, j+2, pos--); // undouble the quote
 							}
 							else if (c == qtId)
-							{	changes[changes.length] = {change: qtId==C_BACKTICK ? Change.INSERT_BACKTICK : Change.INSERT_QUOT, changeFrom: j, changeTo: j};
+							{	changes[changes.length] = {change: qtId==C_BACKTICK ? Change.INSERT_BACKTICK : Change.INSERT_QUOT, changeFrom: j, changeTo: j, arg: EMPTY_ARRAY};
 								nAdd++;
 							}
 						}
@@ -929,18 +947,33 @@ L:		for (let j=from; j<pos; j++)
 					if (j >= pos)
 					{	throw new Error(`Unterminated quoted identifier in SQL fragment: ${param}`);
 					}
-					if (lastAsAt!=jFrom && parentName.length) // if not after AS keyword, and there's `parentName`
-					{	while (++j < pos)
-						{	c = result[j];
-							if (c!=C_SPACE && c!=C_TAB && c!=C_CR && c!=C_LF)
-							{	break;
-							}
+					const jAfterIdent = j;
+					while (++j < pos)
+					{	c = result[j];
+						if (c!=C_SPACE && c!=C_TAB && c!=C_CR && c!=C_LF)
+						{	break;
 						}
-						if (c!=C_PAREN_OPEN && c!=C_DOT)
-						{	changes.splice(changesPos, 0, {change: Change.INSERT_PARENT_NAME, changeFrom: jFrom, changeTo: jFrom});
+					}
+					j--; // will j++ on next iter
+					if (c == C_DOT)
+					{	curParentNameTo = 0;
+						curNameFrom = jFrom;
+						curNameTo = jAfterIdent + 1;
+						curNameQt = qt;
+						curNameValidAt = j + 1;
+					}
+					else if (c != C_PAREN_OPEN)
+					{	if (curNameValidAt != jFrom)
+						{	curParentNameTo = 0;
+						}
+						curNameFrom = jFrom;
+						curNameTo = jAfterIdent + 1;
+						curNameValidAt = j + 1;
+						curNameQt = qt;
+						if (lastAsAt!=jFrom && parentName.length) // if not after AS keyword, and there's `parentName`
+						{	changes.splice(changesPos, 0, {change: Change.INSERT_PARENT_NAME, changeFrom: jFrom, changeTo: jFrom, arg: EMPTY_ARRAY});
 							nAdd += parentName.length + 3; // plus ``.
 						}
-						j--; // will j++ on next iter
 					}
 					break;
 				}
@@ -958,17 +991,110 @@ L:		for (let j=from; j<pos; j++)
 					}
 					break;
 				case C_MINUS:
-					if (result[j+1] == C_MINUS)
+					c = result[j+1];
+					if (c == C_MINUS)
 					{	throw new Error(`Comment in SQL fragment: ${param}`);
+					}
+					if (c==C_GT && curNameTo && curNameValidAt==j)
+					{	const substText = this.onArrow(this.unquoteName(curParentNameFrom, curParentNameTo, curParentNameQt), this.unquoteName(curNameFrom, curNameTo, curNameQt));
+						if (substText != undefined)
+						{	const subst = encoder.encode(substText);
+							// Undo pending changes after `curParentNameFrom`
+							let changeFrom = curParentNameTo ? curParentNameFrom : curNameFrom;
+							let k = changes.length - 1;
+							for (; k>=0; k--)
+							{	const {change, changeFrom: curChangeFrom} = changes[k];
+								if (curChangeFrom < changeFrom)
+								{	break;
+								}
+								switch (change)
+								{	case Change.INSERT_PARENT_NAME:
+										nAdd -= parentName.length + 3; // plus ``.
+										break;
+									case Change.INSERT_BACKTICK:
+									case Change.INSERT_QUOT:
+										nAdd--;
+										break;
+									case Change.QUOTE_COLUMN_NAME:
+										nAdd -= 2;
+										break;
+									default:
+										debugAssert(change == Change.QUOTE_AND_QUALIFY_COLUMN_NAME);
+										nAdd -= !alwaysQuoteIdents ? parentName.length+3 : parentName.length+5;
+								}
+							}
+							k++;
+							// Add change
+							let from = subst.length;
+							let to = j++;
+							result[j] = C_DOT; // '>' -> '.'
+							result[to] = qtId;
+							changeFrom++; // need to insert qtId
+							while (from>0 && to>changeFrom)
+							{	const c2 = subst[--from];
+								result[--to] = c2;
+								if (c2 == qtId)
+								{	result[--to] = qtId;
+								}
+							}
+							changeFrom--;
+							if (from == 0)
+							{	if (to > changeFrom)
+								{	result[--to] = qtId;
+									if (to > changeFrom)
+									{	changes[k++] = {change: Change.REMOVE, changeFrom, changeTo: to, arg: EMPTY_ARRAY};
+										nRemove += to - changeFrom;
+									}
+								}
+								else
+								{	debugAssert(to == changeFrom);
+									changes[k++] = {change: qtId==C_BACKTICK ? Change.INSERT_DOUBLE_BACKTICK : Change.INSERT_DOUBLE_QUOT, changeFrom, changeTo: changeFrom, arg: EMPTY_ARRAY};
+									nAdd += 2;
+								}
+							}
+							else
+							{	if (to > changeFrom)
+								{	debugAssert(to == changeFrom+1);
+									result[changeFrom] = qtId;
+								}
+								else
+								{	debugAssert(to == changeFrom);
+									changes[k++] = {change: qtId==C_BACKTICK ? Change.INSERT_BACKTICK : Change.INSERT_QUOT, changeFrom, changeTo: changeFrom, arg: EMPTY_ARRAY};
+									nAdd++;
+								}
+								changes[k++] = {change: Change.INSERT_CHARS_DOUBLE_QTID, changeFrom: to, changeTo: to, arg: subst.subarray(0, from)};
+								nAdd += from;
+								while (from > 0)
+								{	if (subst[--from] == qtId)
+									{	nAdd++;
+									}
+								}
+							}
+							changes.length = k;
+							while (++j < pos)
+							{	c = result[j];
+								if (c!=C_SPACE && c!=C_TAB && c!=C_CR && c!=C_LF)
+								{	break;
+								}
+							}
+							lastAsAt = j;
+							j--; // will j++ on next iter
+						}
 					}
 					break;
 				case C_DOT:
+					curParentNameFrom = curNameFrom;
+					curParentNameTo = j==curNameValidAt ? curNameTo : 0;
+					curParentNameQt = curNameQt;
+					curNameFrom = 0;
+					curNameTo = 0;
+					curNameQt = 0;
 					while (c == C_DOT)
 					{	while (++j < pos)
 						{	c = result[j];
 							if (c!=C_SPACE && c!=C_TAB && c!=C_CR && c!=C_LF)
 							{	// skip identifier that follows this dot
-								const changeFrom = j;
+								curNameFrom = j;
 								j--;
 								while (++j < pos)
 								{	c = result[j];
@@ -976,13 +1102,22 @@ L:		for (let j=from; j<pos; j++)
 									{	break;
 									}
 								}
-								if (alwaysQuoteIdents && j!=changeFrom)
-								{	changes[changes.length] = {change: Change.QUOTE_COLUMN_NAME, changeFrom, changeTo: j};
-									nAdd += 2; // ``
+								if (j != curNameFrom)
+								{	if (alwaysQuoteIdents)
+									{	changes[changes.length] = {change: Change.QUOTE_COLUMN_NAME, changeFrom: curNameFrom, changeTo: j, arg: EMPTY_ARRAY};
+										nAdd += 2; // ``
+									}
+									if (curNameTo)
+									{	curParentNameTo = 0;
+									}
+									curNameTo = j;
 								}
 								break;
 							}
 						}
+					}
+					if (curParentNameTo)
+					{	curNameValidAt = j;
 					}
 					j--; // will j++ on next iter
 					break;
@@ -1030,7 +1165,7 @@ L:		for (let j=from; j<pos; j++)
 							const name = result.subarray(changeFrom, jAfterIdent);
 							if (c == C_PAREN_OPEN) // if is function
 							{	if (!this.sqlSettings.isFunctionAllowed(name))
-								{	changes[changes.length] = {change: Change.QUOTE_COLUMN_NAME, changeFrom, changeTo: jAfterIdent};
+								{	changes[changes.length] = {change: Change.QUOTE_COLUMN_NAME, changeFrom, changeTo: jAfterIdent, arg: EMPTY_ARRAY};
 									nAdd += 2; // ``
 								}
 								else if (jAfterIdent < j)
@@ -1042,16 +1177,26 @@ L:		for (let j=from; j<pos; j++)
 								}
 							}
 							else if (c == C_DOT) // if is parent qualifier
-							{	changes[changes.length] = {change: Change.QUOTE_COLUMN_NAME, changeFrom, changeTo: jAfterIdent};
+							{	curParentNameTo = 0;
+								curNameFrom = changeFrom;
+								curNameTo = jAfterIdent;
+								curNameQt = 0;
+								curNameValidAt = j;
+								changes[changes.length] = {change: Change.QUOTE_COLUMN_NAME, changeFrom, changeTo: jAfterIdent, arg: EMPTY_ARRAY};
 								nAdd += 2; // ``
 							}
 							else if (!this.sqlSettings.isIdentAllowed(name))
-							{	if (lastAsAt!=changeFrom && parentName.length) // if not after AS keyword, and there's `parentName`
-								{	changes[changes.length] = {change: Change.QUOTE_AND_QUALIFY_COLUMN_NAME, changeFrom, changeTo: jAfterIdent};
+							{	curParentNameTo = 0;
+								curNameFrom = changeFrom;
+								curNameTo = jAfterIdent;
+								curNameQt = 0;
+								curNameValidAt = j;
+								if (lastAsAt!=changeFrom && parentName.length) // if not after AS keyword, and there's `parentName`
+								{	changes[changes.length] = {change: Change.QUOTE_AND_QUALIFY_COLUMN_NAME, changeFrom, changeTo: jAfterIdent, arg: EMPTY_ARRAY};
 									nAdd += !alwaysQuoteIdents ? parentName.length+3 : parentName.length+5; // !alwaysQuoteIdents ? ``. : ``.``
 								}
 								else
-								{	changes[changes.length] = {change: Change.QUOTE_COLUMN_NAME, changeFrom, changeTo: jAfterIdent};
+								{	changes[changes.length] = {change: Change.QUOTE_COLUMN_NAME, changeFrom, changeTo: jAfterIdent, arg: EMPTY_ARRAY};
 									nAdd += 2; // ``
 								}
 							}
@@ -1068,13 +1213,13 @@ L:		for (let j=from; j<pos; j++)
 		{	throw new Error(`Unbalanced parenthesis in SQL fragment: ${param}`);
 		}
 		// 2. Add needed bytes
-		if (nAdd > 0)
+		if (nAdd+nRemove > 0)
 		{	this.ensureRoom(nAdd);
 			result = this.result;
 			let nChange = changes.length;
 			// deno-lint-ignore no-inner-declarations no-var
-			var {change, changeFrom, changeTo} = changes[--nChange];
-			const end = pos + nAdd;
+			var {change, changeFrom, changeTo, arg} = changes[--nChange];
+			let end = pos + nAdd;
 			let j = pos;
 			let k = end;
 			while (true)
@@ -1083,18 +1228,51 @@ L:		for (let j=from; j<pos; j++)
 				{	// take actions
 					switch (change)
 					{	case Change.INSERT_BACKSLASH:
-							// backslash to insert
 							result[--k] = C_BACKSLASH;
 							break;
 						case Change.INSERT_BACKTICK:
-							// backtick to insert
 							result[--k] = C_BACKTICK;
 							break;
 						case Change.INSERT_QUOT:
-							// qout to insert
+							result[--k] = C_QUOT;
+							break;
+						case Change.INSERT_DOUBLE_BACKTICK:
+							result[--k] = C_BACKTICK;
+							result[--k] = C_BACKTICK;
+							break;
+						case Change.INSERT_DOUBLE_QUOT:
+							result[--k] = C_QUOT;
 							result[--k] = C_QUOT;
 							break;
 						case Change.INSERT_PARENT_NAME:
+							result[--k] = C_DOT;
+							result[--k] = qtId;
+							for (let p=parentName.length; p>0;)
+							{	result[--k] = parentName![--p];
+							}
+							result[--k] = qtId;
+							break;
+						case Change.INSERT_CHARS_DOUBLE_QTID:
+							// insert chars at position
+							for (let p=arg.length; p>0;)
+							{	const c2 = arg[--p];
+								result[--k] = c2;
+								if (c2 == qtId)
+								{	result[--k] = c2;
+								}
+							}
+							break;
+						case Change.QUOTE_AND_QUALIFY_COLUMN_NAME:
+							// column name to quote and prefix with parent name
+							if (alwaysQuoteIdents)
+							{	result[--k] = qtId;
+							}
+							while (j > changeFrom)
+							{	result[--k] = result[--j];
+							}
+							if (alwaysQuoteIdents)
+							{	result[--k] = qtId;
+							}
 							result[--k] = C_DOT;
 							result[--k] = qtId;
 							for (let p=parentName.length; p>0;)
@@ -1103,6 +1281,7 @@ L:		for (let j=from; j<pos; j++)
 							result[--k] = qtId;
 							break;
 						case Change.QUOTE_COLUMN_NAME:
+							// column name to quote
 							result[--k] = qtId;
 							while (j > changeFrom)
 							{	result[--k] = result[--j];
@@ -1110,30 +1289,19 @@ L:		for (let j=from; j<pos; j++)
 							result[--k] = qtId;
 							break;
 						default:
-							debugAssert(change == Change.QUOTE_AND_QUALIFY_COLUMN_NAME);
-							// column name to quote
-							if (alwaysQuoteIdents)
-							{	result[--k] = qtId;
-							}
-							while (j > changeFrom)
-							{	result[--k] = result[--j];
-							}
-							if (alwaysQuoteIdents)
-							{	result[--k] = qtId;
-							}
-							result[--k] = C_DOT;
-							result[--k] = qtId;
-							for (let p=parentName.length; p>0;)
-							{	result[--k] = parentName[--p];
-							}
-							result[--k] = qtId;
-							break;
+						{	debugAssert(change == Change.REMOVE);
+							const toRm = changeTo - changeFrom;
+							result.copyWithin(k - toRm, k, end);
+							j -= toRm;
+							k -= toRm;
+							end -= toRm;
+						}
 					}
 					if (nChange <= 0)
 					{	break;
 					}
 					// deno-lint-ignore no-inner-declarations no-var no-redeclare
-					var {change, changeFrom, changeTo} = changes[--nChange];
+					var {change, changeFrom, changeTo, arg} = changes[--nChange];
 				}
 				else
 				{	// copy char
@@ -1148,6 +1316,24 @@ L:		for (let j=from; j<pos; j++)
 	 **/
 	getResult()
 	{	return this.result.subarray(0, this.pos);
+	}
+
+	private unquoteName(nameFrom: number, nameTo: number, nameQt: number)
+	{	const {result, qtId} = this;
+		if (nameQt)
+		{	nameFrom++;
+			nameTo--;
+		}
+		let text = decoder.decode(result.subarray(nameFrom, nameTo));
+		if (nameQt == qtId)
+		{	if (qtId == C_BACKTICK)
+			{	text = text.replaceAll('``', '`');
+			}
+			else
+			{	text = text.replaceAll('""', '"');
+			}
+		}
+		return text;
 	}
 }
 

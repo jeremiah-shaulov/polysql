@@ -25,6 +25,7 @@ export class SqlTable extends Sql
 	#whereExprs: (string | Sql)[] = [];
 	#groupByExprs: string|string[]|Sql|undefined;
 	#havingExpr: string|Sql = '';
+	#isEncoding = false;
 
 	#operation = Operation.NONE;
 	#operationInsertRows: Iterable<Record<string, unknown>> | undefined;
@@ -114,11 +115,13 @@ export class SqlTable extends Sql
 	}
 
 	#someJoin(tableName: string, alias: string, onExpr: string|Sql, isLeft: boolean)
-	{	if (this.#whereExprs.length)
-		{	throw new Error(`join() can be called before where()`);
-		}
-		if (this.#groupByExprs != undefined)
-		{	throw new Error(`join() can be called before groupBy()`);
+	{	if (!this.#isEncoding)
+		{	if (this.#whereExprs.length)
+			{	throw new Error(`join() can be called before where()`);
+			}
+			if (this.#groupByExprs != undefined)
+			{	throw new Error(`join() can be called before groupBy()`);
+			}
 		}
 		this.#joins.push({tableName, alias, onExpr, isLeft});
 	}
@@ -269,12 +272,24 @@ export class SqlTable extends Sql
 	}
 
 	override encode(putParamsTo?: unknown[], mysqlNoBackslashEscapes=false, useBuffer?: Uint8Array, useBufferFromPos=0, defaultParentName?: Uint8Array): Uint8Array
-	{	this.#doOperation();
-		return super.encode(putParamsTo, mysqlNoBackslashEscapes, useBuffer, useBufferFromPos, defaultParentName);
-	}
-
-	#doOperation()
 	{	let afterSelect: Sql | undefined;
+
+		let data = useBuffer ?? new Uint8Array(this.estimatedByteLength);
+		let pos = useBufferFromPos;
+		const encodePart = () =>
+		{	if (data.buffer == useBuffer?.buffer)
+			{	data = useBuffer;
+			}
+			data = super.encode(putParamsTo, mysqlNoBackslashEscapes, data, pos, defaultParentName);
+			pos = data.length;
+			this.strings = [''];
+			this.params = [];
+			this.estimatedByteLength = 0;
+		};
+
+		let nJoins = 0;
+		let afterJoinsPos = 0;
+		this.#isEncoding = true;
 
 		switch (this.#operation)
 		{	case Operation.INSERT:
@@ -504,6 +519,9 @@ export class SqlTable extends Sql
 				{	this.append(sql`SELECT ${tableAlias}.${columns} FROM`);
 				}
 				this.#appendJoins(tableAlias);
+				nJoins = this.#joins.length;
+				encodePart();
+				afterJoinsPos = pos;
 				this.#appendWhereExprs(tableAlias);
 				if (this.#groupByExprs)
 				{	if (!Array.isArray(this.#groupByExprs))
@@ -651,6 +669,9 @@ export class SqlTable extends Sql
 						{	this.strings[this.strings.length - 1] += 'UPDATE';
 							this.estimatedByteLength += 6;
 							this.#appendJoins(tableAlias);
+							nJoins = this.#joins.length;
+							encodePart();
+							afterJoinsPos = pos;
 							this.append(sql` SET {${tableAlias}.${row}}`);
 							this.#appendWhereExprs(tableAlias);
 							break;
@@ -664,6 +685,9 @@ export class SqlTable extends Sql
 								this.appendTableName(this.tableName);
 								this.append(sql` AS "${subj}" SET {.${tableAlias}.${row}} FROM`);
 								this.#appendJoins(tableAlias);
+								nJoins = this.#joins.length;
+								encodePart();
+								afterJoinsPos = pos;
 								const hasWhere = this.#appendWhereExprs(tableAlias);
 								this.append(hasWhere ? sql` AND "${subj}".rowid = "${tableAlias}".rowid` : sql` WHERE "${subj}".rowid = "${tableAlias}".rowid`);
 								break;
@@ -678,6 +702,9 @@ export class SqlTable extends Sql
 							this.appendTableName(this.tableName);
 							this.append(sql` AS "${tableAlias}" SET {.${tableAlias}.${row}} FROM`);
 							this.#appendJoinsExceptFirst(tableAlias);
+							nJoins = this.#joins.length;
+							encodePart();
+							afterJoinsPos = pos;
 							const hasWhere = this.#appendWhereExprs(tableAlias);
 							this.append(hasWhere ? sql` AND (${tableAlias}.${onExpr})` : sql` WHERE (${tableAlias}.${onExpr})`);
 							break;
@@ -690,6 +717,9 @@ export class SqlTable extends Sql
 							this.appendTableName(this.tableName);
 							this.append(sql` SET {.${tableAlias}.${row}} FROM`);
 							this.#appendJoins(tableAlias);
+							nJoins = this.#joins.length;
+							encodePart();
+							afterJoinsPos = pos;
 							this.#appendWhereExprs(tableAlias);
 						}
 					}
@@ -728,6 +758,9 @@ export class SqlTable extends Sql
 						case SqlMode.MSSQL_ONLY:
 						{	this.append(sql`DELETE "${tableAlias}" FROM`);
 							this.#appendJoins(tableAlias);
+							nJoins = this.#joins.length;
+							encodePart();
+							afterJoinsPos = pos;
 							this.#appendWhereExprs(tableAlias);
 							break;
 						}
@@ -739,6 +772,9 @@ export class SqlTable extends Sql
 							this.appendTableName(this.tableName);
 							this.append(sql` AS "${tableAlias}" USING`);
 							this.#appendJoinsExceptFirst(tableAlias);
+							nJoins = this.#joins.length;
+							encodePart();
+							afterJoinsPos = pos;
 							const hasWhere = this.#appendWhereExprs(tableAlias);
 							this.append(hasWhere ? sql` AND (${tableAlias}.${onExpr})` : sql` WHERE (${tableAlias}.${onExpr})`);
 							break;
@@ -752,6 +788,9 @@ export class SqlTable extends Sql
 							this.appendTableName(this.tableName);
 							this.append(sql` AS "${subj}" WHERE rowid IN (SELECT "${tableAlias}".rowid FROM`);
 							this.#appendJoins(tableAlias);
+							nJoins = this.#joins.length;
+							encodePart();
+							afterJoinsPos = pos;
 							this.#appendWhereExprs(tableAlias);
 							this.append(sql`)`);
 						}
@@ -792,6 +831,30 @@ export class SqlTable extends Sql
 		this.#operationInsertOnConflictDo = '';
 		this.#operationInsertNames = undefined;
 		this.#operationInsertSelect = undefined;
+		encodePart();
+		if (afterJoinsPos>0 && this.#joins.length>nJoins) // if a join added during serialization (probably by `onArrow()`)
+		{	const tableAlias = this.#getTableAlias();
+			for (let i=nJoins, iEnd=this.#joins.length; i<iEnd; i++)
+			{	this.#appendJoin(tableAlias, i);
+			}
+			const endPos = pos;
+			encodePart();
+			const tailLen = pos - endPos;
+			if (data.buffer != useBuffer?.buffer)
+			{	useBuffer = new Uint8Array(data.buffer, data.byteOffset);
+			}
+			if (pos+tailLen <= useBuffer.length)
+			{	useBuffer.copyWithin(afterJoinsPos+tailLen, afterJoinsPos, pos);
+				useBuffer.copyWithin(afterJoinsPos, endPos+tailLen, pos+tailLen);
+			}
+			else
+			{	const tail = data.slice(endPos);
+				useBuffer.copyWithin(afterJoinsPos+tailLen, afterJoinsPos, endPos);
+				useBuffer.set(tail, afterJoinsPos);
+			}
+		}
+		this.#isEncoding = false;
+		return data;
 	}
 
 	/**	This function is called every time a quoted table name must be appended to the query.
