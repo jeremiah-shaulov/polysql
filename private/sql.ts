@@ -868,8 +868,7 @@ class Serializer
 		let parenLevel = 0;
 		const changes = new Array<{change: Change, changeFrom: number, changeTo: number}>;
 		let nAdd = 0;
-		const howToQuoteColumnNameIfYes = parentName.length ? Change.QUOTE_AND_QUALIFY_COLUMN_NAME : Change.QUOTE_COLUMN_NAME; // If there's no `parentName`, use `QUOTE_COLUMN_NAME`
-		let changeQuoteColumnName = howToQuoteColumnNameIfYes; // This variable is assigned with `QUOTE_COLUMN_NAME` after AS keyword, and with `howToQuoteColumnNameIfYes` in other cases. If there's no `parentName`, it will be always equal to `QUOTE_COLUMN_NAME`.
+		let lastAsAt = 0;
 L:		for (let j=from; j<pos; j++)
 		{	let c = result[j];
 			switch (c)
@@ -877,10 +876,8 @@ L:		for (let j=from; j<pos; j++)
 					if (parenLevel==0 && isExpression)
 					{	throw new Error(`Comma in SQL fragment: ${param}`);
 					}
-					changeQuoteColumnName = howToQuoteColumnNameIfYes;
 					break;
 				case C_APOS:
-					changeQuoteColumnName = howToQuoteColumnNameIfYes;
 					while (++j < pos)
 					{	c = result[j];
 						if (c == C_BACKSLASH)
@@ -933,7 +930,7 @@ L:		for (let j=from; j<pos; j++)
 					if (j >= pos)
 					{	throw new Error(`Unterminated quoted identifier in SQL fragment: ${param}`);
 					}
-					if (changeQuoteColumnName == Change.QUOTE_AND_QUALIFY_COLUMN_NAME) // if not after AS keyword, and there's `parentName`
+					if (lastAsAt!=jFrom && parentName.length) // if not after AS keyword, and there's `parentName`
 					{	while (++j < pos)
 						{	c = result[j];
 							if (c!=C_SPACE && c!=C_TAB && c!=C_CR && c!=C_LF)
@@ -946,33 +943,27 @@ L:		for (let j=from; j<pos; j++)
 						}
 						j--; // will j++ on next iter
 					}
-					changeQuoteColumnName = howToQuoteColumnNameIfYes;
 					break;
 				}
 				case C_PAREN_OPEN:
-					changeQuoteColumnName = howToQuoteColumnNameIfYes;
 					parenLevel++;
 					break;
 				case C_PAREN_CLOSE:
 					if (parenLevel-- <= 0)
 					{	throw new Error(`Unbalanced parenthesis in SQL fragment: ${param}`);
 					}
-					changeQuoteColumnName = howToQuoteColumnNameIfYes;
 					break;
 				case C_SLASH:
 					if (result[j+1] == C_TIMES)
 					{	throw new Error(`Comment in SQL fragment: ${param}`);
 					}
-					changeQuoteColumnName = howToQuoteColumnNameIfYes;
 					break;
 				case C_MINUS:
 					if (result[j+1] == C_MINUS)
 					{	throw new Error(`Comment in SQL fragment: ${param}`);
 					}
-					changeQuoteColumnName = howToQuoteColumnNameIfYes;
 					break;
 				case C_DOT:
-					changeQuoteColumnName = howToQuoteColumnNameIfYes;
 					while (c == C_DOT)
 					{	while (++j < pos)
 						{	c = result[j];
@@ -1050,29 +1041,26 @@ L:		for (let j=from; j<pos; j++)
 									result[jAfterIdent] = C_PAREN_OPEN;
 									parenLevel++;
 								}
-								changeQuoteColumnName = howToQuoteColumnNameIfYes;
 							}
 							else if (c == C_DOT) // if is parent qualifier
 							{	changes[changes.length] = {change: Change.QUOTE_IDENT, changeFrom, changeTo: jAfterIdent-1};
 								nAdd += 2; // ``
-								changeQuoteColumnName = howToQuoteColumnNameIfYes;
 							}
 							else if (!this.sqlSettings.isIdentAllowed(name))
-							{	changes[changes.length] = {change: changeQuoteColumnName, changeFrom, changeTo: jAfterIdent-1};
-								nAdd += changeQuoteColumnName==Change.QUOTE_COLUMN_NAME ? 2 : !alwaysQuoteIdents ? parentName.length+3 : parentName.length+5; // no parentName ? `` : !alwaysQuoteIdents ? ``. : ``.``
-								changeQuoteColumnName = howToQuoteColumnNameIfYes;
+							{	if (lastAsAt!=changeFrom && parentName.length) // if not after AS keyword, and there's `parentName`
+								{	changes[changes.length] = {change: Change.QUOTE_AND_QUALIFY_COLUMN_NAME, changeFrom, changeTo: jAfterIdent-1};
+									nAdd += !alwaysQuoteIdents ? parentName.length+3 : parentName.length+5; // !alwaysQuoteIdents ? ``. : ``.``
+								}
+								else
+								{	changes[changes.length] = {change: Change.QUOTE_COLUMN_NAME, changeFrom, changeTo: jAfterIdent-1};
+									nAdd += 2; // ``
+								}
 							}
 							else if (name.length==2 && (name[0]==C_A_CAP || name[0]==C_A) && (name[1]==C_S_CAP || name[1]==C_S))
-							{	changeQuoteColumnName = Change.QUOTE_COLUMN_NAME;
+							{	lastAsAt = j;
 							}
 						}
-						else
-						{	changeQuoteColumnName = howToQuoteColumnNameIfYes;
-						}
 						j--; // will j++ on next iter
-					}
-					else
-					{	changeQuoteColumnName = howToQuoteColumnNameIfYes;
 					}
 				}
 			}
