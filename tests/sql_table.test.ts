@@ -1034,7 +1034,7 @@ Deno.test
 Deno.test
 (	'Arrow syntax',
 	() =>
-	{	const SQL_SETTINGS_MYSQL = new SqlSettings(SqlMode.MYSQL);
+	{	const SQL_SETTINGS_MYSQL = new SqlSettings(SqlMode.MYSQL, true);
 
 		let lastParentName = '';
 		let lastName = '';
@@ -1175,7 +1175,7 @@ Deno.test
 		}
 
 		function getSql(mode: SqlMode)
-		{	const settings = new SqlSettings(mode);
+		{	const settings = new SqlSettings(mode, true);
 			return new Proxy
 			(	function sql(strings: TemplateStringsArray, ...params: unknown[])
 				{	return new SqlTableCustom(settings, '', [...strings], params);

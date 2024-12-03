@@ -92,7 +92,7 @@ export class SqlSettings
 {	#mIdents: SqlWordsList;
 	#mFunctions: SqlWordsList;
 
-	constructor(readonly mode: SqlMode, idents?: string, functions?: string)
+	constructor(readonly mode: SqlMode, readonly useArrow=false, idents?: string, functions?: string)
 	{	this.#mIdents = new SqlWordsList(idents ?? DEFAULT_IDENTS_POLICY);
 		this.#mFunctions = new SqlWordsList(functions ?? DEFAULT_FUNCTIONS_POLICY);
 	}

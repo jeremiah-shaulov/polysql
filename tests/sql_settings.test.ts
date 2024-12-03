@@ -6,7 +6,7 @@ const encoder = new TextEncoder;
 Deno.test
 (	'Basic',
 	() =>
-	{	const policy = new SqlSettings(SqlMode.MYSQL, 'abcd ABCD abYd abAd abZd', '!abcd ABCD abYd abAd abZd');
+	{	const policy = new SqlSettings(SqlMode.MYSQL, false, 'abcd ABCD abYd abAd abZd', '!abcd ABCD abYd abAd abZd');
 		assertEquals(policy.idents, 'ABAD ABCD ABYD ABZD');
 		assertEquals(policy.functions, '!ABAD ABCD ABYD ABZD');
 

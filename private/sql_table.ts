@@ -47,7 +47,7 @@ export class SqlTable extends Sql
 	)
 	{	super
 		(	sqlSettings,
-			(parentName, name) =>
+			!sqlSettings.useArrow ? undefined : (parentName, name) =>
 			{	const joined = this.#foreignJoined.find
 				(	j =>
 					(	j.parentName.localeCompare(parentName, undefined, {sensitivity: 'base'})==0 &&
@@ -839,7 +839,8 @@ export class SqlTable extends Sql
 						this.append(hasWhere ? sql` AND "${subj}".rowid = "${tableAlias}".rowid` : sql` WHERE "${subj}".rowid = "${tableAlias}".rowid`);
 						encodePart();
 						endPos = pos;
-						this.append(sql` FROM `);
+						this.strings[this.strings.length - 1] += ' FROM ';
+						this.estimatedByteLength += 6;
 						this.appendTableName(this.tableName);
 						this.append(sql` AS "${subj}"`);
 					}
@@ -847,14 +848,16 @@ export class SqlTable extends Sql
 					{	this.append(hasWhere ? sql` AND (${tableAlias}.${onExpr})` : sql` WHERE (${tableAlias}.${onExpr})`);
 						encodePart();
 						endPos = pos;
-						this.append(sql` FROM `);
+						this.strings[this.strings.length - 1] += ' FROM ';
+						this.estimatedByteLength += 6;
 						const {tableName, alias} = this.#joins[0];
 						this.append(!alias ? sql`"${tableName}"` : sql`"${tableName}" AS "${alias}"`);
 						nJoins = 1;
 					}
 				}
 				else if (mode==SqlMode.MSSQL || mode==SqlMode.MSSQL_ONLY)
-				{	this.append(sql` FROM `);
+				{	this.strings[this.strings.length - 1] += ' FROM ';
+					this.estimatedByteLength += 6;
 					this.appendTableName(this.tableName);
 					this.append(sql` AS "${tableAlias}"`);
 				}

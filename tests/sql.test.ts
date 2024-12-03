@@ -207,21 +207,21 @@ Deno.test
 		assertEquals(s+'', `SELECT (EXISTS(\`SELECT\` 1))`);
 		assertEquals(s.toString(undefined, true), `SELECT (EXISTS(\`SELECT\` 1))`);
 
-		s.sqlSettings = new SqlSettings(SqlMode.MYSQL, undefined, '!EXISTS');
+		s.sqlSettings = new SqlSettings(SqlMode.MYSQL, false, undefined, '!EXISTS');
 		assertEquals(s+'', `SELECT (\`EXISTS\`(\`SELECT\` 1))`);
-		s.sqlSettings = new SqlSettings(SqlMode.MYSQL, 'on select', '! EXISTS');
+		s.sqlSettings = new SqlSettings(SqlMode.MYSQL, false, 'on select', '! EXISTS');
 		assertEquals(s+'', `SELECT (\`EXISTS\`(SELECT 1))`);
 
 		expr = `EXISTS(SELECT (1))`;
 		s = mysql`SELECT (${expr})`;
 		assertEquals(s+'', `SELECT (EXISTS(\`SELECT\` (1)))`);
-		s.sqlSettings = new SqlSettings(SqlMode.MYSQL, undefined, '!HELLO');
+		s.sqlSettings = new SqlSettings(SqlMode.MYSQL, false, undefined, '!HELLO');
 		assertEquals(s+'', `SELECT (EXISTS(SELECT( 1)))`);
 
 		expr = `Count (*)`;
 		s = mysql`SELECT (${expr})`;
 		assertEquals(s+'', `SELECT (Count( *))`);
-		s.sqlSettings = new SqlSettings(SqlMode.MYSQL, undefined, '!Count');
+		s.sqlSettings = new SqlSettings(SqlMode.MYSQL, false, undefined, '!Count');
 		assertEquals(s+'', `SELECT (\`Count\` (*))`);
 
 		expr = "id=10 AND value IS NOT NULL";
@@ -230,17 +230,17 @@ Deno.test
 
 		expr = `name AND Count(*)`;
 		s = mysql`SELECT (${expr})`;
-		s.sqlSettings = new SqlSettings(SqlMode.MYSQL, 'and');
+		s.sqlSettings = new SqlSettings(SqlMode.MYSQL, false, 'and');
 		assertEquals(s+'', `SELECT (\`name\` AND Count(*))`);
-		s.sqlSettings = new SqlSettings(SqlMode.MYSQL, '', 'count');
+		s.sqlSettings = new SqlSettings(SqlMode.MYSQL, false, '', 'count');
 		assertEquals(s+'', `SELECT (\`name\` \`AND\` Count(*))`);
-		s.sqlSettings = new SqlSettings(SqlMode.MYSQL, 'name', 'count');
+		s.sqlSettings = new SqlSettings(SqlMode.MYSQL, false, 'name', 'count');
 		assertEquals(s+'', `SELECT (name \`AND\` Count(*))`);
-		s.sqlSettings = new SqlSettings(SqlMode.MYSQL, 'name', '');
+		s.sqlSettings = new SqlSettings(SqlMode.MYSQL, false, 'name', '');
 		assertEquals(s+'', `SELECT (name \`AND\` \`Count\`(*))`);
-		s.sqlSettings = new SqlSettings(SqlMode.MYSQL, 'name name name', '');
+		s.sqlSettings = new SqlSettings(SqlMode.MYSQL, false, 'name name name', '');
 		assertEquals(s+'', `SELECT (name \`AND\` \`Count\`(*))`);
-		s.sqlSettings = new SqlSettings(SqlMode.MYSQL, '!name');
+		s.sqlSettings = new SqlSettings(SqlMode.MYSQL, false, '!name');
 		assertEquals(s+'', `SELECT (\`name\` AND Count(*))`);
 
 		expr = `name AND \`Count\`(*)`;
