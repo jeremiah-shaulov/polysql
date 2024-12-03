@@ -16,7 +16,7 @@ const enum Operation
 }
 
 function sql(strings: TemplateStringsArray, ...params: unknown[])
-{	return new Sql(DEFAULT_SETTINGS_MYSQL, [...strings], params);
+{	return new Sql(DEFAULT_SETTINGS_MYSQL, undefined, [...strings], params);
 }
 
 export class SqlTable extends Sql
@@ -26,6 +26,7 @@ export class SqlTable extends Sql
 	#groupByExprs: string|string[]|Sql|undefined;
 	#havingExpr: string|Sql = '';
 	#isEncoding = false;
+	#foreignJoined = new Array<{parentName: string, name: string, refAlias: string}>;
 
 	#operation = Operation.NONE;
 	#operationInsertRows: Iterable<Record<string, unknown>> | undefined;
@@ -38,17 +39,38 @@ export class SqlTable extends Sql
 	#operationSelectLimit = 0;
 	#operationUpdateRow: Record<string, unknown> | undefined;
 
-	protected get joins(): readonly Join[]
-	{	return this.#joins;
-	}
-
 	constructor
 	(	sqlSettings: SqlSettings,
 		public tableName: string,
 		strings?: string[],
 		params?: unknown[]
 	)
-	{	super(sqlSettings, strings, params);
+	{	super
+		(	sqlSettings,
+			(parentName, name) =>
+			{	const joined = this.#foreignJoined.find
+				(	j =>
+					(	j.parentName.localeCompare(parentName, undefined, {sensitivity: 'base'})==0 &&
+						j.name.localeCompare(name, undefined, {sensitivity: 'base'})==0
+					)
+				);
+				if (joined)
+				{	return joined.refAlias;
+				}
+				const table = !parentName ? {tableName: this.tableName, alias: this.#getTableAlias()} : this.#joins.find(j => parentName.localeCompare(j.alias || j.tableName, undefined, {sensitivity: 'base'}) == 0);
+				if (!table)
+				{	throw new Error(`Unknown column: ${!parentName ? name : parentName+'.'+name}`);
+				}
+				const refAlias = this.onJoinForeign(table.tableName, table.alias, name);
+				if (!refAlias)
+				{	throw new Error(`Foreign key not known when joining by column: ${!parentName ? name : parentName+'.'+name}`);
+				}
+				this.#foreignJoined.push({parentName, name, refAlias});
+				return refAlias;
+			},
+			strings,
+			params
+		);
 	}
 
 	#getTableAlias()
@@ -287,9 +309,12 @@ export class SqlTable extends Sql
 			this.estimatedByteLength = 0;
 		};
 
+		let hasWhere = false;
 		let nJoins = 0;
 		let afterJoinsPos = 0;
 		this.#isEncoding = true;
+
+		const {mode} = this.sqlSettings;
 
 		switch (this.#operation)
 		{	case Operation.INSERT:
@@ -302,8 +327,7 @@ export class SqlTable extends Sql
 					this.append(sql` <${rows}>`);
 				}
 				else if (onConflictDo == 'nothing')
-				{	const {mode} = this.sqlSettings;
-					switch (mode)
+				{	switch (mode)
 					{	case SqlMode.MYSQL:
 							throw new Error("ON CONFLICT DO NOTHING is not supported across all engines. Please use mysqlOnly`...`");
 
@@ -335,8 +359,7 @@ export class SqlTable extends Sql
 					}
 				}
 				else if (onConflictDo == 'replace')
-				{	const {mode} = this.sqlSettings;
-					switch (mode)
+				{	switch (mode)
 					{	case SqlMode.MYSQL:
 							throw new Error("REPLACE is not supported across all engines. Please use mysqlOnly`...`");
 
@@ -369,7 +392,6 @@ export class SqlTable extends Sql
 				else
 				{	debugAssert(onConflictDo=='update' || onConflictDo=='patch');
 					const isPatch = onConflictDo == 'patch';
-					const {mode} = this.sqlSettings;
 					switch (mode)
 					{	case SqlMode.MYSQL:
 							throw new Error("ON CONFLICT DO UPDATE is not supported across all engines. Please use mysqlOnly`...`");
@@ -426,8 +448,7 @@ export class SqlTable extends Sql
 					this.estimatedByteLength += 12;
 				}
 				else if (onConflictDo == 'nothing')
-				{	const {mode} = this.sqlSettings;
-					switch (mode)
+				{	switch (mode)
 					{	case SqlMode.MYSQL:
 							throw new Error("ON CONFLICT DO NOTHING is not supported across all engines. Please use mysqlOnly`...`");
 
@@ -456,7 +477,7 @@ export class SqlTable extends Sql
 				}
 				else
 				{	debugAssert(onConflictDo == 'replace');
-					switch (this.sqlSettings.mode)
+					switch (mode)
 					{	case SqlMode.MYSQL:
 							throw new Error("REPLACE is not supported across all engines. Please use mysqlOnly`...`");
 
@@ -477,7 +498,7 @@ export class SqlTable extends Sql
 							break;
 
 						default:
-							debugAssert(this.sqlSettings.mode == SqlMode.SQLITE_ONLY);
+							debugAssert(mode == SqlMode.SQLITE_ONLY);
 							this.strings[this.strings.length - 1] += 'REPLACE INTO ';
 							this.estimatedByteLength += 13;
 					}
@@ -558,7 +579,7 @@ export class SqlTable extends Sql
 					}
 				}
 				if (limit > 0)
-				{	switch (this.sqlSettings.mode)
+				{	switch (mode)
 					{	case SqlMode.MYSQL:
 							if (!hasOrderBy)
 							{	throw new Error("SELECT with LIMIT but without ORDER BY is not supported across all engines. Please use mysqlOnly`...`");
@@ -587,7 +608,7 @@ export class SqlTable extends Sql
 							break;
 
 						default:
-							debugAssert(this.sqlSettings.mode==SqlMode.MSSQL || this.sqlSettings.mode==SqlMode.MSSQL_ONLY);
+							debugAssert(mode==SqlMode.MSSQL || mode==SqlMode.MSSQL_ONLY);
 							if (!hasOrderBy)
 							{	throw new Error("SELECT with LIMIT but without ORDER BY is not supported on MS SQL");
 							}
@@ -595,7 +616,7 @@ export class SqlTable extends Sql
 					}
 				}
 				else if (offset > 0)
-				{	switch (this.sqlSettings.mode)
+				{	switch (mode)
 					{	case SqlMode.MYSQL:
 							if (!hasOrderBy)
 							{	throw new Error("SELECT with OFFSET but without ORDER BY is not supported across all engines. Please use mysqlOnly`...`");
@@ -624,7 +645,7 @@ export class SqlTable extends Sql
 							break;
 
 						default:
-							debugAssert(this.sqlSettings.mode==SqlMode.MSSQL || this.sqlSettings.mode==SqlMode.MSSQL_ONLY);
+							debugAssert(mode==SqlMode.MSSQL || mode==SqlMode.MSSQL_ONLY);
 							if (!hasOrderBy)
 							{	throw new Error("SELECT with OFFSET but without ORDER BY is not supported on MS SQL");
 							}
@@ -639,117 +660,98 @@ export class SqlTable extends Sql
 
 			case Operation.UPDATE:
 			{	const row = this.#operationUpdateRow!;
-				const {mode} = this.sqlSettings;
-				if (this.#joins.length == 0)
-				{	this.strings[this.strings.length - 1] += 'UPDATE ';
-					this.estimatedByteLength += 7;
-					this.appendTableName(this.tableName);
-					this.append(sql` SET {${row}}`);
-					this.#appendWhereExprs('');
+				const tableAlias = this.#getTableAlias();
+				const isLeft = this.#joins[0]?.isLeft;
+				if (isLeft)
+				{	this.#complainOnLeftJoinInUpdate();
 				}
-				else
-				{	const tableAlias = this.#getTableAlias();
-					const [{onExpr, isLeft}] = this.#joins;
-					if (isLeft)
-					{	switch (mode)
-						{	case SqlMode.MYSQL:
-								throw new Error("UPDATE where the first join is a LEFT JOIN is not supported across all engines. Please use mysqlOnly`...`");
-							case SqlMode.SQLITE:
-								throw new Error("UPDATE where the first join is a LEFT JOIN is not supported across all engines. Please use sqliteOnly`...`");
-							case SqlMode.MSSQL:
-								throw new Error("UPDATE where the first join is a LEFT JOIN is not supported across all engines. Please use mssqlOnly`...`");
-							case SqlMode.PGSQL:
-							case SqlMode.PGSQL_ONLY:
-								throw new Error("UPDATE where the first join is a LEFT JOIN is not supported on PostgreSQL");
-						}
+				switch (mode)
+				{	case SqlMode.MYSQL:
+					case SqlMode.MYSQL_ONLY:
+					{	this.strings[this.strings.length - 1] += 'UPDATE';
+						this.estimatedByteLength += 6;
+						this.#appendJoins(tableAlias);
+						nJoins = this.#joins.length;
+						encodePart();
+						afterJoinsPos = pos;
+						this.append(sql` SET {${tableAlias}.${row}}`);
+						this.#appendWhereExprs(tableAlias);
+						break;
 					}
-					switch (mode)
-					{	case SqlMode.MYSQL:
-						case SqlMode.MYSQL_ONLY:
-						{	this.strings[this.strings.length - 1] += 'UPDATE';
-							this.estimatedByteLength += 6;
-							this.#appendJoins(tableAlias);
-							nJoins = this.#joins.length;
-							encodePart();
-							afterJoinsPos = pos;
-							this.append(sql` SET {${tableAlias}.${row}}`);
-							this.#appendWhereExprs(tableAlias);
-							break;
-						}
 
-						case SqlMode.SQLITE_ONLY:
-							if (isLeft)
-							{	const subj = this.genAlias('subj_table');
-								this.strings[this.strings.length - 1] += 'UPDATE ';
-								this.estimatedByteLength += 7;
-								this.appendTableName(this.tableName);
-								this.append(sql` AS "${subj}" SET {.${tableAlias}.${row}} FROM`);
-								this.#appendJoins(tableAlias);
-								nJoins = this.#joins.length;
-								encodePart();
-								afterJoinsPos = pos;
-								const hasWhere = this.#appendWhereExprs(tableAlias);
-								this.append(hasWhere ? sql` AND "${subj}".rowid = "${tableAlias}".rowid` : sql` WHERE "${subj}".rowid = "${tableAlias}".rowid`);
-								break;
-							}
-							// fallthrough
-
-						case SqlMode.PGSQL:
-						case SqlMode.PGSQL_ONLY:
-						case SqlMode.SQLITE:
-						{	this.strings[this.strings.length - 1] += 'UPDATE ';
-							this.estimatedByteLength += 7;
-							this.appendTableName(this.tableName);
-							this.append(sql` AS "${tableAlias}" SET {.${tableAlias}.${row}} FROM`);
-							this.#appendJoinsExceptFirst(tableAlias);
-							nJoins = this.#joins.length;
-							encodePart();
-							afterJoinsPos = pos;
-							const hasWhere = this.#appendWhereExprs(tableAlias);
-							this.append(hasWhere ? sql` AND (${tableAlias}.${onExpr})` : sql` WHERE (${tableAlias}.${onExpr})`);
-							break;
-						}
-
-						default:
-						{	debugAssert(mode==SqlMode.MSSQL || mode==SqlMode.MSSQL_ONLY);
+					case SqlMode.SQLITE_ONLY:
+					{	if (isLeft)
+						{	const subj = this.genAlias('subjtable');
 							this.strings[this.strings.length - 1] += 'UPDATE ';
 							this.estimatedByteLength += 7;
 							this.appendTableName(this.tableName);
-							this.append(sql` SET {.${tableAlias}.${row}} FROM`);
+							this.append(sql` AS "${subj}" SET {.${tableAlias}.${row}} FROM`);
 							this.#appendJoins(tableAlias);
 							nJoins = this.#joins.length;
 							encodePart();
 							afterJoinsPos = pos;
-							this.#appendWhereExprs(tableAlias);
+							hasWhere = this.#appendWhereExprs(tableAlias);
+							this.append(hasWhere ? sql` AND "${subj}".rowid = "${tableAlias}".rowid` : sql` WHERE "${subj}".rowid = "${tableAlias}".rowid`);
+							break;
 						}
+					}
+					// fallthrough
+
+					case SqlMode.PGSQL:
+					case SqlMode.PGSQL_ONLY:
+					case SqlMode.SQLITE:
+					{	this.strings[this.strings.length - 1] += 'UPDATE ';
+						this.estimatedByteLength += 7;
+						this.appendTableName(this.tableName);
+						this.append(sql` AS "${tableAlias}" SET {.${tableAlias}.${row}}`);
+						nJoins = this.#joins.length;
+						if (nJoins > 0)
+						{	this.append(sql` FROM`);
+							this.#appendJoinsExceptFirst(tableAlias);
+						}
+						encodePart();
+						afterJoinsPos = pos;
+						hasWhere = this.#appendWhereExprs(tableAlias);
+						if (nJoins > 0)
+						{	const {onExpr} = this.#joins[0];
+							this.append(hasWhere ? sql` AND (${tableAlias}.${onExpr})` : sql` WHERE (${tableAlias}.${onExpr})`);
+						}
+						break;
+					}
+
+					default:
+					{	debugAssert(mode==SqlMode.MSSQL || mode==SqlMode.MSSQL_ONLY);
+						this.strings[this.strings.length - 1] += 'UPDATE ';
+						this.estimatedByteLength += 7;
+						this.appendTableName(this.tableName);
+						this.append(sql` SET {.${tableAlias}.${row}}`);
+						nJoins = this.#joins.length;
+						if (nJoins > 0)
+						{	this.append(sql` FROM`);
+							this.#appendJoins(tableAlias);
+						}
+						encodePart();
+						afterJoinsPos = pos;
+						this.#appendWhereExprs(tableAlias);
 					}
 				}
 				break;
 			}
 
 			case Operation.DELETE:
-			{	const {mode} = this.sqlSettings;
-				if (this.#joins.length == 0)
+			{	if (this.#joins.length == 0)
 				{	this.strings[this.strings.length - 1] += 'DELETE FROM ';
 					this.estimatedByteLength += 12;
 					this.appendTableName(this.tableName);
+					encodePart();
+					afterJoinsPos = pos;
 					this.#appendWhereExprs('');
 				}
 				else
 				{	const tableAlias = this.#getTableAlias();
 					const [{onExpr, isLeft}] = this.#joins;
 					if (isLeft)
-					{	switch (mode)
-						{	case SqlMode.MYSQL:
-								throw new Error("DELETE where the first join is a LEFT JOIN is not supported across all engines. Please use mysqlOnly`...`");
-							case SqlMode.SQLITE:
-								throw new Error("DELETE where the first join is a LEFT JOIN is not supported across all engines. Please use sqliteOnly`...`");
-							case SqlMode.MSSQL:
-								throw new Error("DELETE where the first join is a LEFT JOIN is not supported across all engines. Please use mssqlOnly`...`");
-							case SqlMode.PGSQL:
-							case SqlMode.PGSQL_ONLY:
-								throw new Error("DELETE where the first join is a LEFT JOIN is not supported on PostgreSQL");
-						}
+					{	this.#complainOnLeftJoinInDelete();
 					}
 					switch (mode)
 					{	case SqlMode.MYSQL:
@@ -775,14 +777,14 @@ export class SqlTable extends Sql
 							nJoins = this.#joins.length;
 							encodePart();
 							afterJoinsPos = pos;
-							const hasWhere = this.#appendWhereExprs(tableAlias);
+							hasWhere = this.#appendWhereExprs(tableAlias);
 							this.append(hasWhere ? sql` AND (${tableAlias}.${onExpr})` : sql` WHERE (${tableAlias}.${onExpr})`);
 							break;
 						}
 
 						default:
 						{	debugAssert(mode==SqlMode.SQLITE || mode==SqlMode.SQLITE_ONLY);
-							const subj = this.genAlias('subj_table');
+							const subj = this.genAlias('subjtable');
 							this.strings[this.strings.length - 1] += 'DELETE FROM ';
 							this.estimatedByteLength += 12;
 							this.appendTableName(this.tableName);
@@ -800,7 +802,7 @@ export class SqlTable extends Sql
 			}
 
 			case Operation.TRUNCATE:
-			{	switch (this.sqlSettings.mode)
+			{	switch (mode)
 				{	case SqlMode.MYSQL:
 					case SqlMode.MYSQL_ONLY:
 					case SqlMode.PGSQL:
@@ -813,7 +815,7 @@ export class SqlTable extends Sql
 						break;
 
 					default:
-						debugAssert(this.sqlSettings.mode == SqlMode.SQLITE || this.sqlSettings.mode == SqlMode.SQLITE_ONLY);
+						debugAssert(mode == SqlMode.SQLITE || mode == SqlMode.SQLITE_ONLY);
 						this.strings[this.strings.length - 1] += 'DELETE FROM ';
 						this.estimatedByteLength += 12;
 						this.appendTableName(this.tableName);
@@ -821,23 +823,45 @@ export class SqlTable extends Sql
 				break;
 			}
 		}
-		this.#operation = Operation.NONE;
-		this.#operationSelectColumns = '';
-		this.#operationSelectOrderBy = '';
-		this.#operationSelectOffset = 0;
-		this.#operationSelectLimit = 0;
-		this.#operationUpdateRow = undefined;
-		this.#operationInsertRows = undefined;
-		this.#operationInsertOnConflictDo = '';
-		this.#operationInsertNames = undefined;
-		this.#operationInsertSelect = undefined;
 		encodePart();
 		if (afterJoinsPos>0 && this.#joins.length>nJoins) // if a join added during serialization (probably by `onArrow()`)
-		{	const tableAlias = this.#getTableAlias();
+		{	let endPos = pos;
+			const tableAlias = this.#getTableAlias();
+			if (nJoins==0 && this.#operation==Operation.UPDATE)
+			{	const {isLeft, onExpr} = this.#joins[0];
+				if (isLeft)
+				{	this.#complainOnLeftJoinInUpdate();
+				}
+				if (mode==SqlMode.PGSQL || mode==SqlMode.PGSQL_ONLY || mode==SqlMode.SQLITE || mode==SqlMode.SQLITE_ONLY)
+				{	if (isLeft)
+					{	debugAssert(mode == SqlMode.SQLITE_ONLY);
+						const subj = this.genAlias('subjtable');
+						this.append(hasWhere ? sql` AND "${subj}".rowid = "${tableAlias}".rowid` : sql` WHERE "${subj}".rowid = "${tableAlias}".rowid`);
+						encodePart();
+						endPos = pos;
+						this.append(sql` FROM `);
+						this.appendTableName(this.tableName);
+						this.append(sql` AS "${subj}"`);
+					}
+					else
+					{	this.append(hasWhere ? sql` AND (${tableAlias}.${onExpr})` : sql` WHERE (${tableAlias}.${onExpr})`);
+						encodePart();
+						endPos = pos;
+						this.append(sql` FROM `);
+						const {tableName, alias} = this.#joins[0];
+						this.append(!alias ? sql`"${tableName}"` : sql`"${tableName}" AS "${alias}"`);
+						nJoins = 1;
+					}
+				}
+				else if (mode==SqlMode.MSSQL || mode==SqlMode.MSSQL_ONLY)
+				{	this.append(sql` FROM `);
+					this.appendTableName(this.tableName);
+					this.append(sql` AS "${tableAlias}"`);
+				}
+			}
 			for (let i=nJoins, iEnd=this.#joins.length; i<iEnd; i++)
 			{	this.#appendJoin(tableAlias, i);
 			}
-			const endPos = pos;
 			encodePart();
 			const tailLen = pos - endPos;
 			if (data.buffer != useBuffer?.buffer)
@@ -853,8 +877,46 @@ export class SqlTable extends Sql
 				useBuffer.set(tail, afterJoinsPos);
 			}
 		}
+		this.#operation = Operation.NONE;
+		this.#operationSelectColumns = '';
+		this.#operationSelectOrderBy = '';
+		this.#operationSelectOffset = 0;
+		this.#operationSelectLimit = 0;
+		this.#operationUpdateRow = undefined;
+		this.#operationInsertRows = undefined;
+		this.#operationInsertOnConflictDo = '';
+		this.#operationInsertNames = undefined;
+		this.#operationInsertSelect = undefined;
 		this.#isEncoding = false;
 		return data;
+	}
+
+	#complainOnLeftJoinInUpdate()
+	{	switch (this.sqlSettings.mode)
+		{	case SqlMode.MYSQL:
+				throw new Error("UPDATE where the first join is a LEFT JOIN is not supported across all engines. Please use mysqlOnly`...`");
+			case SqlMode.SQLITE:
+				throw new Error("UPDATE where the first join is a LEFT JOIN is not supported across all engines. Please use sqliteOnly`...`");
+			case SqlMode.MSSQL:
+				throw new Error("UPDATE where the first join is a LEFT JOIN is not supported across all engines. Please use mssqlOnly`...`");
+			case SqlMode.PGSQL:
+			case SqlMode.PGSQL_ONLY:
+				throw new Error("UPDATE where the first join is a LEFT JOIN is not supported on PostgreSQL");
+		}
+	}
+
+	#complainOnLeftJoinInDelete()
+	{	switch (this.sqlSettings.mode)
+		{	case SqlMode.MYSQL:
+				throw new Error("DELETE where the first join is a LEFT JOIN is not supported across all engines. Please use mysqlOnly`...`");
+			case SqlMode.SQLITE:
+				throw new Error("DELETE where the first join is a LEFT JOIN is not supported across all engines. Please use sqliteOnly`...`");
+			case SqlMode.MSSQL:
+				throw new Error("DELETE where the first join is a LEFT JOIN is not supported across all engines. Please use mssqlOnly`...`");
+			case SqlMode.PGSQL:
+			case SqlMode.PGSQL_ONLY:
+				throw new Error("DELETE where the first join is a LEFT JOIN is not supported on PostgreSQL");
+		}
 	}
 
 	/**	This function is called every time a quoted table name must be appended to the query.
@@ -887,6 +949,10 @@ export class SqlTable extends Sql
 			{	return n;
 			}
 		}
+	}
+
+	protected onJoinForeign(_tableName: string, _alias: string, _columnName: string): string|undefined
+	{	return undefined;
 	}
 }
 

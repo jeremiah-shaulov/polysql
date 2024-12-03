@@ -184,7 +184,7 @@ Deno.test
 
 		error = undefined;
 		try
-		{	new Sql(new SqlSettings(SqlMode.MYSQL), [], []);
+		{	new Sql(new SqlSettings(SqlMode.MYSQL), undefined, [], []);
 		}
 		catch (e)
 		{	error = e instanceof Error ? e : new Error(e+'');

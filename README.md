@@ -483,7 +483,7 @@ const DEFAULT_SETTINGS = new SqlSettings(SqlMode.MYSQL, '!bad forbidden', 'calc_
 
 const sql = new Proxy
 (	function sql(strings: TemplateStringsArray, ...params: unknown[])
-	{	return new Sql(DEFAULT_SETTINGS, [...strings], params);
+	{	return new Sql(DEFAULT_SETTINGS, undefined, [...strings], params);
 	} as Record<string, SqlTable> & {(strings: TemplateStringsArray, ...params: unknown[]): SqlTable},
 	{	get(_target, tableName)
 		{	if (typeof(tableName) != 'string')

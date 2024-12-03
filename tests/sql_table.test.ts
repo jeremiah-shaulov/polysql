@@ -1,4 +1,4 @@
-import {INLINE_STRING_MAX_LEN} from '../private/sql.ts';
+import {INLINE_STRING_MAX_LEN, Sql} from '../private/sql.ts';
 import {SqlTable} from '../private/sql_table.ts';
 import {SqlSettings, SqlMode} from '../private/sql_settings.ts';
 import {mysql, mysqlOnly, pgsql, pgsqlOnly, sqlite, sqliteOnly, mssql, mssqlOnly} from '../private/sql_factory.ts';
@@ -354,7 +354,7 @@ Deno.test
 	{	// Simple:
 
 		let s = mysql.t_log.where("id=1").update({message: "Message '1'"});
-		assertEquals(s+'', "UPDATE `t_log` SET `message`='Message ''1''' WHERE (`id`=1)");
+		assertEquals(s+'', "UPDATE `t_log` AS `t` SET `t`.`message`='Message ''1''' WHERE (`t`.id=1)");
 
 		// One INNER JOIN:
 
@@ -1032,116 +1032,207 @@ Deno.test
 );
 
 Deno.test
-(	'Arrow',
+(	'Arrow syntax',
 	() =>
 	{	const SQL_SETTINGS_MYSQL = new SqlSettings(SqlMode.MYSQL);
 
 		let lastParentName = '';
 		let lastName = '';
 
-		class SqlTableCustom extends SqlTable
-		{	protected override onArrow(parentName: string, name: string): string|undefined
-			{	lastParentName = parentName;
-				lastName = name;
-				return `${parentName}#${name}`;
-			}
+		function sql(strings: TemplateStringsArray, ...params: unknown[])
+		{	return new Sql
+			(	SQL_SETTINGS_MYSQL,
+				(parentName, name) =>
+				{	lastParentName = parentName;
+					lastName = name;
+					return `${parentName}#${name}`;
+				},
+				[...strings],
+				params
+			);
 		}
 
-		const sql = new Proxy
-		(	function sql(strings: TemplateStringsArray, ...params: unknown[])
-			{	return new SqlTableCustom(SQL_SETTINGS_MYSQL, '', [...strings], params);
-			} as Record<string, SqlTableCustom> & {(strings: TemplateStringsArray, ...params: unknown[]): SqlTableCustom},
-			{	get(_target, table_name)
-				{	if (typeof(table_name) != 'string')
-					{	throw new Error("Table name must be string");
-					}
-					return new SqlTableCustom(SQL_SETTINGS_MYSQL, table_name);
-				}
-			}
-		);
-
 		assertEquals
-		(	sql.transactions.where(`id = 1`).select(`product_id->name`) + "",
-			"SELECT `#product_id`.`name` FROM `transactions` AS `t` WHERE (`t`.id = 1)"
+		(	sql`SELECT ${'product_id->name'} FROM transactions WHERE id = 1` + '',
+			"SELECT `#product_id`.`name` FROM transactions WHERE id = 1"
 		);
 		assertEquals(lastParentName, '');
 		assertEquals(lastName, 'product_id');
 
 		assertEquals
-		(	sql.transactions.where(`id = 1`).select(`"product_id"->name`) + "",
-			"SELECT `#product_id`.`name` FROM `transactions` AS `t` WHERE (`t`.id = 1)"
+		(	sql`SELECT ${'"product_id"->name'} FROM transactions WHERE id = 1` + '',
+			"SELECT `#product_id`.`name` FROM transactions WHERE id = 1"
 		);
 		assertEquals(lastParentName, '');
 		assertEquals(lastName, 'product_id');
 
 		assertEquals
-		(	sql.transactions.where(`id = 1`).select(`par.product_id->name`) + "",
-			"SELECT `par#product_id`.`name` FROM `transactions` AS `t` WHERE (`t`.id = 1)"
+		(	sql`SELECT ${'par.product_id->name'} FROM transactions WHERE id = 1` + '',
+			"SELECT `par#product_id`.`name` FROM transactions WHERE id = 1"
 		);
 		assertEquals(lastParentName, 'par');
 		assertEquals(lastName, 'product_id');
 
 		assertEquals
-		(	sql.transactions.where(`id = 1`).select(`par."product_id"->name`) + "",
-			"SELECT `par#product_id`.`name` FROM `transactions` AS `t` WHERE (`t`.id = 1)"
+		(	sql`SELECT ${'par."product_id"->name'} FROM transactions WHERE id = 1` + '',
+			"SELECT `par#product_id`.`name` FROM transactions WHERE id = 1"
 		);
 		assertEquals(lastParentName, 'par');
 		assertEquals(lastName, 'product_id');
 
 		assertEquals
-		(	sql.transactions.where(`id = 1`).select(`"par".product_id->name`) + "",
-			"SELECT `par#product_id`.`name` FROM `transactions` AS `t` WHERE (`t`.id = 1)"
+		(	sql`SELECT ${'"par".product_id->name'} FROM transactions WHERE id = 1` + '',
+			"SELECT `par#product_id`.`name` FROM transactions WHERE id = 1"
 		);
 		assertEquals(lastParentName, 'par');
 		assertEquals(lastName, 'product_id');
 
 		assertEquals
-		(	sql.transactions.where(`id = 1`).select(`"par"."product_id"->name`) + "",
-			"SELECT `par#product_id`.`name` FROM `transactions` AS `t` WHERE (`t`.id = 1)"
+		(	sql`SELECT ${'"par"."product_id"->name'} FROM transactions WHERE id = 1` + '',
+			"SELECT `par#product_id`.`name` FROM transactions WHERE id = 1"
 		);
 		assertEquals(lastParentName, 'par');
 		assertEquals(lastName, 'product_id');
 
 		assertEquals
-		(	sql.transactions.where(`id = 1`).select(`"par"."product_\`id"->name`) + "",
-			"SELECT `par#product_``id`.`name` FROM `transactions` AS `t` WHERE (`t`.id = 1)"
+		(	sql`SELECT ${'"par"."product_\`id"->name'} FROM transactions WHERE id = 1` + '',
+			"SELECT `par#product_``id`.`name` FROM transactions WHERE id = 1"
 		);
 		assertEquals(lastParentName, 'par');
 		assertEquals(lastName, 'product_`id');
 
 		assertEquals
-		(	sql.transactions.where(`id = 1`).select(`"par"."product_\`\`id"->name`) + "",
-			"SELECT `par#product_````id`.`name` FROM `transactions` AS `t` WHERE (`t`.id = 1)"
+		(	sql`SELECT ${'"par"."product_\`\`id"->name'} FROM transactions WHERE id = 1` + '',
+			"SELECT `par#product_````id`.`name` FROM transactions WHERE id = 1"
 		);
 		assertEquals(lastParentName, 'par');
 		assertEquals(lastName, 'product_``id');
 
 		assertEquals
-		(	sql.transactions.where(`id = 1`).select(`"par"."product_""id"->name`) + "",
-			"SELECT `par#product_\"id`.`name` FROM `transactions` AS `t` WHERE (`t`.id = 1)"
+		(	sql`SELECT ${'"par"."product_""id"->name'} FROM transactions WHERE id = 1` + '',
+			"SELECT `par#product_\"id`.`name` FROM transactions WHERE id = 1"
 		);
 		assertEquals(lastParentName, 'par');
 		assertEquals(lastName, 'product_"id');
 
 		assertEquals
-		(	sql.transactions.where(`id = 1`).select(`"par".\`product_"id\`->name`) + "",
-			"SELECT `par#product_\"id`.`name` FROM `transactions` AS `t` WHERE (`t`.id = 1)"
+		(	sql`SELECT ${'"par".\`product_"id\`->name'} FROM transactions WHERE id = 1` + '',
+			"SELECT `par#product_\"id`.`name` FROM transactions WHERE id = 1"
 		);
 		assertEquals(lastParentName, 'par');
 		assertEquals(lastName, 'product_"id');
 
 		assertEquals
-		(	sql.transactions.where(`id = 1`).select(`"par".\`product_""id\`->name`) + "",
-			"SELECT `par#product_\"\"id`.`name` FROM `transactions` AS `t` WHERE (`t`.id = 1)"
+		(	sql`SELECT ${'"par".\`product_""id\`->name'} FROM transactions WHERE id = 1` + '',
+			"SELECT `par#product_\"\"id`.`name` FROM transactions WHERE id = 1"
 		);
 		assertEquals(lastParentName, 'par');
 		assertEquals(lastName, 'product_""id');
 
 		assertEquals
-		(	sql.transactions.where(`id = 1`).select('"par".`product_``id`->name') + "",
-			"SELECT `par#product_``id`.`name` FROM `transactions` AS `t` WHERE (`t`.id = 1)"
+		(	sql`SELECT ${'"par".`product_``id`->name'} FROM transactions WHERE id = 1` + '',
+			"SELECT `par#product_``id`.`name` FROM transactions WHERE id = 1"
 		);
 		assertEquals(lastParentName, 'par');
 		assertEquals(lastName, 'product_`id');
+	}
+);
+
+Deno.test
+(	'Arrow schema',
+	() =>
+	{	type TableInfo =
+		{	foreignKeys?: Record<string, {refTable: string, onExpr: (baseAlias: string, refAlias: string) => string}>;
+		};
+
+		const SCHEMA: Record<string, TableInfo|undefined> =
+		{	users: undefined,
+			products: undefined,
+			transactions:
+			{	foreignKeys:
+				{	product_id: {refTable: 'products', onExpr: (b, r) => `${b}.product_id = ${r}.id`}
+				}
+			}
+		};
+
+		class SqlTableCustom extends SqlTable
+		{	protected override appendTableName(tableName: string)
+			{	if (!(tableName in SCHEMA))
+				{	throw new Error(`Unknown table: ${tableName}`);
+				}
+				return super.appendTableName(tableName);
+			}
+
+			protected override onJoinForeign(tableName: string, alias: string, columnName: string)
+			{	const ref = SCHEMA[tableName.toLocaleLowerCase()]?.foreignKeys?.[columnName.toLocaleLowerCase()];
+				if (ref)
+				{	const {refTable, onExpr} = ref;
+					const refAlias = this.genAlias(refTable);
+					this.leftJoin(refTable, refAlias, onExpr(alias, refAlias));
+					return refAlias;
+				}
+			}
+		}
+
+		function getSql(mode: SqlMode)
+		{	const settings = new SqlSettings(mode);
+			return new Proxy
+			(	function sql(strings: TemplateStringsArray, ...params: unknown[])
+				{	return new SqlTableCustom(settings, '', [...strings], params);
+				} as Record<string, SqlTableCustom> & {(strings: TemplateStringsArray, ...params: unknown[]): SqlTableCustom},
+				{	get(_target, table_name)
+					{	if (typeof(table_name) != 'string')
+						{	throw new Error("Table name must be string");
+						}
+						return new SqlTableCustom(settings, table_name);
+					}
+				}
+			);
+		}
+
+		const mysqlOnly = getSql(SqlMode.MYSQL_ONLY);
+		const sqliteOnly = getSql(SqlMode.SQLITE_ONLY);
+		const pgsqlOnly = getSql(SqlMode.PGSQL_ONLY);
+		const mssqlOnly = getSql(SqlMode.MSSQL_ONLY);
+
+		assertEquals
+		(	mysqlOnly.transactions.where(`product_id->name = 'prod1'`).select("time") + "",
+			"SELECT `t`.time FROM `transactions` AS `t` LEFT JOIN `products` AS `p` ON (`t`.product_id = `p`.id) WHERE (`p`.`name` = 'prod1')"
+		);
+		assertEquals
+		(	sqliteOnly.transactions.where(`product_id->name = 'prod1'`).select("time") + "",
+			`SELECT "t"."time" FROM "transactions" AS "t" LEFT JOIN "products" AS "p" ON ("t"."product_id" = "p"."id") WHERE ("p"."name" = 'prod1')`
+		);
+		assertEquals
+		(	pgsqlOnly.transactions.where(`product_id->name = 'prod1'`).select("time") + "",
+			`SELECT "t".time FROM "transactions" AS "t" LEFT JOIN "products" AS "p" ON ("t".product_id = "p".id) WHERE ("p"."name" = 'prod1')`
+		);
+		assertEquals
+		(	mssqlOnly.transactions.where(`product_id->name = 'prod1'`).select("time") + "",
+			`SELECT "t"."time" FROM "transactions" AS "t" LEFT JOIN "products" AS "p" ON ("t"."product_id" = "p"."id") WHERE ("p"."name" = 'prod1')`
+		);
+
+		assertEquals
+		(	mysqlOnly.transactions.where(`product_id->name = 'prod1'`).update({time: '1999-01-01'}) + "",
+			"UPDATE `transactions` AS `t` LEFT JOIN `products` AS `p` ON (`t`.product_id = `p`.id) SET `t`.`time`='1999-01-01' WHERE (`p`.`name` = 'prod1')"
+		);
+		assertEquals
+		(	sqliteOnly.transactions.where(`product_id->name = 'prod1'`).update({time: '1999-01-01'}) + "",
+			`UPDATE "transactions" AS "t" SET "time"='1999-01-01' FROM "transactions" AS "s" LEFT JOIN "products" AS "p" ON ("t"."product_id" = "p"."id") WHERE ("p"."name" = 'prod1') AND "s".rowid = "t".rowid`
+		);
+		assertEquals
+		(	mssqlOnly.transactions.where(`product_id->name = 'prod1'`).update({time: '1999-01-01'}) + "",
+			`UPDATE "transactions" SET "time"='1999-01-01' FROM "transactions" AS "t" LEFT JOIN "products" AS "p" ON ("t"."product_id" = "p"."id") WHERE ("p"."name" = 'prod1')`
+		);
+
+		assertEquals
+		(	mysqlOnly.users.join("transactions", "t", "id = t.user_id").where(`u.name='user1' AND t.product_id->name = 'prod1'`).select("t.time") + "",
+			"SELECT `t`.time FROM `users` AS `u` INNER JOIN `transactions` AS `t` ON (`u`.id = `t`.user_id) LEFT JOIN `products` AS `p` ON (`t`.product_id = `p`.id) WHERE (`u`.name='user1' AND `p`.`name` = 'prod1')"
+		);
+
+		assertEquals
+		(	mysqlOnly.users.join("transactions", "t", "id = t.user_id").where(`u.name='user1' AND t.product_id->name = 'prod1'`).update({flag: 1}) + "",
+			"UPDATE `users` AS `u` INNER JOIN `transactions` AS `t` ON (`u`.id = `t`.user_id) LEFT JOIN `products` AS `p` ON (`t`.product_id = `p`.id) SET `u`.`flag`=1 WHERE (`u`.name='user1' AND `p`.`name` = 'prod1')"
+		);
 	}
 );

@@ -94,13 +94,15 @@ const enum Change
 // deno-lint-ignore no-explicit-any
 type Any = any;
 
+type OnArrow = (parentName: string, name: string) => string|undefined;
+
 export class Sql
 {	estimatedByteLength: number;
 
 	protected strings: string[];
 	protected params: unknown[];
 
-	constructor(public sqlSettings: SqlSettings, strings?: string[], params?: unknown[])
+	constructor(public sqlSettings: SqlSettings, private onArrow?: OnArrow, strings?: string[], params?: unknown[])
 	{	if (!strings)
 		{	strings = [''];
 		}
@@ -200,7 +202,7 @@ export class Sql
 	{	const {strings, params, sqlSettings} = this;
 		const {mode} = sqlSettings;
 		// 1. Allocate the buffer
-		const serializer = new Serializer(putParamsTo, mode!=SqlMode.MYSQL && mode!=SqlMode.MYSQL_ONLY || mysqlNoBackslashEscapes, useBuffer, useBufferFromPos, sqlSettings, this.estimatedByteLength, this.onArrow.bind(this));
+		const serializer = new Serializer(putParamsTo, mode!=SqlMode.MYSQL && mode!=SqlMode.MYSQL_ONLY || mysqlNoBackslashEscapes, useBuffer, useBufferFromPos, sqlSettings, this.estimatedByteLength, this.onArrow);
 		// 2. Append strings and params to the buffer
 		let want = Want.NOTHING;
 		const iEnd = strings.length - 1;
@@ -302,10 +304,6 @@ export class Sql
 	toSqlBytesWithParamsBackslashAndBuffer(putParamsTo: unknown[]|undefined, mysqlNoBackslashEscapes: boolean, useBuffer: Uint8Array)
 	{	return this.encode(putParamsTo, mysqlNoBackslashEscapes, useBuffer);
 	}
-
-	protected onArrow(_parentName: string, _name: string): string|undefined
-	{	return undefined;
-	}
 }
 
 class Serializer
@@ -316,9 +314,8 @@ class Serializer
 	private bufferForParentName = EMPTY_ARRAY;
 	private parentName = EMPTY_ARRAY;
 	private parentNameLeft = EMPTY_ARRAY;
-	private onArrow;
 
-	constructor(private putParamsTo: unknown[]|undefined, private noBackslashEscapes: boolean, useBuffer: Uint8Array|undefined, useBufferFromPos: number, private sqlSettings: SqlSettings, estimatedByteLength: number, onArrow: (parentName: string, name: string) => string|undefined)
+	constructor(private putParamsTo: unknown[]|undefined, private noBackslashEscapes: boolean, useBuffer: Uint8Array|undefined, useBufferFromPos: number, private sqlSettings: SqlSettings, estimatedByteLength: number, private onArrow: OnArrow|undefined)
 	{	if (useBuffer)
 		{	this.result = useBuffer;
 			this.pos = useBufferFromPos;
@@ -329,7 +326,6 @@ class Serializer
 		}
 		this.qtId = sqlSettings.mode==SqlMode.MYSQL || sqlSettings.mode==SqlMode.MYSQL_ONLY ? C_BACKTICK : C_QUOT;
 		this.alwaysQuoteIdents = sqlSettings.mode==SqlMode.SQLITE || sqlSettings.mode==SqlMode.SQLITE_ONLY || sqlSettings.mode==SqlMode.MSSQL || sqlSettings.mode==SqlMode.MSSQL_ONLY;
-		this.onArrow = onArrow;
 	}
 
 	private appendRawString(s: string)
@@ -873,7 +869,7 @@ class Serializer
 		}
 		// Escape chars in param
 		// 1. Find how many bytes to add
-		let {result, pos, qtId, alwaysQuoteIdents, parentName} = this;
+		let {result, pos, qtId, alwaysQuoteIdents, parentName, onArrow} = this;
 		let parenLevel = 0;
 		const changes = new Array<{change: Change, changeFrom: number, changeTo: number, arg: Uint8Array}>;
 		let nAdd = 0;
@@ -970,7 +966,7 @@ L:		for (let j=from; j<pos; j++)
 						curNameTo = jAfterIdent + 1;
 						curNameValidAt = j + 1;
 						curNameQt = qt;
-						if (lastAsAt!=jFrom && parentName.length) // if not after AS keyword, and there's `parentName`
+						if (lastAsAt!=jFrom && curParentNameTo==0 && parentName.length) // if not after AS keyword, and there's `parentName`
 						{	changes.splice(changesPos, 0, {change: Change.INSERT_PARENT_NAME, changeFrom: jFrom, changeTo: jFrom, arg: EMPTY_ARRAY});
 							nAdd += parentName.length + 3; // plus ``.
 						}
@@ -995,8 +991,8 @@ L:		for (let j=from; j<pos; j++)
 					if (c == C_MINUS)
 					{	throw new Error(`Comment in SQL fragment: ${param}`);
 					}
-					if (c==C_GT && curNameTo && curNameValidAt==j)
-					{	const substText = this.onArrow(this.unquoteName(curParentNameFrom, curParentNameTo, curParentNameQt), this.unquoteName(curNameFrom, curNameTo, curNameQt));
+					if (c==C_GT && curNameTo && curNameValidAt==j && onArrow)
+					{	const substText = onArrow(this.unquoteName(curParentNameFrom, curParentNameTo, curParentNameQt), this.unquoteName(curNameFrom, curNameTo, curNameQt));
 						if (substText != undefined)
 						{	const subst = encoder.encode(substText);
 							// Undo pending changes after `curParentNameFrom`
