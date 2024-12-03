@@ -24,20 +24,20 @@ const decoderLatin1 = new TextDecoder('latin1');
 // deno-lint-ignore no-explicit-any
 type Any = any;
 
-export function mysqlQuote(param: unknown, noBackslashEscapes=false)
-{	return quote(param, noBackslashEscapes, false);
+export function mysqlQuote(value: unknown, noBackslashEscapes=false)
+{	return quote(value, noBackslashEscapes, false);
 }
 
-export function pgsqlQuote(param: unknown, _unused=false)
-{	return quote(param, true, false);
+export function pgsqlQuote(value: unknown, _unused=false)
+{	return quote(value, true, false);
 }
 
-export function sqliteQuote(param: unknown, _unused=false)
-{	return quote(param, true, false);
+export function sqliteQuote(value: unknown, _unused=false)
+{	return quote(value, true, false);
 }
 
-export function mssqlQuote(param: unknown, noBackslashEscapes=false)
-{	return quote(param, noBackslashEscapes, true);
+export function mssqlQuote(value: unknown, _unused=false)
+{	return quote(value, true, true);
 }
 
 export function dateEncodeInto(date: Date, buffer: Uint8Array)
