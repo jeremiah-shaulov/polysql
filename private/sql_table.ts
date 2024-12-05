@@ -942,13 +942,13 @@ export class SqlTable extends Sql
 	protected genAlias(name: string)
 	{	for (let i=1, iEnd=name.length; i<iEnd; i++)
 		{	const n = name.slice(0, i);
-			if (this.#joins.findIndex(j => (j.alias || j.tableName) == n) == -1)
+			if (n != this.#tableAlias && n != this.tableName && this.#joins.findIndex(j => (j.alias || j.tableName) == n) == -1)
 			{	return n;
 			}
 		}
 		for (let i=2; true; i++)
 		{	const n = name + '_' + i;
-			if (this.#joins.findIndex(j => (j.alias || j.tableName) == n) == -1)
+			if (n != this.#tableAlias && n != this.tableName && this.#joins.findIndex(j => (j.alias || j.tableName) == n) == -1)
 			{	return n;
 			}
 		}
