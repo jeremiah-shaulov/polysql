@@ -849,15 +849,16 @@
 
 	```sql
 	CREATE TABLE products
-	(	id integer PRIMARY KEY AUTOINCREMENT,
+	(	id integer PRIMARY KEY AUTO_INCREMENT,
 		name varchar(100),
 		price float
 	);
 
 	CREATE TABLE transactions
-	(	id integer PRIMARY KEY AUTOINCREMENT,
+	(	id integer PRIMARY KEY AUTO_INCREMENT,
 		product_id integer,
-		time datetime
+		time datetime,
+		FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE ON UPDATE CASCADE
 	);
 	```
 
