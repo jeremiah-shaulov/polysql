@@ -874,8 +874,11 @@ class Serializer
 		const changes = new Array<{change: Change, changeFrom: number, changeTo: number, arg: Uint8Array}>;
 		let nAdd = 0;
 		let nRemove = 0;
+		let substParentName: string|undefined;
+		let substParentNameValidAt = 0;
+		let substParentNameFrom = 0;
 		let curParentNameFrom = 0;
-		let curParentNameTo = 0;
+		let curParentNameTo = 0; // -1 means to use substParentName
 		let curParentNameQt = 0;
 		let curNameFrom = 0;
 		let curNameTo = 0;
@@ -960,7 +963,7 @@ L:		for (let j=from; j<pos; j++)
 					}
 					else if (c != C_PAREN_OPEN)
 					{	if (curNameValidAt != jFrom)
-						{	curParentNameTo = 0;
+						{	curParentNameTo = substParentNameValidAt==jFrom ? -1 : 0;
 						}
 						curNameFrom = jFrom;
 						curNameTo = jAfterIdent + 1;
@@ -992,11 +995,11 @@ L:		for (let j=from; j<pos; j++)
 					{	throw new Error(`Comment in SQL fragment: ${param}`);
 					}
 					if (c==C_GT && curNameTo && curNameValidAt==j && onArrow)
-					{	const substText = onArrow(this.unquoteName(curParentNameFrom, curParentNameTo, curParentNameQt), this.unquoteName(curNameFrom, curNameTo, curNameQt));
-						if (substText != undefined)
-						{	const subst = encoder.encode(substText);
+					{	substParentName = onArrow(curParentNameTo==-1 && substParentName!=undefined ? substParentName : this.unquoteName(curParentNameFrom, curParentNameTo, curParentNameQt), this.unquoteName(curNameFrom, curNameTo, curNameQt));
+						if (substParentName != undefined)
+						{	const subst = encoder.encode(substParentName);
 							// Undo pending changes after `curParentNameFrom`
-							let changeFrom = curParentNameTo ? curParentNameFrom : curNameFrom;
+							let changeFrom = curParentNameTo>0 ? curParentNameFrom : curNameFrom;
 							let k = changes.length - 1;
 							for (; k>=0; k--)
 							{	const {change, changeFrom: curChangeFrom} = changes[k];
@@ -1025,6 +1028,9 @@ L:		for (let j=from; j<pos; j++)
 							let to = j++;
 							result[j] = C_DOT; // '>' -> '.'
 							result[to] = qtId;
+							if (changeFrom == substParentNameValidAt)
+							{	changeFrom = substParentNameFrom;
+							}
 							changeFrom++; // need to insert qtId
 							while (from>0 && to>changeFrom)
 							{	const c2 = subst[--from];
@@ -1038,7 +1044,12 @@ L:		for (let j=from; j<pos; j++)
 							{	if (to > changeFrom)
 								{	result[--to] = qtId;
 									if (to > changeFrom)
-									{	changes[k++] = {change: Change.REMOVE, changeFrom, changeTo: to, arg: EMPTY_ARRAY};
+									{	if (k>0 && changes[k-1].changeTo==changeFrom && changes[k-1].change==Change.REMOVE)
+										{	changes[k-1].changeTo = to;
+										}
+										else
+										{	changes[k++] = {change: Change.REMOVE, changeFrom, changeTo: to, arg: EMPTY_ARRAY};
+										}
 										nRemove += to - changeFrom;
 									}
 								}
@@ -1074,6 +1085,8 @@ L:		for (let j=from; j<pos; j++)
 								}
 							}
 							lastAsAt = j;
+							substParentNameValidAt = j;
+							substParentNameFrom = to;
 							j--; // will j++ on next iter
 						}
 					}
@@ -1192,7 +1205,10 @@ L:		for (let j=from; j<pos; j++)
 									nAdd += !alwaysQuoteIdents ? parentName.length+3 : parentName.length+5; // !alwaysQuoteIdents ? ``. : ``.``
 								}
 								else
-								{	changes[changes.length] = {change: Change.QUOTE_COLUMN_NAME, changeFrom, changeTo: jAfterIdent, arg: EMPTY_ARRAY};
+								{	if (substParentNameValidAt == changeFrom)
+									{	curParentNameTo = -1;
+									}
+									changes[changes.length] = {change: Change.QUOTE_COLUMN_NAME, changeFrom, changeTo: jAfterIdent, arg: EMPTY_ARRAY};
 									nAdd += 2; // ``
 								}
 							}

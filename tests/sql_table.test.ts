@@ -1147,7 +1147,12 @@ Deno.test
 
 		const SCHEMA: Record<string, TableInfo|undefined> =
 		{	users: undefined,
-			products: undefined,
+			categories: undefined,
+			products:
+			{	foreignKeys:
+				{	category_id: {refTable: 'categories', onExpr: (b, r) => `${b}.category_id = ${r}.id`}
+				}
+			},
 			transactions:
 			{	foreignKeys:
 				{	product_id: {refTable: 'products', onExpr: (b, r) => `${b}.product_id = ${r}.id`}
@@ -1233,6 +1238,43 @@ Deno.test
 		assertEquals
 		(	mysqlOnly.users.join("transactions", "t", "id = t.user_id").where(`u.name='user1' AND t.product_id->name = 'prod1'`).update({flag: 1}) + "",
 			"UPDATE `users` AS `u` INNER JOIN `transactions` AS `t` ON (`u`.id = `t`.user_id) LEFT JOIN `products` AS `p` ON (`t`.product_id = `p`.id) SET `u`.`flag`=1 WHERE (`u`.name='user1' AND `p`.`name` = 'prod1')"
+		);
+
+		assertEquals
+		(	mysqlOnly.transactions.where(`id = 1`).select('product_id->name, product_id->category_id->name') + "",
+			"SELECT `p`.`name`, `c`.`name` FROM `transactions` AS `t` LEFT JOIN `products` AS `p` ON (`t`.product_id = `p`.id) LEFT JOIN `categories` AS `c` ON (`p`.category_id = `c`.id) WHERE (`t`.id = 1)"
+		);
+		assertEquals
+		(	mysqlOnly.transactions.where(`id = 1`).select('product_id->name, product_id -> category_id -> name') + "",
+			"SELECT `p`.`name`, `c`. `name` FROM `transactions` AS `t` LEFT JOIN `products` AS `p` ON (`t`.product_id = `p`.id) LEFT JOIN `categories` AS `c` ON (`p`.category_id = `c`.id) WHERE (`t`.id = 1)"
+		);
+		assertEquals
+		(	mysqlOnly.transactions.where(`id = 1`).select('product_id->name, `product_id`->category_id->name') + "",
+			"SELECT `p`.`name`, `c`.`name` FROM `transactions` AS `t` LEFT JOIN `products` AS `p` ON (`t`.product_id = `p`.id) LEFT JOIN `categories` AS `c` ON (`p`.category_id = `c`.id) WHERE (`t`.id = 1)"
+		);
+		assertEquals
+		(	mysqlOnly.transactions.where(`id = 1`).select('product_id->name, product_id->`category_id`->name') + "",
+			"SELECT `p`.`name`, `c`.`name` FROM `transactions` AS `t` LEFT JOIN `products` AS `p` ON (`t`.product_id = `p`.id) LEFT JOIN `categories` AS `c` ON (`p`.category_id = `c`.id) WHERE (`t`.id = 1)"
+		);
+		assertEquals
+		(	mysqlOnly.transactions.where(`id = 1`).select('product_id->name, `product_id`->`category_id`->name') + "",
+			"SELECT `p`.`name`, `c`.`name` FROM `transactions` AS `t` LEFT JOIN `products` AS `p` ON (`t`.product_id = `p`.id) LEFT JOIN `categories` AS `c` ON (`p`.category_id = `c`.id) WHERE (`t`.id = 1)"
+		);
+		assertEquals
+		(	mysqlOnly.transactions.where(`id = 1`).select('product_id->name, `product_id`->`category_id`->`name`') + "",
+			"SELECT `p`.`name`, `c`.`name` FROM `transactions` AS `t` LEFT JOIN `products` AS `p` ON (`t`.product_id = `p`.id) LEFT JOIN `categories` AS `c` ON (`p`.category_id = `c`.id) WHERE (`t`.id = 1)"
+		);
+		assertEquals
+		(	mysqlOnly.transactions.where(`id = 1`).select('product_id->name, `product_id`->category_id->`name`') + "",
+			"SELECT `p`.`name`, `c`.`name` FROM `transactions` AS `t` LEFT JOIN `products` AS `p` ON (`t`.product_id = `p`.id) LEFT JOIN `categories` AS `c` ON (`p`.category_id = `c`.id) WHERE (`t`.id = 1)"
+		);
+		assertEquals
+		(	mysqlOnly.transactions.where(`id = 1`).select('product_id->name, `product_id` -> category_id -> `name`') + "",
+			"SELECT `p`.`name`, `c`. `name` FROM `transactions` AS `t` LEFT JOIN `products` AS `p` ON (`t`.product_id = `p`.id) LEFT JOIN `categories` AS `c` ON (`p`.category_id = `c`.id) WHERE (`t`.id = 1)"
+		);
+		assertEquals
+		(	mysqlOnly.transactions.where(`id = 1`).select('product_id->name, `product_id` -> `category_id` -> `name`') + "",
+			"SELECT `p`.`name`, `c`. `name` FROM `transactions` AS `t` LEFT JOIN `products` AS `p` ON (`t`.product_id = `p`.id) LEFT JOIN `categories` AS `c` ON (`p`.category_id = `c`.id) WHERE (`t`.id = 1)"
 		);
 	}
 );
