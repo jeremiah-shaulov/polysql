@@ -874,7 +874,7 @@ class Serializer
 		const changes = new Array<{change: Change, changeFrom: number, changeTo: number, arg: Uint8Array}>;
 		let nAdd = 0;
 		let nRemove = 0;
-		let substParentName: string|undefined;
+		let substParentName = '';
 		let substParentNameValidAt = 0;
 		let substParentNameFrom = 0;
 		let curParentNameFrom = 0;
@@ -995,8 +995,8 @@ L:		for (let j=from; j<pos; j++)
 					{	throw new Error(`Comment in SQL fragment: ${param}`);
 					}
 					if (c==C_GT && curNameTo && curNameValidAt==j && onArrow)
-					{	substParentName = onArrow(curParentNameTo==-1 && substParentName!=undefined ? substParentName : this.unquoteName(curParentNameFrom, curParentNameTo, curParentNameQt), this.unquoteName(curNameFrom, curNameTo, curNameQt));
-						if (substParentName != undefined)
+					{	substParentName = onArrow(curParentNameTo==-1 && substParentName ? substParentName : this.unquoteName(curParentNameFrom, curParentNameTo, curParentNameQt), this.unquoteName(curNameFrom, curNameTo, curNameQt)) ?? '';
+						if (substParentName)
 						{	const subst = encoder.encode(substParentName);
 							// Undo pending changes after `curParentNameFrom`
 							let changeFrom = curParentNameTo>0 ? curParentNameFrom : curNameFrom;
