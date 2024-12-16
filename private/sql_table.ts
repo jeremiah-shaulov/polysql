@@ -63,7 +63,7 @@ export class SqlTable extends Sql
 				}
 				const refAlias = this.onJoinForeign(table.tableName, table.alias, name);
 				if (!refAlias)
-				{	throw new Error(`Foreign key not known when joining by column: ${!parentName ? name : parentName+'.'+name}`);
+				{	throw new Error(`Foreign key not known when joining by column: ${table.tableName+'.'+name}`);
 				}
 				this.#foreignJoined.push({parentName, name, refAlias});
 				return refAlias;
