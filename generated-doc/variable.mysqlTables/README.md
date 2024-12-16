@@ -3,7 +3,7 @@
 [Documentation Index](../README.md)
 
 ```ts
-import {mysqlTables} from "https://deno.land/x/polysql@v2.0.1/mod.ts"
+import {mysqlTables} from "https://deno.land/x/polysql@v2.0.2/mod.ts"
 ```
 
 `const` mysqlTables: SqlFactory
