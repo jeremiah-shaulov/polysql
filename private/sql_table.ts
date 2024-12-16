@@ -73,6 +73,19 @@ export class SqlTable extends Sql
 		);
 	}
 
+	/**	Set table alias.
+	 **/
+	as(tableAlias: string)
+	{	if (this.#tableAlias)
+		{	throw new Error(`as() can be called only once`);
+		}
+		if (this.#joins.length+this.#whereExprs.length || this.#groupByExprs!=undefined)
+		{	throw new Error(`as() must be first call after table name`);
+		}
+		this.#tableAlias = tableAlias;
+		return this;
+	}
+
 	#getTableAlias()
 	{	if (!this.#tableAlias)
 		{	this.#tableAlias = this.genAlias(this.tableName);
