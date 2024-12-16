@@ -3,14 +3,15 @@
 [Documentation Index](../README.md)
 
 ```ts
-import {SqlTable} from "https://deno.land/x/polysql@v2.0.2/mod.ts"
+import {SqlTable} from "https://deno.land/x/polysql@v2.0.3/mod.ts"
 ```
 
 ## This class has
 
 - [constructor](#-constructorsqlsettings-sqlsettings-tablename-string-strings-string-params-unknown)
 - property [tableName](#-tablename-string)
-- 11 methods:
+- 12 methods:
+[as](#-astablealias-string-this),
 [join](#-jointablename-string-alias-string-onexpr-string--sql-this),
 [leftJoin](#-leftjointablename-string-alias-string-onexpr-string--sql-this),
 [where](#-wherewhereexpr-string--sql-this),
@@ -34,6 +35,12 @@ import {SqlTable} from "https://deno.land/x/polysql@v2.0.2/mod.ts"
 
 
 #### 📄 tableName: `string`
+
+
+
+#### ⚙ as(tableAlias: `string`): `this`
+
+> Set table alias.
 
 
 
