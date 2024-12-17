@@ -5,6 +5,8 @@ import {SqlSettings, SqlMode, DEFAULT_SETTINGS_MYSQL} from './sql_settings.ts';
 type Join = {tableName: string, alias: string, onExpr: string|Sql, isLeft: boolean};
 export type OrderBy = string | Sql | {columns: string[], desc?: boolean};
 
+const decoder = new TextDecoder;
+
 const enum Operation
 {	NONE,
 	INSERT,
@@ -39,7 +41,7 @@ export class SqlTable extends Sql
 	#operationSelectLimit = 0;
 	#operationUpdateRow: Record<string, unknown> | undefined;
 
-	#result: Uint8Array|undefined;
+	#result = '';
 
 	constructor
 	(	sqlSettings: SqlSettings,
@@ -339,76 +341,73 @@ export class SqlTable extends Sql
 	}
 
 	override encode(putParamsTo?: unknown[], mysqlNoBackslashEscapes=false, useBuffer?: Uint8Array, useBufferFromPos=0, defaultParentName?: Uint8Array)
-	{	if (!this.#result)
-		{	this.#buildComplete = true;
-			const operation = this.#operation;
-			const {mode} = this.sqlSettings;
-			const {hasWhere, modNString, modStringPos} = this.#appendOperation();
-			let nJoins = this.#joins.length;
-			let result = super.encode(putParamsTo, mysqlNoBackslashEscapes, useBuffer, useBufferFromPos, defaultParentName);
-			if (modNString>=0 && this.#joins.length>nJoins) // if a join added during serialization (probably by `onArrow()`)
-			{	const tableAlias = this.#getTableAlias();
-				const {strings, params} = this;
-				let endNString = strings.length - 1;
-				let endStringPos = strings[endNString].length;
-				if (nJoins==0 && operation==Operation.UPDATE)
-				{	const {isLeft, onExpr} = this.#joins[0];
-					if (isLeft)
-					{	this.#complainOnLeftJoinInUpdate();
-					}
-					if (mode==SqlMode.PGSQL || mode==SqlMode.PGSQL_ONLY || mode==SqlMode.SQLITE || mode==SqlMode.SQLITE_ONLY)
-					{	if (isLeft)
-						{	debugAssert(mode == SqlMode.SQLITE_ONLY);
-							const subj = this.genAlias('subjtable');
-							this.append(hasWhere ? sql` AND "${subj}".rowid = "${tableAlias}".rowid` : sql` WHERE "${subj}".rowid = "${tableAlias}".rowid`);
-							endNString = strings.length - 1;
-							endStringPos = strings[endNString].length;
-							strings[strings.length - 1] += ' FROM ';
-							this.estimatedByteLength += 6;
-							this.appendTableName(this.tableName);
-							this.append(sql` AS "${subj}"`);
-						}
-						else
-						{	this.append(hasWhere ? sql` AND (${tableAlias}.${onExpr})` : sql` WHERE (${tableAlias}.${onExpr})`);
-							endNString = strings.length - 1;
-							endStringPos = strings[endNString].length;
-							strings[strings.length - 1] += ' FROM ';
-							this.estimatedByteLength += 6;
-							const {tableName, alias} = this.#joins[0];
-							this.append(!alias ? sql`"${tableName}"` : sql`"${tableName}" AS "${alias}"`);
-							nJoins = 1;
-						}
-					}
-					else if (mode==SqlMode.MSSQL || mode==SqlMode.MSSQL_ONLY)
-					{	strings[strings.length - 1] += ' FROM ';
+	{	this.#buildComplete = true;
+		const operation = this.#operation;
+		const {mode} = this.sqlSettings;
+		const {hasWhere, modNString, modStringPos} = this.#appendOperation();
+		let nJoins = this.#joins.length;
+		let result = super.encode(putParamsTo, mysqlNoBackslashEscapes, useBuffer, useBufferFromPos, defaultParentName);
+		if (modNString>=0 && this.#joins.length>nJoins) // if a join added during serialization (probably by `onArrow()`)
+		{	const tableAlias = this.#getTableAlias();
+			const {strings, params} = this;
+			let endNString = strings.length - 1;
+			let endStringPos = strings[endNString].length;
+			if (nJoins==0 && operation==Operation.UPDATE)
+			{	const {isLeft, onExpr} = this.#joins[0];
+				if (isLeft)
+				{	this.#complainOnLeftJoinInUpdate();
+				}
+				if (mode==SqlMode.PGSQL || mode==SqlMode.PGSQL_ONLY || mode==SqlMode.SQLITE || mode==SqlMode.SQLITE_ONLY)
+				{	if (isLeft)
+					{	debugAssert(mode == SqlMode.SQLITE_ONLY);
+						const subj = this.genAlias('subjtable');
+						this.append(hasWhere ? sql` AND "${subj}".rowid = "${tableAlias}".rowid` : sql` WHERE "${subj}".rowid = "${tableAlias}".rowid`);
+						endNString = strings.length - 1;
+						endStringPos = strings[endNString].length;
+						strings[strings.length - 1] += ' FROM ';
 						this.estimatedByteLength += 6;
 						this.appendTableName(this.tableName);
-						this.append(sql` AS "${tableAlias}"`);
+						this.append(sql` AS "${subj}"`);
+					}
+					else
+					{	this.append(hasWhere ? sql` AND (${tableAlias}.${onExpr})` : sql` WHERE (${tableAlias}.${onExpr})`);
+						endNString = strings.length - 1;
+						endStringPos = strings[endNString].length;
+						strings[strings.length - 1] += ' FROM ';
+						this.estimatedByteLength += 6;
+						const {tableName, alias} = this.#joins[0];
+						this.append(!alias ? sql`"${tableName}"` : sql`"${tableName}" AS "${alias}"`);
+						nJoins = 1;
 					}
 				}
-				for (let i=nJoins, iEnd=this.#joins.length; i<iEnd; i++)
-				{	this.#appendJoin(tableAlias, i);
+				else if (mode==SqlMode.MSSQL || mode==SqlMode.MSSQL_ONLY)
+				{	strings[strings.length - 1] += ' FROM ';
+					this.estimatedByteLength += 6;
+					this.appendTableName(this.tableName);
+					this.append(sql` AS "${tableAlias}"`);
 				}
-				debugAssert(modNString != endNString);
-				// strings: A ab B bc C -> A ac Cb B b
-				// params:   P  Q R  S  ->  P  S  Q R
-				// replace strings
-				const replacePart = strings.splice(endNString+1, strings.length - (endNString+1)); // get C and delete it from array (now: A ab B bc)
-				const replaceBegin = strings[endNString].slice(endStringPos); // get c
-				strings[endNString] = strings[endNString].slice(0, endStringPos); // bc -> b (now: A ab B b)
-				const tail = strings[modNString].slice(modStringPos); // get first b
-				strings[modNString] = strings[modNString].slice(0, modStringPos) + replaceBegin; // ab -> ac (now: A ac B b)
-				replacePart[replacePart.length - 1] += tail; // C -> Cb
-				strings.splice(modNString+1, 0, ...replacePart); // (now: A ac Cb B b)
-				// replace params
-				const mid = params.splice(modNString, endNString-modNString);
-				params.splice(params.length, 0, ...mid);
-				// redo encode
-				result = super.encode(putParamsTo, mysqlNoBackslashEscapes, useBuffer, useBufferFromPos, defaultParentName);
 			}
-			this.#result = result;
+			for (let i=nJoins, iEnd=this.#joins.length; i<iEnd; i++)
+			{	this.#appendJoin(tableAlias, i);
+			}
+			debugAssert(modNString != endNString);
+			// strings: A ab B bc C -> A ac Cb B b
+			// params:   P  Q R  S  ->  P  S  Q R
+			// replace strings
+			const replacePart = strings.splice(endNString+1, strings.length - (endNString+1)); // get C and delete it from array (now: A ab B bc)
+			const replaceBegin = strings[endNString].slice(endStringPos); // get c
+			strings[endNString] = strings[endNString].slice(0, endStringPos); // bc -> b (now: A ab B b)
+			const tail = strings[modNString].slice(modStringPos); // get first b
+			strings[modNString] = strings[modNString].slice(0, modStringPos) + replaceBegin; // ab -> ac (now: A ac B b)
+			replacePart[replacePart.length - 1] += tail; // C -> Cb
+			strings.splice(modNString+1, 0, ...replacePart); // (now: A ac Cb B b)
+			// replace params
+			const mid = params.splice(modNString, endNString-modNString);
+			params.splice(params.length, 0, ...mid);
+			// redo encode
+			result = super.encode(putParamsTo, mysqlNoBackslashEscapes, useBuffer, useBufferFromPos, defaultParentName);
 		}
-		return this.#result;
+		return result;
 	}
 
 	#appendOperation()
@@ -932,6 +931,13 @@ export class SqlTable extends Sql
 		this.#operationInsertSelect = undefined;
 
 		return {hasWhere, modNString, modStringPos};
+	}
+
+	override toString(putParamsTo?: unknown[], mysqlNoBackslashEscapes=false)
+	{	if (!this.#result)
+		{	this.#result = decoder.decode(this.encode(putParamsTo, mysqlNoBackslashEscapes));
+		}
+		return this.#result;
 	}
 
 	#complainOnLeftJoinInUpdate()
