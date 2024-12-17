@@ -25,7 +25,7 @@ export class SqlTable extends Sql
 	#whereExprs: (string | Sql)[] = [];
 	#groupByExprs: string|string[]|Sql|undefined;
 	#havingExpr: string|Sql = '';
-	#isEncoding = false;
+	#buildComplete = false;
 	#foreignJoined = new Array<{parentName: string, name: string, refAlias: string}>;
 
 	#operation = Operation.NONE;
@@ -38,6 +38,8 @@ export class SqlTable extends Sql
 	#operationSelectOffset = 0;
 	#operationSelectLimit = 0;
 	#operationUpdateRow: Record<string, unknown> | undefined;
+
+	#result: Uint8Array|undefined;
 
 	constructor
 	(	sqlSettings: SqlSettings,
@@ -76,7 +78,10 @@ export class SqlTable extends Sql
 	/**	Set table alias.
 	 **/
 	as(tableAlias: string)
-	{	if (this.#tableAlias)
+	{	if (this.#result)
+		{	throw new Error(`SQL already generated for this object`);
+		}
+		if (this.#tableAlias)
 		{	throw new Error(`as() can be called only once`);
 		}
 		if (this.#joins.length+this.#whereExprs.length || this.#groupByExprs!=undefined)
@@ -150,13 +155,16 @@ export class SqlTable extends Sql
 	}
 
 	#someJoin(tableName: string, alias: string, onExpr: string|Sql, isLeft: boolean)
-	{	if (!this.#isEncoding)
+	{	if (!this.#buildComplete)
 		{	if (this.#whereExprs.length)
 			{	throw new Error(`join() can be called before where()`);
 			}
 			if (this.#groupByExprs != undefined)
 			{	throw new Error(`join() can be called before groupBy()`);
 			}
+		}
+		else if (this.#result)
+		{	throw new Error(`SQL already generated for this object`);
 		}
 		this.#joins.push({tableName, alias, onExpr, isLeft});
 	}
@@ -188,7 +196,10 @@ export class SqlTable extends Sql
 		To explicitly allow working on the whole table, call `sqlTable.where('')` (with empty condition).
 	 **/
 	where(whereExpr: string|Sql)
-	{	if (this.#groupByExprs != undefined)
+	{	if (this.#result)
+		{	throw new Error(`SQL already generated for this object`);
+		}
+		if (this.#groupByExprs != undefined)
 		{	throw new Error(`where() can be called before groupBy()`);
 		}
 		this.#whereExprs.push(whereExpr);
@@ -200,7 +211,10 @@ export class SqlTable extends Sql
 		If it's `string[]`, it will be treated as array of column names.
 	 **/
 	groupBy(groupByExprs: string|string[]|Sql, havingExpr: string|Sql='')
-	{	if (this.#groupByExprs != undefined)
+	{	if (this.#result)
+		{	throw new Error(`SQL already generated for this object`);
+		}
+		if (this.#groupByExprs != undefined)
 		{	throw new Error(`groupBy() can be called only once`);
 		}
 		this.#groupByExprs = groupByExprs;
@@ -215,7 +229,10 @@ export class SqlTable extends Sql
 		- `onConflictDo=='patch'` is only supported for MySQL If duplicate key, updates **empty** (null, 0 or '') columns of the existing record with the new values.
 	 **/
 	insert(rows: Iterable<Record<string, unknown>>, onConflictDo: ''|'nothing'|'replace'|'update'|'patch' = '')
-	{	if (this.#joins.length)
+	{	if (this.#result)
+		{	throw new Error(`SQL already generated for this object`);
+		}
+		if (this.#joins.length)
 		{	throw new Error(`Cannot INSERT with JOIN`);
 		}
 		if (this.#whereExprs.length)
@@ -238,7 +255,10 @@ export class SqlTable extends Sql
 		console.log('' + s); // prints: INSERT INTO `t_log` (`c1`, `c2`) SELECT `c1`, `c2` FROM `t_log_bak` WHERE (`id`<=100)
 	 **/
 	insertFrom(names: string[], select: Sql, onConflictDo: ''|'nothing'|'replace' = '')
-	{	if (this.#joins.length)
+	{	if (this.#result)
+		{	throw new Error(`SQL already generated for this object`);
+		}
+		if (this.#joins.length)
 		{	throw new Error(`Cannot INSERT with JOIN`);
 		}
 		if (this.#whereExprs.length)
@@ -261,7 +281,10 @@ export class SqlTable extends Sql
 		OFFSET and LIMIT without ORDER BY are not supported on Microsoft SQL Server.
 	 **/
 	select(columns: string|string[]|Sql='', orderBy: OrderBy='', offset=0, limit=0)
-	{	this.#operation = Operation.SELECT;
+	{	if (this.#result)
+		{	throw new Error(`SQL already generated for this object`);
+		}
+		this.#operation = Operation.SELECT;
 		this.#operationSelectColumns = columns;
 		this.#operationSelectOrderBy = orderBy;
 		this.#operationSelectOffset = offset;
@@ -273,7 +296,10 @@ export class SqlTable extends Sql
 		Columns of the base table (not joined) will be updated.
 	 **/
 	update(row: Record<string, unknown>)
-	{	if (this.#groupByExprs != undefined)
+	{	if (this.#result)
+		{	throw new Error(`SQL already generated for this object`);
+		}
+		if (this.#groupByExprs != undefined)
 		{	throw new Error(`Cannot UPDATE with GROUP BY`);
 		}
 		this.#operation = Operation.UPDATE;
@@ -285,7 +311,10 @@ export class SqlTable extends Sql
 		Will delete from the base table (not joined).
 	 **/
 	delete()
-	{	if (this.#groupByExprs != undefined)
+	{	if (this.#result)
+		{	throw new Error(`SQL already generated for this object`);
+		}
+		if (this.#groupByExprs != undefined)
 		{	throw new Error(`Cannot DELETE with GROUP BY`);
 		}
 		this.#operation = Operation.DELETE;
@@ -293,7 +322,10 @@ export class SqlTable extends Sql
 	}
 
 	truncate()
-	{	if (this.#joins.length)
+	{	if (this.#result)
+		{	throw new Error(`SQL already generated for this object`);
+		}
+		if (this.#joins.length)
 		{	throw new Error(`Cannot TRUNCATE with JOIN`);
 		}
 		if (this.#whereExprs.length)
@@ -306,26 +338,84 @@ export class SqlTable extends Sql
 		return this;
 	}
 
-	override encode(putParamsTo?: unknown[], mysqlNoBackslashEscapes=false, useBuffer?: Uint8Array, useBufferFromPos=0, defaultParentName?: Uint8Array): Uint8Array
-	{	let afterSelect: Sql | undefined;
-
-		let data = useBuffer ?? new Uint8Array(this.estimatedByteLength);
-		let pos = useBufferFromPos;
-		const encodePart = () =>
-		{	if (data.buffer == useBuffer?.buffer)
-			{	data = useBuffer;
+	override encode(putParamsTo?: unknown[], mysqlNoBackslashEscapes=false, useBuffer?: Uint8Array, useBufferFromPos=0, defaultParentName?: Uint8Array)
+	{	if (!this.#result)
+		{	this.#buildComplete = true;
+			const operation = this.#operation;
+			const {mode} = this.sqlSettings;
+			const {hasWhere, modNString, modStringPos} = this.#appendOperation();
+			let nJoins = this.#joins.length;
+			let result = super.encode(putParamsTo, mysqlNoBackslashEscapes, useBuffer, useBufferFromPos, defaultParentName);
+			if (modNString>=0 && this.#joins.length>nJoins) // if a join added during serialization (probably by `onArrow()`)
+			{	const tableAlias = this.#getTableAlias();
+				const {strings, params} = this;
+				let endNString = strings.length - 1;
+				let endStringPos = strings[endNString].length;
+				if (nJoins==0 && operation==Operation.UPDATE)
+				{	const {isLeft, onExpr} = this.#joins[0];
+					if (isLeft)
+					{	this.#complainOnLeftJoinInUpdate();
+					}
+					if (mode==SqlMode.PGSQL || mode==SqlMode.PGSQL_ONLY || mode==SqlMode.SQLITE || mode==SqlMode.SQLITE_ONLY)
+					{	if (isLeft)
+						{	debugAssert(mode == SqlMode.SQLITE_ONLY);
+							const subj = this.genAlias('subjtable');
+							this.append(hasWhere ? sql` AND "${subj}".rowid = "${tableAlias}".rowid` : sql` WHERE "${subj}".rowid = "${tableAlias}".rowid`);
+							endNString = strings.length - 1;
+							endStringPos = strings[endNString].length;
+							strings[strings.length - 1] += ' FROM ';
+							this.estimatedByteLength += 6;
+							this.appendTableName(this.tableName);
+							this.append(sql` AS "${subj}"`);
+						}
+						else
+						{	this.append(hasWhere ? sql` AND (${tableAlias}.${onExpr})` : sql` WHERE (${tableAlias}.${onExpr})`);
+							endNString = strings.length - 1;
+							endStringPos = strings[endNString].length;
+							strings[strings.length - 1] += ' FROM ';
+							this.estimatedByteLength += 6;
+							const {tableName, alias} = this.#joins[0];
+							this.append(!alias ? sql`"${tableName}"` : sql`"${tableName}" AS "${alias}"`);
+							nJoins = 1;
+						}
+					}
+					else if (mode==SqlMode.MSSQL || mode==SqlMode.MSSQL_ONLY)
+					{	strings[strings.length - 1] += ' FROM ';
+						this.estimatedByteLength += 6;
+						this.appendTableName(this.tableName);
+						this.append(sql` AS "${tableAlias}"`);
+					}
+				}
+				for (let i=nJoins, iEnd=this.#joins.length; i<iEnd; i++)
+				{	this.#appendJoin(tableAlias, i);
+				}
+				debugAssert(modNString != endNString);
+				// strings: A ab B bc C -> A ac Cb B b
+				// params:   P  Q R  S  ->  P  S  Q R
+				// replace strings
+				const replacePart = strings.splice(endNString+1, strings.length - (endNString+1)); // get C and delete it from array (now: A ab B bc)
+				const replaceBegin = strings[endNString].slice(endStringPos); // get c
+				strings[endNString] = strings[endNString].slice(0, endStringPos); // bc -> b (now: A ab B b)
+				const tail = strings[modNString].slice(modStringPos); // get first b
+				strings[modNString] = strings[modNString].slice(0, modStringPos) + replaceBegin; // ab -> ac (now: A ac B b)
+				replacePart[replacePart.length - 1] += tail; // C -> Cb
+				strings.splice(modNString+1, 0, ...replacePart); // (now: A ac Cb B b)
+				// replace params
+				const mid = params.splice(modNString, endNString-modNString);
+				params.splice(params.length, 0, ...mid);
+				// redo encode
+				result = super.encode(putParamsTo, mysqlNoBackslashEscapes, useBuffer, useBufferFromPos, defaultParentName);
 			}
-			data = super.encode(putParamsTo, mysqlNoBackslashEscapes, data, pos, defaultParentName);
-			pos = data.length;
-			this.strings = [''];
-			this.params = [];
-			this.estimatedByteLength = 0;
-		};
+			this.#result = result;
+		}
+		return this.#result;
+	}
 
+	#appendOperation()
+	{	let afterSelect: Sql | undefined;
 		let hasWhere = false;
-		let nJoins = 0;
-		let afterJoinsPos = 0;
-		this.#isEncoding = true;
+		let modNString = -1;
+		let modStringPos = 0;
 
 		const {mode} = this.sqlSettings;
 
@@ -553,9 +643,8 @@ export class SqlTable extends Sql
 				{	this.append(sql`SELECT ${tableAlias}.${columns} FROM`);
 				}
 				this.#appendJoins(tableAlias);
-				nJoins = this.#joins.length;
-				encodePart();
-				afterJoinsPos = pos;
+				modNString = this.strings.length - 1;
+				modStringPos = this.strings[modNString].length;
 				this.#appendWhereExprs(tableAlias);
 				if (this.#groupByExprs)
 				{	if (!Array.isArray(this.#groupByExprs))
@@ -684,9 +773,8 @@ export class SqlTable extends Sql
 					{	this.strings[this.strings.length - 1] += 'UPDATE';
 						this.estimatedByteLength += 6;
 						this.#appendJoins(tableAlias);
-						nJoins = this.#joins.length;
-						encodePart();
-						afterJoinsPos = pos;
+						modNString = this.strings.length - 1;
+						modStringPos = this.strings[modNString].length;
 						this.append(sql` SET {${tableAlias}.${row}}`);
 						this.#appendWhereExprs(tableAlias);
 						break;
@@ -700,9 +788,8 @@ export class SqlTable extends Sql
 							this.appendTableName(this.tableName);
 							this.append(sql` AS "${subj}" SET {.${tableAlias}.${row}} FROM`);
 							this.#appendJoins(tableAlias);
-							nJoins = this.#joins.length;
-							encodePart();
-							afterJoinsPos = pos;
+							modNString = this.strings.length - 1;
+							modStringPos = this.strings[modNString].length;
 							hasWhere = this.#appendWhereExprs(tableAlias);
 							this.append(hasWhere ? sql` AND "${subj}".rowid = "${tableAlias}".rowid` : sql` WHERE "${subj}".rowid = "${tableAlias}".rowid`);
 							break;
@@ -717,13 +804,13 @@ export class SqlTable extends Sql
 						this.estimatedByteLength += 7;
 						this.appendTableName(this.tableName);
 						this.append(sql` AS "${tableAlias}" SET {.${tableAlias}.${row}}`);
-						nJoins = this.#joins.length;
+						const nJoins = this.#joins.length;
 						if (nJoins > 0)
 						{	this.append(sql` FROM`);
 							this.#appendJoinsExceptFirst(tableAlias);
 						}
-						encodePart();
-						afterJoinsPos = pos;
+						modNString = this.strings.length - 1;
+						modStringPos = this.strings[modNString].length;
 						hasWhere = this.#appendWhereExprs(tableAlias);
 						if (nJoins > 0)
 						{	const {onExpr} = this.#joins[0];
@@ -738,13 +825,13 @@ export class SqlTable extends Sql
 						this.estimatedByteLength += 7;
 						this.appendTableName(this.tableName);
 						this.append(sql` SET {.${tableAlias}.${row}}`);
-						nJoins = this.#joins.length;
+						const nJoins = this.#joins.length;
 						if (nJoins > 0)
 						{	this.append(sql` FROM`);
 							this.#appendJoins(tableAlias);
 						}
-						encodePart();
-						afterJoinsPos = pos;
+						modNString = this.strings.length - 1;
+						modStringPos = this.strings[modNString].length;
 						this.#appendWhereExprs(tableAlias);
 					}
 				}
@@ -756,8 +843,8 @@ export class SqlTable extends Sql
 				{	this.strings[this.strings.length - 1] += 'DELETE FROM ';
 					this.estimatedByteLength += 12;
 					this.appendTableName(this.tableName);
-					encodePart();
-					afterJoinsPos = pos;
+					modNString = this.strings.length - 1;
+					modStringPos = this.strings[modNString].length;
 					this.#appendWhereExprs('');
 				}
 				else
@@ -773,9 +860,8 @@ export class SqlTable extends Sql
 						case SqlMode.MSSQL_ONLY:
 						{	this.append(sql`DELETE "${tableAlias}" FROM`);
 							this.#appendJoins(tableAlias);
-							nJoins = this.#joins.length;
-							encodePart();
-							afterJoinsPos = pos;
+							modNString = this.strings.length - 1;
+							modStringPos = this.strings[modNString].length;
 							this.#appendWhereExprs(tableAlias);
 							break;
 						}
@@ -787,9 +873,8 @@ export class SqlTable extends Sql
 							this.appendTableName(this.tableName);
 							this.append(sql` AS "${tableAlias}" USING`);
 							this.#appendJoinsExceptFirst(tableAlias);
-							nJoins = this.#joins.length;
-							encodePart();
-							afterJoinsPos = pos;
+							modNString = this.strings.length - 1;
+							modStringPos = this.strings[modNString].length;
 							hasWhere = this.#appendWhereExprs(tableAlias);
 							this.append(hasWhere ? sql` AND (${tableAlias}.${onExpr})` : sql` WHERE (${tableAlias}.${onExpr})`);
 							break;
@@ -803,9 +888,8 @@ export class SqlTable extends Sql
 							this.appendTableName(this.tableName);
 							this.append(sql` AS "${subj}" WHERE rowid IN (SELECT "${tableAlias}".rowid FROM`);
 							this.#appendJoins(tableAlias);
-							nJoins = this.#joins.length;
-							encodePart();
-							afterJoinsPos = pos;
+							modNString = this.strings.length - 1;
+							modStringPos = this.strings[modNString].length;
 							this.#appendWhereExprs(tableAlias);
 							this.append(sql`)`);
 						}
@@ -836,63 +920,6 @@ export class SqlTable extends Sql
 				break;
 			}
 		}
-		encodePart();
-		if (afterJoinsPos>0 && this.#joins.length>nJoins) // if a join added during serialization (probably by `onArrow()`)
-		{	let endPos = pos;
-			const tableAlias = this.#getTableAlias();
-			if (nJoins==0 && this.#operation==Operation.UPDATE)
-			{	const {isLeft, onExpr} = this.#joins[0];
-				if (isLeft)
-				{	this.#complainOnLeftJoinInUpdate();
-				}
-				if (mode==SqlMode.PGSQL || mode==SqlMode.PGSQL_ONLY || mode==SqlMode.SQLITE || mode==SqlMode.SQLITE_ONLY)
-				{	if (isLeft)
-					{	debugAssert(mode == SqlMode.SQLITE_ONLY);
-						const subj = this.genAlias('subjtable');
-						this.append(hasWhere ? sql` AND "${subj}".rowid = "${tableAlias}".rowid` : sql` WHERE "${subj}".rowid = "${tableAlias}".rowid`);
-						encodePart();
-						endPos = pos;
-						this.strings[this.strings.length - 1] += ' FROM ';
-						this.estimatedByteLength += 6;
-						this.appendTableName(this.tableName);
-						this.append(sql` AS "${subj}"`);
-					}
-					else
-					{	this.append(hasWhere ? sql` AND (${tableAlias}.${onExpr})` : sql` WHERE (${tableAlias}.${onExpr})`);
-						encodePart();
-						endPos = pos;
-						this.strings[this.strings.length - 1] += ' FROM ';
-						this.estimatedByteLength += 6;
-						const {tableName, alias} = this.#joins[0];
-						this.append(!alias ? sql`"${tableName}"` : sql`"${tableName}" AS "${alias}"`);
-						nJoins = 1;
-					}
-				}
-				else if (mode==SqlMode.MSSQL || mode==SqlMode.MSSQL_ONLY)
-				{	this.strings[this.strings.length - 1] += ' FROM ';
-					this.estimatedByteLength += 6;
-					this.appendTableName(this.tableName);
-					this.append(sql` AS "${tableAlias}"`);
-				}
-			}
-			for (let i=nJoins, iEnd=this.#joins.length; i<iEnd; i++)
-			{	this.#appendJoin(tableAlias, i);
-			}
-			encodePart();
-			const tailLen = pos - endPos;
-			if (data.buffer != useBuffer?.buffer)
-			{	useBuffer = new Uint8Array(data.buffer, data.byteOffset);
-			}
-			if (pos+tailLen <= useBuffer.length)
-			{	useBuffer.copyWithin(afterJoinsPos+tailLen, afterJoinsPos, pos);
-				useBuffer.copyWithin(afterJoinsPos, endPos+tailLen, pos+tailLen);
-			}
-			else
-			{	const tail = data.slice(endPos);
-				useBuffer.copyWithin(afterJoinsPos+tailLen, afterJoinsPos, endPos);
-				useBuffer.set(tail, afterJoinsPos);
-			}
-		}
 		this.#operation = Operation.NONE;
 		this.#operationSelectColumns = '';
 		this.#operationSelectOrderBy = '';
@@ -903,8 +930,8 @@ export class SqlTable extends Sql
 		this.#operationInsertOnConflictDo = '';
 		this.#operationInsertNames = undefined;
 		this.#operationInsertSelect = undefined;
-		this.#isEncoding = false;
-		return data;
+
+		return {hasWhere, modNString, modStringPos};
 	}
 
 	#complainOnLeftJoinInUpdate()

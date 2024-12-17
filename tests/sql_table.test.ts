@@ -105,6 +105,15 @@ Deno.test
 		s = mysql[TABLE].join('more').where("").select(['a', 'b b']);
 		assertEquals(s+'', "SELECT `H`.`a`, `H`.`b b` FROM `Hello ``All``!` AS `H` CROSS JOIN `more`");
 
+		let error: Error|undefined;
+		try
+		{	s.select("col1*2, Count(*)") + '';
+		}
+		catch (e)
+		{	error = e instanceof Error ? e : new Error(e+'');
+		}
+		assertEquals(error?.message, "SQL already generated for this object");
+
 		{	const a = 'a'.repeat(INLINE_STRING_MAX_LEN+1);
 			const b = 'b'.repeat(INLINE_STRING_MAX_LEN+1);
 			const params: unknown[] = [];
@@ -113,7 +122,7 @@ Deno.test
 			assertEquals(params, [b, a]);
 		}
 
-		let error: Error|undefined;
+		error = undefined;
 		try
 		{	mysql[TABLE].select("col1*2, Count(*)") + '';
 		}
@@ -122,14 +131,12 @@ Deno.test
 		}
 		assertEquals(error?.message, "Please, call where() first");
 
-		const table = mysql.t_log.where('id IN (1, 2)');
-
-		s = table.where("name <> ''").select("col1*2, Count(*)");
+		s = mysql.t_log.where('id IN (1, 2)').where("name <> ''").select("col1*2, Count(*)");
 		assertEquals(s+'', "SELECT `t`.col1*2, Count(*) FROM `t_log` AS `t` WHERE (`t`.id IN( 1, 2)) AND (`t`.name <> '')");
 
 		error = undefined;
 		try
-		{	table.join('hello');
+		{	mysql.t_log.where('id IN (1, 2)').join('hello');
 		}
 		catch (e)
 		{	error = e instanceof Error ? e : new Error(e+'');

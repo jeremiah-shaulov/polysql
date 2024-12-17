@@ -198,7 +198,7 @@ export class Sql
 		Else, will return a subarray of a new Uint8Array.
 		If `useBufferFromPos` is provided, will append to the `useBuffer` after this position.
 	 **/
-	encode(putParamsTo?: unknown[], mysqlNoBackslashEscapes=false, useBuffer?: Uint8Array, useBufferFromPos=0, defaultParentName?: Uint8Array): Uint8Array
+	encode(putParamsTo?: unknown[], mysqlNoBackslashEscapes=false, useBuffer?: Uint8Array, useBufferFromPos=0, defaultParentName?: Uint8Array)
 	{	const {strings, params, sqlSettings} = this;
 		const {mode} = sqlSettings;
 		// 1. Allocate the buffer
