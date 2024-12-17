@@ -3,7 +3,7 @@
 [Documentation Index](../README.md)
 
 ```ts
-import {OrderBy} from "https://deno.land/x/polysql@v2.0.4/mod.ts"
+import {OrderBy} from "https://deno.land/x/polysql@v2.0.5/mod.ts"
 ```
 
 `type` OrderBy = `string` | [Sql](../class.Sql/README.md) | \{columns: `string`\[], desc?: `boolean`}

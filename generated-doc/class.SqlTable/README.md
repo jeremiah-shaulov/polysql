@@ -3,14 +3,14 @@
 [Documentation Index](../README.md)
 
 ```ts
-import {SqlTable} from "https://deno.land/x/polysql@v2.0.4/mod.ts"
+import {SqlTable} from "https://deno.land/x/polysql@v2.0.5/mod.ts"
 ```
 
 ## This class has
 
 - [constructor](#-constructorsqlsettings-sqlsettings-tablename-string-strings-string-params-unknown)
 - property [tableName](#-tablename-string)
-- 12 methods:
+- 13 methods:
 [as](#-astablealias-string-this),
 [join](#-jointablename-string-alias-string-onexpr-string--sql-this),
 [leftJoin](#-leftjointablename-string-alias-string-onexpr-string--sql-this),
@@ -22,12 +22,13 @@ import {SqlTable} from "https://deno.land/x/polysql@v2.0.4/mod.ts"
 [update](#-updaterow-recordstring-unknown-this),
 [delete](#-delete-this),
 [truncate](#-truncate-this),
-[encode](#-override-encodeputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-usebuffer-uint8array-usebufferfrompos-number0-defaultparentname-uint8array-uint8array)
+[encode](#-override-encodeputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-usebuffer-uint8array-usebufferfrompos-number0-defaultparentname-uint8array-uint8array),
+[toString](#-override-tostringputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-string)
 - 3 protected methods:
 [appendTableName](#-protected-appendtablenametablename-string-string),
 [genAlias](#-protected-genaliasname-string-string),
 [onJoinForeign](#-protected-onjoinforeign_tablename-string-_alias-string-_columnname-string-string)
-- 9 inherited members from [Sql](../class.Sql/README.md)
+- 8 inherited members from [Sql](../class.Sql/README.md)
 
 
 #### 🔧 `constructor`(sqlSettings: [SqlSettings](../class.SqlSettings/README.md), tableName: `string`, strings?: `string`\[], params?: `unknown`\[])
@@ -131,6 +132,10 @@ import {SqlTable} from "https://deno.land/x/polysql@v2.0.4/mod.ts"
 > If `useBuffer` is provided, and it has enough size, will encode to it, and return a `useBuffer.subarray(0, N)`.
 > Else, will return a subarray of a new Uint8Array.
 > If `useBufferFromPos` is provided, will append to the `useBuffer` after this position.
+
+
+
+#### ⚙ `override` toString(putParamsTo?: `unknown`\[], mysqlNoBackslashEscapes: `boolean`=false): `string`
 
 
 

@@ -3,7 +3,7 @@
 [Documentation Index](../README.md)
 
 ```ts
-import {pgsqlQuote} from "https://deno.land/x/polysql@v2.0.4/mod.ts"
+import {pgsqlQuote} from "https://deno.land/x/polysql@v2.0.5/mod.ts"
 ```
 
 `function` pgsqlQuote(value: `unknown`, \_unused: `boolean`=false): `string`
