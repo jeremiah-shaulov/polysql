@@ -3,7 +3,7 @@
 [Documentation Index](../README.md)
 
 ```ts
-import {sqliteQuote} from "https://deno.land/x/polysql@v2.0.3/mod.ts"
+import {sqliteQuote} from "https://deno.land/x/polysql@v2.0.4/mod.ts"
 ```
 
 `function` sqliteQuote(value: `unknown`, \_unused: `boolean`=false): `string`

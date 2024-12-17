@@ -3,7 +3,7 @@
 [Documentation Index](../README.md)
 
 ```ts
-import {pgsqlTables} from "https://deno.land/x/polysql@v2.0.3/mod.ts"
+import {pgsqlTables} from "https://deno.land/x/polysql@v2.0.4/mod.ts"
 ```
 
 `const` pgsqlTables: SqlFactory
