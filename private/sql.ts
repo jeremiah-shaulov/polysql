@@ -637,7 +637,7 @@ class Serializer
 		{	if (nItemsAdded++ != 0)
 			{	this.appendRawChar(C_COMMA);
 			}
-			if (typeof(p)!='object' && typeof(p)!='function' || (p instanceof Date) || ((p as Any).buffer instanceof ArrayBuffer))
+			if (typeof(p)!='object' && typeof(p)!='function' || (p instanceof Date) || (p!=null && (p as Any).buffer instanceof ArrayBuffer))
 			{	this.appendRawChar(C_APOS);
 				if (this.appendSqlValue(p) != Want.REMOVE_APOS_OR_BRACE_CLOSE_OR_GT)
 				{	this.appendRawChar(C_APOS);
