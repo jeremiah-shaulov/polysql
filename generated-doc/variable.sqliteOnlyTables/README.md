@@ -3,7 +3,7 @@
 [Documentation Index](../README.md)
 
 ```ts
-import {sqliteOnlyTables} from "https://deno.land/x/polysql@v2.0.5/mod.ts"
+import {sqliteOnlyTables} from "https://deno.land/x/polysql@v2.0.6/mod.ts"
 ```
 
 `const` sqliteOnlyTables: SqlFactory
