@@ -3,7 +3,7 @@
 [Documentation Index](../README.md)
 
 ```ts
-import {SqlSettings} from "https://deno.land/x/polysql@v2.0.6/mod.ts"
+import {SqlSettings} from "https://deno.land/x/polysql@v2.0.7/mod.ts"
 ```
 
 ## This class has

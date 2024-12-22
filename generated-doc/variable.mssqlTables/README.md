@@ -3,7 +3,7 @@
 [Documentation Index](../README.md)
 
 ```ts
-import {mssqlTables} from "https://deno.land/x/polysql@v2.0.6/mod.ts"
+import {mssqlTables} from "https://deno.land/x/polysql@v2.0.7/mod.ts"
 ```
 
 `const` mssqlTables: SqlFactory
