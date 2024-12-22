@@ -919,7 +919,7 @@ L:		for (let j=from; j<pos; j++)
 					{	while (++j < pos)
 						{	c = result[j];
 							if (c == qt)
-							{	if (result[j+1] != qt)
+							{	if (result[j+1]!=qt || j+1>=pos)
 								{	break;
 								}
 								j++;
@@ -985,109 +985,111 @@ L:		for (let j=from; j<pos; j++)
 					}
 					break;
 				case C_SLASH:
-					if (result[j+1] == C_TIMES)
+					if (j+1<pos && result[j+1]==C_TIMES)
 					{	throw new Error(`Comment in SQL fragment: ${param}`);
 					}
 					break;
 				case C_MINUS:
-					c = result[j+1];
-					if (c == C_MINUS)
-					{	throw new Error(`Comment in SQL fragment: ${param}`);
-					}
-					if (c==C_GT && curNameTo && curNameValidAt==j && onArrow)
-					{	substParentName = onArrow(curParentNameTo==-1 && substParentName ? substParentName : this.unquoteName(curParentNameFrom, curParentNameTo, curParentNameQt), this.unquoteName(curNameFrom, curNameTo, curNameQt)) ?? '';
-						if (substParentName)
-						{	const subst = encoder.encode(substParentName);
-							// Undo pending changes after `curParentNameFrom`
-							let changeFrom = curParentNameTo>0 ? curParentNameFrom : curNameFrom;
-							let k = changes.length - 1;
-							for (; k>=0; k--)
-							{	const {change, changeFrom: curChangeFrom} = changes[k];
-								if (curChangeFrom < changeFrom)
-								{	break;
+					if (j+1 < pos)
+					{	c = result[j+1];
+						if (c == C_MINUS)
+						{	throw new Error(`Comment in SQL fragment: ${param}`);
+						}
+						if (c==C_GT && curNameTo && curNameValidAt==j && onArrow)
+						{	substParentName = onArrow(curParentNameTo==-1 && substParentName ? substParentName : this.unquoteName(curParentNameFrom, curParentNameTo, curParentNameQt), this.unquoteName(curNameFrom, curNameTo, curNameQt)) ?? '';
+							if (substParentName)
+							{	const subst = encoder.encode(substParentName);
+								// Undo pending changes after `curParentNameFrom`
+								let changeFrom = curParentNameTo>0 ? curParentNameFrom : curNameFrom;
+								let k = changes.length - 1;
+								for (; k>=0; k--)
+								{	const {change, changeFrom: curChangeFrom} = changes[k];
+									if (curChangeFrom < changeFrom)
+									{	break;
+									}
+									switch (change)
+									{	case Change.INSERT_PARENT_NAME:
+											nAdd -= parentName.length + 3; // plus ``.
+											break;
+										case Change.INSERT_BACKTICK:
+										case Change.INSERT_QUOT:
+											nAdd--;
+											break;
+										case Change.QUOTE_COLUMN_NAME:
+											nAdd -= 2;
+											break;
+										default:
+											debugAssert(change == Change.QUOTE_AND_QUALIFY_COLUMN_NAME);
+											nAdd -= !alwaysQuoteIdents ? parentName.length+3 : parentName.length+5;
+									}
 								}
-								switch (change)
-								{	case Change.INSERT_PARENT_NAME:
-										nAdd -= parentName.length + 3; // plus ``.
-										break;
-									case Change.INSERT_BACKTICK:
-									case Change.INSERT_QUOT:
-										nAdd--;
-										break;
-									case Change.QUOTE_COLUMN_NAME:
-										nAdd -= 2;
-										break;
-									default:
-										debugAssert(change == Change.QUOTE_AND_QUALIFY_COLUMN_NAME);
-										nAdd -= !alwaysQuoteIdents ? parentName.length+3 : parentName.length+5;
+								k++;
+								// Add change
+								let from = subst.length;
+								let to = j++;
+								result[j] = C_DOT; // '>' -> '.'
+								result[to] = qtId;
+								if (changeFrom == substParentNameValidAt)
+								{	changeFrom = substParentNameFrom;
 								}
-							}
-							k++;
-							// Add change
-							let from = subst.length;
-							let to = j++;
-							result[j] = C_DOT; // '>' -> '.'
-							result[to] = qtId;
-							if (changeFrom == substParentNameValidAt)
-							{	changeFrom = substParentNameFrom;
-							}
-							changeFrom++; // need to insert qtId
-							while (from>0 && to>changeFrom)
-							{	const c2 = subst[--from];
-								result[--to] = c2;
-								if (c2 == qtId)
-								{	result[--to] = qtId;
+								changeFrom++; // need to insert qtId
+								while (from>0 && to>changeFrom)
+								{	const c2 = subst[--from];
+									result[--to] = c2;
+									if (c2 == qtId)
+									{	result[--to] = qtId;
+									}
 								}
-							}
-							changeFrom--;
-							if (from == 0)
-							{	if (to > changeFrom)
-								{	result[--to] = qtId;
-									if (to > changeFrom)
-									{	if (k>0 && changes[k-1].changeTo==changeFrom && changes[k-1].change==Change.REMOVE)
-										{	changes[k-1].changeTo = to;
+								changeFrom--;
+								if (from == 0)
+								{	if (to > changeFrom)
+									{	result[--to] = qtId;
+										if (to > changeFrom)
+										{	if (k>0 && changes[k-1].changeTo==changeFrom && changes[k-1].change==Change.REMOVE)
+											{	changes[k-1].changeTo = to;
+											}
+											else
+											{	changes[k++] = {change: Change.REMOVE, changeFrom, changeTo: to, arg: EMPTY_ARRAY};
+											}
+											nRemove += to - changeFrom;
 										}
-										else
-										{	changes[k++] = {change: Change.REMOVE, changeFrom, changeTo: to, arg: EMPTY_ARRAY};
-										}
-										nRemove += to - changeFrom;
+									}
+									else
+									{	debugAssert(to == changeFrom);
+										changes[k++] = {change: qtId==C_BACKTICK ? Change.INSERT_DOUBLE_BACKTICK : Change.INSERT_DOUBLE_QUOT, changeFrom, changeTo: changeFrom, arg: EMPTY_ARRAY};
+										nAdd += 2;
 									}
 								}
 								else
-								{	debugAssert(to == changeFrom);
-									changes[k++] = {change: qtId==C_BACKTICK ? Change.INSERT_DOUBLE_BACKTICK : Change.INSERT_DOUBLE_QUOT, changeFrom, changeTo: changeFrom, arg: EMPTY_ARRAY};
-									nAdd += 2;
-								}
-							}
-							else
-							{	if (to > changeFrom)
-								{	debugAssert(to == changeFrom+1);
-									result[changeFrom] = qtId;
-								}
-								else
-								{	debugAssert(to == changeFrom);
-									changes[k++] = {change: qtId==C_BACKTICK ? Change.INSERT_BACKTICK : Change.INSERT_QUOT, changeFrom, changeTo: changeFrom, arg: EMPTY_ARRAY};
-									nAdd++;
-								}
-								changes[k++] = {change: Change.INSERT_CHARS_DOUBLE_QTID, changeFrom: to, changeTo: to, arg: subst.subarray(0, from)};
-								nAdd += from;
-								while (from > 0)
-								{	if (subst[--from] == qtId)
-									{	nAdd++;
+								{	if (to > changeFrom)
+									{	debugAssert(to == changeFrom+1);
+										result[changeFrom] = qtId;
+									}
+									else
+									{	debugAssert(to == changeFrom);
+										changes[k++] = {change: qtId==C_BACKTICK ? Change.INSERT_BACKTICK : Change.INSERT_QUOT, changeFrom, changeTo: changeFrom, arg: EMPTY_ARRAY};
+										nAdd++;
+									}
+									changes[k++] = {change: Change.INSERT_CHARS_DOUBLE_QTID, changeFrom: to, changeTo: to, arg: subst.subarray(0, from)};
+									nAdd += from;
+									while (from > 0)
+									{	if (subst[--from] == qtId)
+										{	nAdd++;
+										}
 									}
 								}
-							}
-							changes.length = k;
-							while (++j < pos)
-							{	c = result[j];
-								if (c!=C_SPACE && c!=C_TAB && c!=C_CR && c!=C_LF)
-								{	break;
+								changes.length = k;
+								while (++j < pos)
+								{	c = result[j];
+									if (c!=C_SPACE && c!=C_TAB && c!=C_CR && c!=C_LF)
+									{	break;
+									}
 								}
+								lastAsAt = j;
+								substParentNameValidAt = j;
+								substParentNameFrom = to;
+								j--; // will j++ on next iter
 							}
-							lastAsAt = j;
-							substParentNameValidAt = j;
-							substParentNameFrom = to;
-							j--; // will j++ on next iter
 						}
 					}
 					break;
