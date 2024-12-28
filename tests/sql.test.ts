@@ -757,9 +757,10 @@ Deno.test
 	{	const rows =
 		[	{value: 10, name: 'text 1'},
 			{value: 11, name: 'text 2', junk: 'j'},
+			{value: 12, name: mysql`Unix_timestamp()`},
 		];
 		const s = mysql`INSERT INTO t_log <${rows}>`;
-		assertEquals(s+'', "INSERT INTO t_log (`value`, `name`) VALUES\n(10,'text 1'),\n(11,'text 2')");
+		assertEquals(s+'', "INSERT INTO t_log (`value`, `name`) VALUES\n(10,'text 1'),\n(11,'text 2'),\n(12,Unix_timestamp())");
 
 		let error: Error|undefined;
 		try

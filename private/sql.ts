@@ -590,6 +590,11 @@ class Serializer
 			}
 			throw new Error(param instanceof ReadableStream ? `Cannot stringify ReadableStream` : `Cannot stringify Deno.Reader`);
 		}
+		if (param instanceof Sql)
+		{	this.pos--; // backspace '
+			this.appendSafeSqlFragment(param, true);
+			return Want.REMOVE_APOS_OR_BRACE_CLOSE_OR_GT;
+		}
 		// Assume: param is string, Sql, or something else that must be converted to string
 		const str = param+'';
 		// putParamsTo?
