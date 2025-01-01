@@ -687,24 +687,24 @@ class Serializer
 		}
 		const it = param as Iterable<unknown>;
 		const {qtId} = this;
-		let names: string[] | undefined;
+		let names: unknown[] | undefined;
 		for (const row of it)
 		{	if (row==null || typeof(row)!='object')
 			{	throw new Error("In SQL fragment: parameter for <${...}> must be iterable of objects");
 			}
 			if (!names)
-			{	names = Object.keys(row);
+			{	names = row instanceof Map ? [...row.keys()] : Object.keys(row);
 				if (names.length == 0)
 				{	throw new Error("No fields for <${param}>");
 				}
 				this.appendRawChar(qtId);
-				this.appendQuotedIdent(names[0]);
+				this.appendQuotedIdent(names[0]+'');
 				this.appendRawChar(qtId);
 				for (let i=1, iEnd=names.length; i<iEnd; i++)
 				{	this.appendRawChar(C_COMMA);
 					this.appendRawChar(C_SPACE);
 					this.appendRawChar(qtId);
-					this.appendQuotedIdent(names[i]);
+					this.appendQuotedIdent(names[i]+'');
 					this.appendRawChar(qtId);
 				}
 				this.appendRawBytes(DELIM_PAREN_CLOSE_VALUES);
@@ -718,7 +718,8 @@ class Serializer
 			for (const name of names)
 			{	this.appendRawChar(delim);
 				this.appendRawChar(C_APOS);
-				if (this.appendSqlValue((row as Any)[name]) != Want.REMOVE_APOS_OR_BRACE_CLOSE_OR_GT)
+				const value = row instanceof Map ? row.get(name) : (row as Any)[name+''];
+				if (this.appendSqlValue(value) != Want.REMOVE_APOS_OR_BRACE_CLOSE_OR_GT)
 				{	this.appendRawChar(C_APOS);
 				}
 				delim = C_COMMA;
