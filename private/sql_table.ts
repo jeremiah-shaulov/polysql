@@ -412,6 +412,8 @@ export class SqlTable extends Sql
 
 	#appendOperation()
 	{	let afterSelect: Sql | undefined;
+		let afterSelectTableEq = '';
+		let afterSelectNameEq = '';
 		let hasWhere = false;
 		let modNString = -1;
 		let modStringPos = 0;
@@ -448,7 +450,11 @@ export class SqlTable extends Sql
 							this.strings[this.strings.length - 1] += 'INSERT INTO ';
 							this.estimatedByteLength += 12;
 							this.appendTableName(this.tableName);
-							this.append(sql` <${rowsW}> ON DUPLICATE KEY UPDATE "${names[0]}"="${names[0]}"`);
+							this.append(sql` <${rowsW}> ON DUPLICATE KEY UPDATE `);
+							this.appendTableName(this.tableName);
+							this.append(sql`."${names[0]}"=`);
+							this.appendTableName(this.tableName);
+							this.append(sql`."${names[0]}"`);
 							break;
 						}
 
@@ -567,7 +573,9 @@ export class SqlTable extends Sql
 						case SqlMode.MYSQL_ONLY:
 							this.strings[this.strings.length - 1] += 'INSERT INTO ';
 							this.estimatedByteLength += 12;
-							afterSelect = sql` ON DUPLICATE KEY UPDATE "${names[0]}"="${names[0]}"`;
+							afterSelect = sql` ON DUPLICATE KEY UPDATE `;
+							afterSelectTableEq = this.tableName;
+							afterSelectNameEq = names[0];
 							break;
 
 						default:
@@ -611,6 +619,12 @@ export class SqlTable extends Sql
 				{	this.append(select);
 					if (afterSelect)
 					{	this.append(afterSelect);
+						if (afterSelectTableEq && afterSelectNameEq)
+						{	this.appendTableName(afterSelectTableEq);
+							this.append(sql`."${afterSelectNameEq}"=`);
+							this.appendTableName(afterSelectTableEq);
+							this.append(sql`."${afterSelectNameEq}"`);
+						}
 					}
 					break;
 				}
@@ -755,6 +769,12 @@ export class SqlTable extends Sql
 				}
 				if (afterSelect)
 				{	this.append(afterSelect);
+					if (afterSelectTableEq && afterSelectNameEq)
+					{	this.appendTableName(afterSelectTableEq);
+						this.append(sql`."${afterSelectNameEq}"=`);
+						this.appendTableName(afterSelectTableEq);
+						this.append(sql`."${afterSelectNameEq}"`);
+					}
 				}
 				break;
 			}

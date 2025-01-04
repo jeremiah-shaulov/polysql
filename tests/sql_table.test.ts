@@ -630,7 +630,7 @@ Deno.test
 			assertEquals(s+'', "INSERT INTO `t_log` (`a`, `b`) VALUES\n(1,'2'),\n(10,'20')");
 
 			s = mysqlOnly.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'nothing');
-			assertEquals(s+'', "INSERT INTO `t_log` (`a`, `b`) VALUES\n(1,'2'),\n(10,'20') ON DUPLICATE KEY UPDATE `a`=`a`");
+			assertEquals(s+'', "INSERT INTO `t_log` (`a`, `b`) VALUES\n(1,'2'),\n(10,'20') ON DUPLICATE KEY UPDATE `t_log`.`a`=`t_log`.`a`");
 
 			s = pgsqlOnly.t_log.insert(i==0 ? ROWS : itRows(ROWS), 'nothing');
 			assertEquals(s+'', `INSERT INTO "t_log" ("a", "b") VALUES\n(1,'2'),\n(10,'20') ON CONFLICT DO NOTHING`);
@@ -822,7 +822,7 @@ Deno.test
 		assertEquals(s+'', "INSERT INTO `t_log` (`c1`, `c2`) SELECT `t`.cb1, `t`.cb2 FROM `t_log_bak` AS `t`");
 
 		s = mysqlOnly.t_log.insertFrom(['c1', 'c2'], mysql.t_log_bak.where('id<=100').select('cb1, cb2'), 'nothing');
-		assertEquals(s+'', "INSERT INTO `t_log` (`c1`, `c2`) SELECT `t`.cb1, `t`.cb2 FROM `t_log_bak` AS `t` WHERE (`t`.id<=100) ON DUPLICATE KEY UPDATE `c1`=`c1`");
+		assertEquals(s+'', "INSERT INTO `t_log` (`c1`, `c2`) SELECT `t`.cb1, `t`.cb2 FROM `t_log_bak` AS `t` WHERE (`t`.id<=100) ON DUPLICATE KEY UPDATE `t_log`.`c1`=`t_log`.`c1`");
 
 		s = pgsqlOnly.t_log.insertFrom(['c1', 'c2'], mysql.t_log_bak.where('id<=100').select('cb1, cb2'), 'nothing');
 		assertEquals(s+'', `INSERT INTO "t_log" ("c1", "c2") SELECT "t".cb1, "t".cb2 FROM "t_log_bak" AS "t" WHERE ("t".id<=100) ON CONFLICT DO NOTHING`);
@@ -840,7 +840,7 @@ Deno.test
 		assertEquals(s+'', "INSERT INTO `t_log` (`c1`, `c2`) HELLO ALL");
 
 		s = mysqlOnly.t_log.insertFrom(['c1', 'c2'], mysql`HELLO ALL`, 'nothing');
-		assertEquals(s+'', "INSERT INTO `t_log` (`c1`, `c2`) HELLO ALL ON DUPLICATE KEY UPDATE `c1`=`c1`");
+		assertEquals(s+'', "INSERT INTO `t_log` (`c1`, `c2`) HELLO ALL ON DUPLICATE KEY UPDATE `t_log`.`c1`=`t_log`.`c1`");
 
 		let error: Error|undefined;
 		try
