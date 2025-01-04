@@ -412,8 +412,6 @@ export class SqlTable extends Sql
 
 	#appendOperation()
 	{	let afterSelect: Sql | undefined;
-		let afterSelectTableEq = '';
-		let afterSelectNameEq = '';
 		let hasWhere = false;
 		let modNString = -1;
 		let modStringPos = 0;
@@ -449,12 +447,8 @@ export class SqlTable extends Sql
 						{	const {names, rows: rowsW} = wrapRowsIterator(rows);
 							this.strings[this.strings.length - 1] += 'INSERT INTO ';
 							this.estimatedByteLength += 12;
-							this.appendTableName(this.tableName);
-							this.append(sql` <${rowsW}> ON DUPLICATE KEY UPDATE `);
-							this.appendTableName(this.tableName);
-							this.append(sql`."${names[0]}"=`);
-							this.appendTableName(this.tableName);
-							this.append(sql`."${names[0]}"`);
+							const tableNameConv = this.appendTableName(this.tableName);
+							this.append(sql` <${rowsW}> ON DUPLICATE KEY UPDATE "${tableNameConv}"."${names[0]}"="${tableNameConv}"."${names[0]}"`);
 							break;
 						}
 
@@ -520,7 +514,7 @@ export class SqlTable extends Sql
 							const {names, rows: rowsW} = wrapRowsIterator(rows);
 							this.strings[this.strings.length - 1] += 'INSERT INTO ';
 							this.estimatedByteLength += 12;
-							const tableName = this.appendTableName(this.tableName);
+							const tableNameConv = this.appendTableName(this.tableName);
 							if (mode==SqlMode.MYSQL_ONLY)
 							{	this.append(sql` <${rowsW}> AS excluded ON DUPLICATE KEY UPDATE `);
 							}
@@ -537,7 +531,7 @@ export class SqlTable extends Sql
 								{	this.append(sql`"${name}"=excluded."${name}"`);
 								}
 								else
-								{	this.append(sql`"${name}"=CASE WHEN "${tableName}"."${name}" IS NULL OR Cast("${tableName}"."${name}" AS char) IN ('', '0') THEN excluded."${name}" ELSE "${tableName}"."${name}" END`);
+								{	this.append(sql`"${name}"=CASE WHEN "${tableNameConv}"."${name}" IS NULL OR Cast("${tableNameConv}"."${name}" AS char) IN ('', '0') THEN excluded."${name}" ELSE "${tableNameConv}"."${name}" END`);
 								}
 							}
 							break;
@@ -554,6 +548,7 @@ export class SqlTable extends Sql
 				if (!onConflictDo)
 				{	this.strings[this.strings.length - 1] += 'INSERT INTO ';
 					this.estimatedByteLength += 12;
+					this.appendTableName(this.tableName);
 				}
 				else if (onConflictDo == 'nothing')
 				{	switch (mode)
@@ -571,17 +566,18 @@ export class SqlTable extends Sql
 							throw new Error("ON CONFLICT DO NOTHING is not supported on MS SQL");
 
 						case SqlMode.MYSQL_ONLY:
-							this.strings[this.strings.length - 1] += 'INSERT INTO ';
+						{	this.strings[this.strings.length - 1] += 'INSERT INTO ';
 							this.estimatedByteLength += 12;
-							afterSelect = sql` ON DUPLICATE KEY UPDATE `;
-							afterSelectTableEq = this.tableName;
-							afterSelectNameEq = names[0];
+							const tableNameConv = this.appendTableName(this.tableName);
+							afterSelect = sql` ON DUPLICATE KEY UPDATE "${tableNameConv}"."${names[0]}"="${tableNameConv}"."${names[0]}"`;
 							break;
+						}
 
 						default:
 							debugAssert(mode==SqlMode.PGSQL_ONLY || mode==SqlMode.SQLITE_ONLY);
 							this.strings[this.strings.length - 1] += 'INSERT INTO ';
 							this.estimatedByteLength += 12;
+							this.appendTableName(this.tableName);
 							afterSelect = sql` ON CONFLICT DO NOTHING`;
 					}
 				}
@@ -605,26 +601,21 @@ export class SqlTable extends Sql
 						case SqlMode.MYSQL_ONLY:
 							this.strings[this.strings.length - 1] += 'REPLACE ';
 							this.estimatedByteLength += 8;
+							this.appendTableName(this.tableName);
 							break;
 
 						default:
 							debugAssert(mode == SqlMode.SQLITE_ONLY);
 							this.strings[this.strings.length - 1] += 'REPLACE INTO ';
 							this.estimatedByteLength += 13;
+							this.appendTableName(this.tableName);
 					}
 				}
-				this.appendTableName(this.tableName);
 				this.append(sql` ("${names}+") `);
 				if (!(select instanceof SqlTable) || select.#operation!=Operation.SELECT)
 				{	this.append(select);
 					if (afterSelect)
 					{	this.append(afterSelect);
-						if (afterSelectTableEq && afterSelectNameEq)
-						{	this.appendTableName(afterSelectTableEq);
-							this.append(sql`."${afterSelectNameEq}"=`);
-							this.appendTableName(afterSelectTableEq);
-							this.append(sql`."${afterSelectNameEq}"`);
-						}
 					}
 					break;
 				}
@@ -769,12 +760,6 @@ export class SqlTable extends Sql
 				}
 				if (afterSelect)
 				{	this.append(afterSelect);
-					if (afterSelectTableEq && afterSelectNameEq)
-					{	this.appendTableName(afterSelectTableEq);
-						this.append(sql`."${afterSelectNameEq}"=`);
-						this.appendTableName(afterSelectTableEq);
-						this.append(sql`."${afterSelectNameEq}"`);
-					}
 				}
 				break;
 			}
