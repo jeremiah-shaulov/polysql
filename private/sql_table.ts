@@ -411,8 +411,7 @@ export class SqlTable extends Sql
 	}
 
 	#appendOperation()
-	{	let afterSelect: Sql | undefined;
-		let hasWhere = false;
+	{	let hasWhere = false;
 		let modNString = -1;
 		let modStringPos = 0;
 
@@ -545,6 +544,7 @@ export class SqlTable extends Sql
 			{	const names = this.#operationInsertNames!;
 				const select = this.#operationInsertSelect!;
 				const onConflictDo = this.#operationInsertOnConflictDo;
+				let afterSelect: Sql | undefined;
 				if (!onConflictDo)
 				{	this.strings[this.strings.length - 1] += 'INSERT INTO ';
 					this.estimatedByteLength += 12;
@@ -612,24 +612,20 @@ export class SqlTable extends Sql
 					}
 				}
 				this.append(sql` ("${names}+") `);
-				if (!(select instanceof SqlTable) || select.#operation!=Operation.SELECT)
-				{	this.append(select);
-					if (afterSelect)
-					{	this.append(afterSelect);
+				if (select instanceof SqlTable)
+				{	if (select.#operation != Operation.NONE)
+					{	if (select.#operation != Operation.SELECT)
+						{	throw new Error("Must be SELECT query in insertFrom()");
+						}
+						select.#appendOperation();
 					}
-					break;
 				}
-				this.tableName = select.tableName;
-				this.#joins = select.#joins;
-				this.#whereExprs = select.#whereExprs;
-				this.#groupByExprs = select.#groupByExprs;
-				this.#havingExpr = select.#havingExpr;
-				this.#operationSelectColumns = select.#operationSelectColumns;
-				this.#operationSelectOrderBy = select.#operationSelectOrderBy;
-				this.#operationSelectOffset = select.#operationSelectOffset;
-				this.#operationSelectLimit = select.#operationSelectLimit;
+				this.append(select);
+				if (afterSelect)
+				{	this.append(afterSelect);
+				}
+				break;
 			}
-			// fallthrough to Operation.SELECT
 
 			case Operation.SELECT:
 			{	const columns = this.#operationSelectColumns;
@@ -757,9 +753,6 @@ export class SqlTable extends Sql
 							}
 							this.append(sql` OFFSET '${offset}' ROWS`);
 					}
-				}
-				if (afterSelect)
-				{	this.append(afterSelect);
 				}
 				break;
 			}
