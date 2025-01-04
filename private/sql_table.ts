@@ -41,8 +41,6 @@ export class SqlTable extends Sql
 	#operationSelectLimit = 0;
 	#operationUpdateRow: Record<string, unknown> | undefined;
 
-	#result = '';
-
 	constructor
 	(	sqlSettings: SqlSettings,
 		public tableName: string,
@@ -80,10 +78,7 @@ export class SqlTable extends Sql
 	/**	Set table alias.
 	 **/
 	as(tableAlias: string)
-	{	if (this.#result)
-		{	throw new Error(`SQL already generated for this object`);
-		}
-		if (this.#tableAlias)
+	{	if (this.#tableAlias)
 		{	throw new Error(`as() can be called only once`);
 		}
 		if (this.#joins.length+this.#whereExprs.length || this.#groupByExprs!=undefined)
@@ -165,9 +160,6 @@ export class SqlTable extends Sql
 			{	throw new Error(`join() can be called before groupBy()`);
 			}
 		}
-		else if (this.#result)
-		{	throw new Error(`SQL already generated for this object`);
-		}
 		this.#joins.push({tableName, alias, onExpr, isLeft});
 	}
 
@@ -198,10 +190,7 @@ export class SqlTable extends Sql
 		To explicitly allow working on the whole table, call `sqlTable.where('')` (with empty condition).
 	 **/
 	where(whereExpr: string|Sql)
-	{	if (this.#result)
-		{	throw new Error(`SQL already generated for this object`);
-		}
-		if (this.#groupByExprs != undefined)
+	{	if (this.#groupByExprs != undefined)
 		{	throw new Error(`where() can be called before groupBy()`);
 		}
 		this.#whereExprs.push(whereExpr);
@@ -213,10 +202,7 @@ export class SqlTable extends Sql
 		If it's `string[]`, it will be treated as array of column names.
 	 **/
 	groupBy(groupByExprs: string|string[]|Sql, havingExpr: string|Sql='')
-	{	if (this.#result)
-		{	throw new Error(`SQL already generated for this object`);
-		}
-		if (this.#groupByExprs != undefined)
+	{	if (this.#groupByExprs != undefined)
 		{	throw new Error(`groupBy() can be called only once`);
 		}
 		this.#groupByExprs = groupByExprs;
@@ -231,10 +217,7 @@ export class SqlTable extends Sql
 		- `onConflictDo=='patch'` is only supported for MySQL If duplicate key, updates **empty** (null, 0 or '') columns of the existing record with the new values.
 	 **/
 	insert(rows: Iterable<Record<string, unknown>>, onConflictDo: ''|'nothing'|'replace'|'update'|'patch' = '')
-	{	if (this.#result)
-		{	throw new Error(`SQL already generated for this object`);
-		}
-		if (this.#joins.length)
+	{	if (this.#joins.length)
 		{	throw new Error(`Cannot INSERT with JOIN`);
 		}
 		if (this.#whereExprs.length)
@@ -257,10 +240,7 @@ export class SqlTable extends Sql
 		console.log('' + s); // prints: INSERT INTO `t_log` (`c1`, `c2`) SELECT `c1`, `c2` FROM `t_log_bak` WHERE (`id`<=100)
 	 **/
 	insertFrom(names: string[], select: Sql, onConflictDo: ''|'nothing'|'replace' = '')
-	{	if (this.#result)
-		{	throw new Error(`SQL already generated for this object`);
-		}
-		if (this.#joins.length)
+	{	if (this.#joins.length)
 		{	throw new Error(`Cannot INSERT with JOIN`);
 		}
 		if (this.#whereExprs.length)
@@ -283,10 +263,7 @@ export class SqlTable extends Sql
 		OFFSET and LIMIT without ORDER BY are not supported on Microsoft SQL Server.
 	 **/
 	select(columns: string|string[]|Sql='', orderBy: OrderBy='', offset=0, limit=0)
-	{	if (this.#result)
-		{	throw new Error(`SQL already generated for this object`);
-		}
-		this.#operation = Operation.SELECT;
+	{	this.#operation = Operation.SELECT;
 		this.#operationSelectColumns = columns;
 		this.#operationSelectOrderBy = orderBy;
 		this.#operationSelectOffset = offset;
@@ -298,10 +275,7 @@ export class SqlTable extends Sql
 		Columns of the base table (not joined) will be updated.
 	 **/
 	update(row: Record<string, unknown>)
-	{	if (this.#result)
-		{	throw new Error(`SQL already generated for this object`);
-		}
-		if (this.#groupByExprs != undefined)
+	{	if (this.#groupByExprs != undefined)
 		{	throw new Error(`Cannot UPDATE with GROUP BY`);
 		}
 		this.#operation = Operation.UPDATE;
@@ -313,10 +287,7 @@ export class SqlTable extends Sql
 		Will delete from the base table (not joined).
 	 **/
 	delete()
-	{	if (this.#result)
-		{	throw new Error(`SQL already generated for this object`);
-		}
-		if (this.#groupByExprs != undefined)
+	{	if (this.#groupByExprs != undefined)
 		{	throw new Error(`Cannot DELETE with GROUP BY`);
 		}
 		this.#operation = Operation.DELETE;
@@ -324,10 +295,7 @@ export class SqlTable extends Sql
 	}
 
 	truncate()
-	{	if (this.#result)
-		{	throw new Error(`SQL already generated for this object`);
-		}
-		if (this.#joins.length)
+	{	if (this.#joins.length)
 		{	throw new Error(`Cannot TRUNCATE with JOIN`);
 		}
 		if (this.#whereExprs.length)
@@ -932,10 +900,7 @@ export class SqlTable extends Sql
 	}
 
 	override toString(putParamsTo?: unknown[], mysqlNoBackslashEscapes=false)
-	{	if (!this.#result)
-		{	this.#result = decoder.decode(this.encode(putParamsTo, mysqlNoBackslashEscapes));
-		}
-		return this.#result;
+	{	return decoder.decode(this.encode(putParamsTo, mysqlNoBackslashEscapes));
 	}
 
 	#complainOnLeftJoinInUpdate()

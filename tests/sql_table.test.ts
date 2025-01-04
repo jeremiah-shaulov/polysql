@@ -92,27 +92,23 @@ Deno.test
 
 		let s = mysql[TABLE].where("id=1").select("col1*2, Count(*)");
 		assertEquals(s+'', "SELECT `H`.col1*2, Count(*) FROM `Hello ``All``!` AS `H` WHERE (`H`.id=1)");
+		assertEquals(s+'', "SELECT `H`.col1*2, Count(*) FROM `Hello ``All``!` AS `H` WHERE (`H`.id=1)");
 
 		s = mysql[TABLE].where(mysql`name = '${'Untitled'}'`).select("col1*2, Count(*)");
+		assertEquals(s+'', "SELECT `H`.col1*2, Count(*) FROM `Hello ``All``!` AS `H` WHERE (`H`.name = 'Untitled')");
 		assertEquals(s+'', "SELECT `H`.col1*2, Count(*) FROM `Hello ``All``!` AS `H` WHERE (`H`.name = 'Untitled')");
 
 		s = mysql[TABLE].where("").select(mysql`col1*2, Count(*)`);
 		assertEquals(s+'', "SELECT `H`.col1*2, Count(*) FROM `Hello ``All``!` AS `H`");
+		assertEquals(s+'', "SELECT `H`.col1*2, Count(*) FROM `Hello ``All``!` AS `H`");
 
 		s = mysql[TABLE].where("").select(['a', 'b b']);
+		assertEquals(s+'', "SELECT `H`.`a`, `H`.`b b` FROM `Hello ``All``!` AS `H`");
 		assertEquals(s+'', "SELECT `H`.`a`, `H`.`b b` FROM `Hello ``All``!` AS `H`");
 
 		s = mysql[TABLE].join('more').where("").select(['a', 'b b']);
 		assertEquals(s+'', "SELECT `H`.`a`, `H`.`b b` FROM `Hello ``All``!` AS `H` CROSS JOIN `more`");
-
-		let error: Error|undefined;
-		try
-		{	s.select("col1*2, Count(*)") + '';
-		}
-		catch (e)
-		{	error = e instanceof Error ? e : new Error(e+'');
-		}
-		assertEquals(error?.message, "SQL already generated for this object");
+		assertEquals(s+'', "SELECT `H`.`a`, `H`.`b b` FROM `Hello ``All``!` AS `H` CROSS JOIN `more`");
 
 		{	const a = 'a'.repeat(INLINE_STRING_MAX_LEN+1);
 			const b = 'b'.repeat(INLINE_STRING_MAX_LEN+1);
@@ -122,7 +118,7 @@ Deno.test
 			assertEquals(params, [b, a]);
 		}
 
-		error = undefined;
+		let error: Error|undefined;
 		try
 		{	mysql[TABLE].select("col1*2, Count(*)") + '';
 		}
@@ -362,19 +358,24 @@ Deno.test
 
 		let s = mysql.t_log.where("id=1").update({message: "Message '1'"});
 		assertEquals(s+'', "UPDATE `t_log` AS `t` SET `t`.`message`='Message ''1''' WHERE (`t`.id=1)");
+		assertEquals(s+'', "UPDATE `t_log` AS `t` SET `t`.`message`='Message ''1''' WHERE (`t`.id=1)");
 
 		// One INNER JOIN:
 
 		s = mysql.t_log.join('more', '', 'more_id = more.id').where("id=1").update({message: "Message 1"});
 		assertEquals(s+'', "UPDATE `t_log` AS `t` INNER JOIN `more` ON (`t`.more_id = `more`.id) SET `t`.`message`='Message 1' WHERE (`t`.id=1)");
+		assertEquals(s+'', "UPDATE `t_log` AS `t` INNER JOIN `more` ON (`t`.more_id = `more`.id) SET `t`.`message`='Message 1' WHERE (`t`.id=1)");
 
 		s = pgsql.t_log.join('more', '', 'more_id = more.id').where("id=1").update({message: "Message 1"});
+		assertEquals(s+'', `UPDATE "t_log" AS "t" SET "message"='Message 1' FROM "more" WHERE ("t".id=1) AND ("t".more_id = "more".id)`);
 		assertEquals(s+'', `UPDATE "t_log" AS "t" SET "message"='Message 1' FROM "more" WHERE ("t".id=1) AND ("t".more_id = "more".id)`);
 
 		s = sqlite.t_log.join('more', 'm', 'more_id = m.id').where("id=1").update({message: "Message 1"});
 		assertEquals(s+'', `UPDATE "t_log" AS "t" SET "message"='Message 1' FROM "more" AS "m" WHERE ("t"."id"=1) AND ("t"."more_id" = "m"."id")`);
+		assertEquals(s+'', `UPDATE "t_log" AS "t" SET "message"='Message 1' FROM "more" AS "m" WHERE ("t"."id"=1) AND ("t"."more_id" = "m"."id")`);
 
 		s = mssql.t_log.join('more', '', 'more_id = more.id').where("id=1").update({message: "Message 1"});
+		assertEquals(s+'', `UPDATE "t_log" SET "message"='Message 1' FROM "t_log" AS "t" INNER JOIN "more" ON ("t"."more_id" = "more"."id") WHERE ("t"."id"=1)`);
 		assertEquals(s+'', `UPDATE "t_log" SET "message"='Message 1' FROM "t_log" AS "t" INNER JOIN "more" ON ("t"."more_id" = "more"."id") WHERE ("t"."id"=1)`);
 
 		// One LEFT JOIN:
@@ -518,6 +519,7 @@ Deno.test
 
 		let s = mysql.t_log.where("id=1").delete();
 		assertEquals(s+'', "DELETE FROM `t_log` WHERE (`id`=1)");
+		assertEquals(s+'', "DELETE FROM `t_log` WHERE (`id`=1)");
 
 		// One INNER JOIN:
 
@@ -531,6 +533,7 @@ Deno.test
 		assertEquals(s+'', `DELETE FROM "t_log" AS "t" USING "more" WHERE ("t".more_id = "more".id)`);
 
 		s = sqlite.t_log.join('more', 'm', 'more_id = m.id').where("id=1").delete();
+		assertEquals(s+'', `DELETE FROM "t_log" AS "s" WHERE rowid IN (SELECT "t".rowid FROM "t_log" AS "t" INNER JOIN "more" AS "m" ON ("t"."more_id" = "m"."id") WHERE ("t"."id"=1))`);
 		assertEquals(s+'', `DELETE FROM "t_log" AS "s" WHERE rowid IN (SELECT "t".rowid FROM "t_log" AS "t" INNER JOIN "more" AS "m" ON ("t"."more_id" = "m"."id") WHERE ("t"."id"=1))`);
 
 		s = mssql.t_log.join('more', '', 'more_id = more.id').where("id=1").delete();
@@ -820,26 +823,34 @@ Deno.test
 	() =>
 	{	let s = mysql.t_log.insertFrom(['c1', 'c2'], mysql.t_log_bak.where('').select('cb1, cb2'));
 		assertEquals(s+'', "INSERT INTO `t_log` (`c1`, `c2`) SELECT `t`.cb1, `t`.cb2 FROM `t_log_bak` AS `t`");
+		assertEquals(s+'', "INSERT INTO `t_log` (`c1`, `c2`) SELECT `t`.cb1, `t`.cb2 FROM `t_log_bak` AS `t`");
 
 		s = mysqlOnly.t_log.insertFrom(['c1', 'c2'], mysql.t_log_bak.where('id<=100').select('cb1, cb2'), 'nothing');
+		assertEquals(s+'', "INSERT INTO `t_log` (`c1`, `c2`) SELECT `t`.cb1, `t`.cb2 FROM `t_log_bak` AS `t` WHERE (`t`.id<=100) ON DUPLICATE KEY UPDATE `t_log`.`c1`=`t_log`.`c1`");
 		assertEquals(s+'', "INSERT INTO `t_log` (`c1`, `c2`) SELECT `t`.cb1, `t`.cb2 FROM `t_log_bak` AS `t` WHERE (`t`.id<=100) ON DUPLICATE KEY UPDATE `t_log`.`c1`=`t_log`.`c1`");
 
 		s = pgsqlOnly.t_log.insertFrom(['c1', 'c2'], mysql.t_log_bak.where('id<=100').select('cb1, cb2'), 'nothing');
 		assertEquals(s+'', `INSERT INTO "t_log" ("c1", "c2") SELECT "t".cb1, "t".cb2 FROM "t_log_bak" AS "t" WHERE ("t".id<=100) ON CONFLICT DO NOTHING`);
+		assertEquals(s+'', `INSERT INTO "t_log" ("c1", "c2") SELECT "t".cb1, "t".cb2 FROM "t_log_bak" AS "t" WHERE ("t".id<=100) ON CONFLICT DO NOTHING`);
 
 		s = sqliteOnly.t_log.insertFrom(['c1', 'c2'], mysql.t_log_bak.where('id<=100').select('cb1, cb2'), 'nothing');
+		assertEquals(s+'', `INSERT INTO "t_log" ("c1", "c2") SELECT "t"."cb1", "t"."cb2" FROM "t_log_bak" AS "t" WHERE ("t"."id"<=100) ON CONFLICT DO NOTHING`);
 		assertEquals(s+'', `INSERT INTO "t_log" ("c1", "c2") SELECT "t"."cb1", "t"."cb2" FROM "t_log_bak" AS "t" WHERE ("t"."id"<=100) ON CONFLICT DO NOTHING`);
 
 		s = mysqlOnly.t_log.insertFrom(['c1', 'c2'], mysql.t_log_bak.where('id<=100').select('cb1, cb2'), 'replace');
 		assertEquals(s+'', "REPLACE `t_log` (`c1`, `c2`) SELECT `t`.cb1, `t`.cb2 FROM `t_log_bak` AS `t` WHERE (`t`.id<=100)");
+		assertEquals(s+'', "REPLACE `t_log` (`c1`, `c2`) SELECT `t`.cb1, `t`.cb2 FROM `t_log_bak` AS `t` WHERE (`t`.id<=100)");
 
 		s = sqliteOnly.t_log.insertFrom(['c1', 'c2'], mysql.t_log_bak.where('id<=100').select('cb1, cb2'), 'replace');
+		assertEquals(s+'', `REPLACE INTO "t_log" ("c1", "c2") SELECT "t"."cb1", "t"."cb2" FROM "t_log_bak" AS "t" WHERE ("t"."id"<=100)`);
 		assertEquals(s+'', `REPLACE INTO "t_log" ("c1", "c2") SELECT "t"."cb1", "t"."cb2" FROM "t_log_bak" AS "t" WHERE ("t"."id"<=100)`);
 
 		s = mysql.t_log.insertFrom(['c1', 'c2'], mysql`HELLO ALL`);
 		assertEquals(s+'', "INSERT INTO `t_log` (`c1`, `c2`) HELLO ALL");
+		assertEquals(s+'', "INSERT INTO `t_log` (`c1`, `c2`) HELLO ALL");
 
 		s = mysqlOnly.t_log.insertFrom(['c1', 'c2'], mysql`HELLO ALL`, 'nothing');
+		assertEquals(s+'', "INSERT INTO `t_log` (`c1`, `c2`) HELLO ALL ON DUPLICATE KEY UPDATE `t_log`.`c1`=`t_log`.`c1`");
 		assertEquals(s+'', "INSERT INTO `t_log` (`c1`, `c2`) HELLO ALL ON DUPLICATE KEY UPDATE `t_log`.`c1`=`t_log`.`c1`");
 
 		let error: Error|undefined;
