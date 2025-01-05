@@ -3,13 +3,12 @@
 [Documentation Index](../README.md)
 
 ```ts
-import {SqlTable} from "https://deno.land/x/polysql@v2.0.10/mod.ts"
+import {SqlTable} from "https://deno.land/x/polysql@v2.0.11/mod.ts"
 ```
 
 ## This class has
 
-- [constructor](#-constructorsqlsettings-sqlsettings-tablename-string-strings-string-params-unknown)
-- property [tableName](#-tablename-string)
+- [2 constructors](#-constructorclonefrom-sqltable)
 - 13 methods:
 [as](#-astablealias-string-this),
 [join](#-jointablename-string-alias-string-onexpr-string--sql-this),
@@ -31,11 +30,11 @@ import {SqlTable} from "https://deno.land/x/polysql@v2.0.10/mod.ts"
 - 8 inherited members from [Sql](../class.Sql/README.md)
 
 
+#### 🔧 `constructor`(cloneFrom: [SqlTable](../class.SqlTable/README.md))
+
+
+
 #### 🔧 `constructor`(sqlSettings: [SqlSettings](../class.SqlSettings/README.md), tableName: `string`, strings?: `string`\[], params?: `unknown`\[])
-
-
-
-#### 📄 tableName: `string`
 
 
 
