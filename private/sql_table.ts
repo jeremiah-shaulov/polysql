@@ -23,12 +23,13 @@ function sql(strings: TemplateStringsArray, ...params: unknown[])
 
 export class SqlTable extends Sql
 {	#tableAlias = '';
-	#joins: Join[] = [];
-	#whereExprs: (string | Sql)[] = [];
+	#joins = new Array<Join>;
+	#whereExprs = new Array<string|Sql>;
 	#groupByExprs: string|string[]|Sql|undefined;
 	#havingExpr: string|Sql = '';
-	#buildComplete = false;
+
 	#foreignJoined = new Array<{parentName: string, name: string, refAlias: string}>;
+	#buildComplete = false;
 
 	#operation = Operation.NONE;
 	#operationInsertRows: Iterable<Record<string, unknown>> | undefined;
@@ -41,13 +42,11 @@ export class SqlTable extends Sql
 	#operationSelectLimit = 0;
 	#operationUpdateRow: Record<string, unknown> | undefined;
 
-	constructor
-	(	sqlSettings: SqlSettings,
-		public tableName: string,
-		strings?: string[],
-		params?: unknown[]
-	)
-	{	super
+	constructor(cloneFrom: SqlTable);
+	constructor(sqlSettings: SqlSettings, tableName: string, strings?: string[], params?: unknown[]);
+	constructor(cloneFromOrSqlSettings: SqlTable|SqlSettings, public tableName='', strings?: string[], params?: unknown[])
+	{	const sqlSettings = cloneFromOrSqlSettings instanceof SqlTable ? cloneFromOrSqlSettings.sqlSettings : cloneFromOrSqlSettings;
+		super
 		(	sqlSettings,
 			!sqlSettings.useArrow ? undefined : (parentName, name) =>
 			{	const joined = this.#foreignJoined.find
@@ -73,6 +72,15 @@ export class SqlTable extends Sql
 			strings,
 			params
 		);
+		if (cloneFromOrSqlSettings instanceof SqlTable)
+		{	this.tableName = cloneFromOrSqlSettings.tableName;
+			this.#tableAlias = cloneFromOrSqlSettings.#tableAlias;
+			this.#joins = cloneFromOrSqlSettings.#joins.slice();
+			this.#whereExprs = cloneFromOrSqlSettings.#whereExprs.slice();
+			this.#groupByExprs = cloneFromOrSqlSettings.#groupByExprs;
+			this.#havingExpr = cloneFromOrSqlSettings.#havingExpr;
+			this.#foreignJoined = cloneFromOrSqlSettings.#foreignJoined.slice();
+		}
 	}
 
 	/**	Set table alias.
