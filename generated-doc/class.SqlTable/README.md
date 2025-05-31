@@ -3,7 +3,7 @@
 [Documentation Index](../README.md)
 
 ```ts
-import {SqlTable} from "https://deno.land/x/polysql@v2.0.11/mod.ts"
+import {SqlTable} from "https://deno.land/x/polysql@v2.0.12/mod.ts"
 ```
 
 ## This class has
@@ -14,14 +14,14 @@ import {SqlTable} from "https://deno.land/x/polysql@v2.0.11/mod.ts"
 [join](#-jointablename-string-alias-string-onexpr-string--sql-this),
 [leftJoin](#-leftjointablename-string-alias-string-onexpr-string--sql-this),
 [where](#-wherewhereexpr-string--sql-this),
-[groupBy](#-groupbygroupbyexprs-string--string--sql-havingexpr-string--sql-this),
+[groupBy](#-groupbygroupbyexprs-string--readonlyarraystring--sql-havingexpr-string--sql-this),
 [insert](#-insertrows-iterablerecordstring-unknown-onconflictdo---nothing--replace--update--patch-this),
-[insertFrom](#-insertfromnames-string-select-sql-onconflictdo---nothing--replace-this),
-[select](#-selectcolumns-string--string--sql-orderby-orderby-offset-number0-limit-number0-this),
+[insertFrom](#-insertfromnames-readonlyarraystring-select-sql-onconflictdo---nothing--replace-this),
+[select](#-selectcolumns-string--readonlyarraystring--sql-orderby-orderby-offset-number0-limit-number0-this),
 [update](#-updaterow-recordstring-unknown-this),
 [delete](#-delete-this),
 [truncate](#-truncate-this),
-[encode](#-override-encodeputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-usebuffer-uint8array-usebufferfrompos-number0-defaultparentname-uint8array-uint8array),
+[encode](#-override-encodeputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-usebuffer-uint8array-usebufferfrompos-number0-defaultparentname-uint8array-uint8arrayarraybufferlike),
 [toString](#-override-tostringputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-string)
 - 3 protected methods:
 [appendTableName](#-protected-appendtablenametablename-string-string),
@@ -48,7 +48,7 @@ import {SqlTable} from "https://deno.land/x/polysql@v2.0.11/mod.ts"
 
 > Adds an INNER (if `onExpr` is given) or a CROSS join (if `onExpr` is blank).
 > This method can be called multiple times.
-> The method returns a new `SqlTable` object that has everything from the original object, plus the new join.
+> The method modifies the current object, and returns `this`.
 
 
 
@@ -56,7 +56,7 @@ import {SqlTable} from "https://deno.land/x/polysql@v2.0.11/mod.ts"
 
 > Adds a LEFT JOIN.
 > This method can be called multiple times.
-> The method returns a new `SqlTable` object that has everything from the original object, plus the new join.
+> The method modifies the current object, and returns `this`.
 
 
 
@@ -69,11 +69,11 @@ import {SqlTable} from "https://deno.land/x/polysql@v2.0.11/mod.ts"
 
 
 
-#### ⚙ groupBy(groupByExprs: `string` | `string`\[] | [Sql](../class.Sql/README.md), havingExpr: `string` | [Sql](../class.Sql/README.md)=""): `this`
+#### ⚙ groupBy(groupByExprs: `string` | ReadonlyArray\<`string`> | [Sql](../class.Sql/README.md), havingExpr: `string` | [Sql](../class.Sql/README.md)=""): `this`
 
 > Adds GROUP BY expressions, and optionally a HAVING expression to the SELECT query.
 > If `groupByExprs` is a string or an `Sql` object, it will represent a safe SQL fragment that contains comma-separated list of column expressions.
-> If it's `string[]`, it will be treated as array of column names.
+> If it's `readonly string[]`, it will be treated as array of column names.
 
 
 
@@ -87,7 +87,7 @@ import {SqlTable} from "https://deno.land/x/polysql@v2.0.11/mod.ts"
 
 
 
-#### ⚙ insertFrom(names: `string`\[], select: [Sql](../class.Sql/README.md), onConflictDo: <mark>""</mark> | <mark>"nothing"</mark> | <mark>"replace"</mark>=""): `this`
+#### ⚙ insertFrom(names: ReadonlyArray\<`string`>, select: [Sql](../class.Sql/README.md), onConflictDo: <mark>""</mark> | <mark>"nothing"</mark> | <mark>"replace"</mark>=""): `this`
 
 > Generates "INSERT INTO (...) SELECT ..." query.
 > 
@@ -98,11 +98,11 @@ import {SqlTable} from "https://deno.land/x/polysql@v2.0.11/mod.ts"
 
 
 
-#### ⚙ select(columns: `string` | `string`\[] | [Sql](../class.Sql/README.md)="", orderBy: [OrderBy](../type.OrderBy/README.md)="", offset: `number`=0, limit: `number`=0): `this`
+#### ⚙ select(columns: `string` | ReadonlyArray\<`string`> | [Sql](../class.Sql/README.md)="", orderBy: [OrderBy](../type.OrderBy/README.md)="", offset: `number`=0, limit: `number`=0): `this`
 
 > Generates a SELECT query.
 > If `columns` parameter is a string or an `Sql` object, it will represent columns as a safe SQL fragment.
-> If it's `string[]`, it will be treated as array of column names.
+> If it's `readonly string[]`, it will be treated as array of column names.
 > Empty string or array will represent `*`-wildcard (select all columns).
 > OFFSET and LIMIT without ORDER BY are not supported on Microsoft SQL Server.
 
@@ -126,7 +126,7 @@ import {SqlTable} from "https://deno.land/x/polysql@v2.0.11/mod.ts"
 
 
 
-#### ⚙ `override` encode(putParamsTo?: `unknown`\[], mysqlNoBackslashEscapes: `boolean`=false, useBuffer?: Uint8Array, useBufferFromPos: `number`=0, defaultParentName?: Uint8Array): Uint8Array
+#### ⚙ `override` encode(putParamsTo?: `unknown`\[], mysqlNoBackslashEscapes: `boolean`=false, useBuffer?: Uint8Array, useBufferFromPos: `number`=0, defaultParentName?: Uint8Array): Uint8Array\<ArrayBufferLike>
 
 > If `useBuffer` is provided, and it has enough size, will encode to it, and return a `useBuffer.subarray(0, N)`.
 > Else, will return a subarray of a new Uint8Array.

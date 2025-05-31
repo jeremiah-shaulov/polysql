@@ -1,6 +1,6 @@
 <!--
 	This file is generated with the following command:
-	deno run --allow-all https://raw.githubusercontent.com/jeremiah-shaulov/tsa/v0.0.49/tsa.ts doc-md --outFile=README.md --outUrl=https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.11/README.md --importUrl=https://deno.land/x/polysql@v2.0.11/mod.ts mod.ts
+	deno run --allow-all https://raw.githubusercontent.com/jeremiah-shaulov/tsa/v0.0.51/tsa.ts doc-md --outFile=README.md --outUrl=https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.12/README.md --importUrl=https://deno.land/x/polysql@v2.0.12/mod.ts mod.ts
 -->
 
 # polysql
@@ -29,7 +29,7 @@ This library provides the following functions:
 Usually you need to import only one of these functions into your project.
 
 ```ts
-import {mysqlQuote as sqlQuote} from 'https://deno.land/x/polysql@v2.0.11/mod.ts';
+import {mysqlQuote as sqlQuote} from 'https://deno.land/x/polysql@v2.0.12/mod.ts';
 
 console.log(sqlQuote(import.meta.url));
 ```
@@ -51,10 +51,10 @@ The "value" parameter can be one of the following types:
 
 ```ts
 // To download and run this example:
-// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.11/README.md' | perl -ne '$y=$1 if /^```(.)?/;  print $_ if $y&&$m;  $m=$y&&($m||m~<example-p9mn>~)' > /tmp/example-p9mn.ts
+// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.12/README.md' | perl -ne 's/^> //; $y=$1 if /^```(.)?/; print $_ if $y&&$m; $m=$y&&$m+/<example-p9mn>/' > /tmp/example-p9mn.ts
 // deno run /tmp/example-p9mn.ts
 
-import {mysqlQuote as sqlQuote} from 'https://deno.land/x/polysql@v2.0.11/mod.ts';
+import {mysqlQuote as sqlQuote} from 'https://deno.land/x/polysql@v2.0.12/mod.ts';
 
 console.log(sqlQuote(null)); // prints: NULL
 console.log(sqlQuote(false)); // prints: FALSE
@@ -79,10 +79,10 @@ Usually you need to import only one of these functions into your project.
 
 ```ts
 // To download and run this example:
-// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.11/README.md' | perl -ne '$y=$1 if /^```(.)?/;  print $_ if $y&&$m;  $m=$y&&($m||m~<example-65ya>~)' > /tmp/example-65ya.ts
+// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.12/README.md' | perl -ne 's/^> //; $y=$1 if /^```(.)?/; print $_ if $y&&$m; $m=$y&&$m+/<example-65ya>/' > /tmp/example-65ya.ts
 // deno run /tmp/example-65ya.ts
 
-import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.11/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.12/mod.ts';
 
 let message = `It's the message`;
 let number = 0.1;
@@ -100,7 +100,7 @@ How each parameter is escaped depends on quotes that you used in your SQL string
 
 ### 1. `'${param}'` - Escape an SQL value.
 
-If the parameter is a string, characters inside it will be properly escaped (if you use `mysql`, a mysqlNoBackslashEscapes argument of [Sql.toString()](generated-doc/class.Sql/README.md#-tostringputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-string) or [Sql.encode()](generated-doc/class.Sql/README.md#-encodeputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-usebuffer-uint8array-usebufferfrompos-number0-defaultparentname-uint8array-uint8array) will be respected - see below).
+If the parameter is a string, characters inside it will be properly escaped (if you use `mysql`, a mysqlNoBackslashEscapes argument of [Sql.toString()](generated-doc/class.Sql/README.md#-tostringputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-string) or [Sql.encode()](generated-doc/class.Sql/README.md#-encodeputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-usebuffer-uint8array-usebufferfrompos-number0-defaultparentname-uint8array-uint8arrayarraybufferlike) will be respected - see below).
 
 If the value is a number, quotes around it will be removed.
 
@@ -112,7 +112,7 @@ If it's boolean `false` or `true`, it will be substituted with `FALSE` or `TRUE`
 
 Typed arrays will be printed like `x'0102...'` (`0x0102...` on Microsoft SQL Server).
 
-`ReadableStream` objects will be put to `putParamsTo` array, if it's provided to [Sql.toString()](generated-doc/class.Sql/README.md#-tostringputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-string) or [Sql.encode()](generated-doc/class.Sql/README.md#-encodeputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-usebuffer-uint8array-usebufferfrompos-number0-defaultparentname-uint8array-uint8array) - see below, and the value will be replaced with '?' character.
+`ReadableStream` objects will be put to `putParamsTo` array, if it's provided to [Sql.toString()](generated-doc/class.Sql/README.md#-tostringputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-string) or [Sql.encode()](generated-doc/class.Sql/README.md#-encodeputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-usebuffer-uint8array-usebufferfrompos-number0-defaultparentname-uint8array-uint8arrayarraybufferlike) - see below, and the value will be replaced with '?' character.
 If `putParamsTo` not provided, exception will be thrown.
 
 Objects will be JSON-stringified.
@@ -135,10 +135,10 @@ Generates comma-separated list of quoted identifiers from iterable collection "p
 
 ```ts
 // To download and run this example:
-// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.11/README.md' | perl -ne '$y=$1 if /^```(.)?/;  print $_ if $y&&$m;  $m=$y&&($m||m~<example-pf4z>~)' > /tmp/example-pf4z.ts
+// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.12/README.md' | perl -ne 's/^> //; $y=$1 if /^```(.)?/; print $_ if $y&&$m; $m=$y&&$m+/<example-pf4z>/' > /tmp/example-pf4z.ts
 // deno run /tmp/example-pf4z.ts
 
-import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.11/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.12/mod.ts';
 
 let noNames: never[] = [];
 let names = ['one', 'two'];
@@ -155,10 +155,10 @@ The same as [3], but qualifies each identifier with specified parent name.
 
 ```ts
 // To download and run this example:
-// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.11/README.md' | perl -ne '$y=$1 if /^```(.)?/;  print $_ if $y&&$m;  $m=$y&&($m||m~<example-ksv8>~)' > /tmp/example-ksv8.ts
+// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.12/README.md' | perl -ne 's/^> //; $y=$1 if /^```(.)?/; print $_ if $y&&$m; $m=$y&&$m+/<example-ksv8>/' > /tmp/example-ksv8.ts
 // deno run /tmp/example-ksv8.ts
 
-import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.11/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.12/mod.ts';
 
 let noNames: never[] = [];
 let names = ['one', 'two'];
@@ -175,10 +175,10 @@ Square brackets will be replaced with parentheses. The parameter must be iterabl
 
 ```ts
 // To download and run this example:
-// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.11/README.md' | perl -ne '$y=$1 if /^```(.)?/;  print $_ if $y&&$m;  $m=$y&&($m||m~<example-rlut>~)' > /tmp/example-rlut.ts
+// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.12/README.md' | perl -ne 's/^> //; $y=$1 if /^```(.)?/; print $_ if $y&&$m; $m=$y&&$m+/<example-rlut>/' > /tmp/example-rlut.ts
 // deno run /tmp/example-rlut.ts
 
-import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.11/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.12/mod.ts';
 
 const ids = [10, 11, 12];
 let s = sql`SELECT * FROM articles WHERE id IN [${ids}]`;
@@ -193,10 +193,10 @@ More than 2 dimensions are only supported by MySQL.
 
 ```ts
 // To download and run this example:
-// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.11/README.md' | perl -ne '$y=$1 if /^```(.)?/;  print $_ if $y&&$m;  $m=$y&&($m||m~<example-ajdy>~)' > /tmp/example-ajdy.ts
+// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.12/README.md' | perl -ne 's/^> //; $y=$1 if /^```(.)?/; print $_ if $y&&$m; $m=$y&&$m+/<example-ajdy>/' > /tmp/example-ajdy.ts
 // deno run /tmp/example-ajdy.ts
 
-import {mysqlOnly as sql} from 'https://deno.land/x/polysql@v2.0.11/mod.ts';
+import {mysqlOnly as sql} from 'https://deno.land/x/polysql@v2.0.12/mod.ts';
 
 const list = [[10, 1], [11, 3], [12, 8]];
 let s = sql
@@ -216,10 +216,10 @@ Strings in the SQL fragment are always treated as `mysqlNoBackslashEscapes` (bac
 
 ```ts
 // To download and run this example:
-// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.11/README.md' | perl -ne '$y=$1 if /^```(.)?/;  print $_ if $y&&$m;  $m=$y&&($m||m~<example-7bvr>~)' > /tmp/example-7bvr.ts
+// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.12/README.md' | perl -ne 's/^> //; $y=$1 if /^```(.)?/; print $_ if $y&&$m; $m=$y&&$m+/<example-7bvr>/' > /tmp/example-7bvr.ts
 // deno run /tmp/example-7bvr.ts
 
-import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.11/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.12/mod.ts';
 
 const expr = "Char_length('Line\n')";
 let s = sql`SELECT (${expr})`;
@@ -230,10 +230,10 @@ It's possible to prefix all unqualified identifiers in the SQL fragment with a p
 
 ```ts
 // To download and run this example:
-// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.11/README.md' | perl -ne '$y=$1 if /^```(.)?/;  print $_ if $y&&$m;  $m=$y&&($m||m~<example-dbu0>~)' > /tmp/example-dbu0.ts
+// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.12/README.md' | perl -ne 's/^> //; $y=$1 if /^```(.)?/; print $_ if $y&&$m; $m=$y&&$m+/<example-dbu0>/' > /tmp/example-dbu0.ts
 // deno run /tmp/example-dbu0.ts
 
-import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.11/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.12/mod.ts';
 
 const expr = "article_id = 10 AND `article_version` = 1 AND a.name <> ''";
 let s = sql
@@ -249,10 +249,10 @@ console.log('' + s); // prints ...WHERE (`av`.article_id = 10 AND `av`.`article_
 
 ```ts
 // To download and run this example:
-// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.11/README.md' | perl -ne '$y=$1 if /^```(.)?/;  print $_ if $y&&$m;  $m=$y&&($m||m~<example-2dm1>~)' > /tmp/example-2dm1.ts
+// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.12/README.md' | perl -ne 's/^> //; $y=$1 if /^```(.)?/; print $_ if $y&&$m; $m=$y&&$m+/<example-2dm1>/' > /tmp/example-2dm1.ts
 // deno run /tmp/example-2dm1.ts
 
-import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.11/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.12/mod.ts';
 
 const columns = "name, value";
 let s = sql`SELECT ${columns} FROM something WHERE id=1`;
@@ -265,10 +265,10 @@ The first form throws exception, if there are no fields in the param. The Second
 
 ```ts
 // To download and run this example:
-// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.11/README.md' | perl -ne '$y=$1 if /^```(.)?/;  print $_ if $y&&$m;  $m=$y&&($m||m~<example-aymx>~)' > /tmp/example-aymx.ts
+// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.12/README.md' | perl -ne 's/^> //; $y=$1 if /^```(.)?/; print $_ if $y&&$m; $m=$y&&$m+/<example-aymx>/' > /tmp/example-aymx.ts
 // deno run /tmp/example-aymx.ts
 
-import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.11/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.12/mod.ts';
 
 const row = {name: 'About all', author: 'Johnny'};
 let s = sql`UPDATE articles AS a SET {a.${row}} WHERE id=1`;
@@ -277,10 +277,10 @@ console.log('' + s); // prints: UPDATE articles AS a SET `a`.`name`='About all',
 
 ```ts
 // To download and run this example:
-// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.11/README.md' | perl -ne '$y=$1 if /^```(.)?/;  print $_ if $y&&$m;  $m=$y&&($m||m~<example-10go>~)' > /tmp/example-10go.ts
+// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.12/README.md' | perl -ne 's/^> //; $y=$1 if /^```(.)?/; print $_ if $y&&$m; $m=$y&&$m+/<example-10go>/' > /tmp/example-10go.ts
 // deno run /tmp/example-10go.ts
 
-import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.11/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.12/mod.ts';
 
 const row = {name: 'About all', author: 'Johnny'};
 let s = sql`UPDATE articles AS a SET {a.${row},} article_date=Now() WHERE id=1`;
@@ -291,10 +291,10 @@ If a value is an [Sql](generated-doc/class.Sql/README.md) object, it's expressio
 
 ```ts
 // To download and run this example:
-// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.11/README.md' | perl -ne '$y=$1 if /^```(.)?/;  print $_ if $y&&$m;  $m=$y&&($m||m~<example-1f17>~)' > /tmp/example-1f17.ts
+// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.12/README.md' | perl -ne 's/^> //; $y=$1 if /^```(.)?/; print $_ if $y&&$m; $m=$y&&$m+/<example-1f17>/' > /tmp/example-1f17.ts
 // deno run /tmp/example-1f17.ts
 
-import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.11/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.12/mod.ts';
 
 const row = {name: 'About all', author: sql`Get_author(id)`};
 let s = sql`UPDATE articles AS a SET {a.${row}} WHERE id=1`;
@@ -307,10 +307,10 @@ Converts braces to parentheses. If the `param` contains no fields, this will be 
 
 ```ts
 // To download and run this example:
-// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.11/README.md' | perl -ne '$y=$1 if /^```(.)?/;  print $_ if $y&&$m;  $m=$y&&($m||m~<example-855m>~)' > /tmp/example-855m.ts
+// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.12/README.md' | perl -ne 's/^> //; $y=$1 if /^```(.)?/; print $_ if $y&&$m; $m=$y&&$m+/<example-855m>/' > /tmp/example-855m.ts
 // deno run /tmp/example-855m.ts
 
-import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.11/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.12/mod.ts';
 
 const row = {name: 'About all', author: sql`Get_author(id)`};
 let s = sql`SELECT * FROM articles AS a WHERE {a.${row}&}`;
@@ -323,10 +323,10 @@ Converts braces to parentheses. If the `param` contains no fields, this will be 
 
 ```ts
 // To download and run this example:
-// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.11/README.md' | perl -ne '$y=$1 if /^```(.)?/;  print $_ if $y&&$m;  $m=$y&&($m||m~<example-t6u5>~)' > /tmp/example-t6u5.ts
+// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.12/README.md' | perl -ne 's/^> //; $y=$1 if /^```(.)?/; print $_ if $y&&$m; $m=$y&&$m+/<example-t6u5>/' > /tmp/example-t6u5.ts
 // deno run /tmp/example-t6u5.ts
 
-import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.11/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.12/mod.ts';
 
 const row = {name: 'About all', author: sql`Get_author(id)`};
 let s = sql`SELECT * FROM articles AS a WHERE {a.${row}|}`;
@@ -339,10 +339,10 @@ In [7], [8] and [9], you can specify 2 parent qualifiers: one for the left-hand 
 
 ```ts
 // To download and run this example:
-// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.11/README.md' | perl -ne '$y=$1 if /^```(.)?/;  print $_ if $y&&$m;  $m=$y&&($m||m~<example-wr6k>~)' > /tmp/example-wr6k.ts
+// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.12/README.md' | perl -ne 's/^> //; $y=$1 if /^```(.)?/; print $_ if $y&&$m; $m=$y&&$m+/<example-wr6k>/' > /tmp/example-wr6k.ts
 // deno run /tmp/example-wr6k.ts
 
-import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.11/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.12/mod.ts';
 
 const row = {name: 'About all', author: sql`Get_author(id)`};
 let s = sql`SELECT * FROM articles AS a INNER JOIN article_content AS ac ON a.id = ac.article_id WHERE {a.ac.${row}&}`;
@@ -353,10 +353,10 @@ Example of left name empty:
 
 ```ts
 // To download and run this example:
-// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.11/README.md' | perl -ne '$y=$1 if /^```(.)?/;  print $_ if $y&&$m;  $m=$y&&($m||m~<example-np7j>~)' > /tmp/example-np7j.ts
+// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.12/README.md' | perl -ne 's/^> //; $y=$1 if /^```(.)?/; print $_ if $y&&$m; $m=$y&&$m+/<example-np7j>/' > /tmp/example-np7j.ts
 // deno run /tmp/example-np7j.ts
 
-import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.11/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.12/mod.ts';
 
 const row = {name: 'About all', author: sql`Get_author(id)`};
 let s = sql`UPDATE articles AS a SET {.a.${row}} WHERE id=1`;
@@ -369,10 +369,10 @@ Parameter must be iterable object that contains rows to insert. Will print colum
 
 ```ts
 // To download and run this example:
-// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.11/README.md' | perl -ne '$y=$1 if /^```(.)?/;  print $_ if $y&&$m;  $m=$y&&($m||m~<example-7xum>~)' > /tmp/example-7xum.ts
+// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.12/README.md' | perl -ne 's/^> //; $y=$1 if /^```(.)?/; print $_ if $y&&$m; $m=$y&&$m+/<example-7xum>/' > /tmp/example-7xum.ts
 // deno run /tmp/example-7xum.ts
 
-import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.11/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.12/mod.ts';
 
 let rows =
 [	{value: 10, name: 'text 1'},
@@ -395,7 +395,7 @@ In [3b], [5], [6], [7], [8], [9] and [10] the parent qualifier name can be taken
 `sql` template function returns object of [Sql](generated-doc/class.Sql/README.md) class.
 
 ```ts
-import {mysql as sql, Sql} from 'https://deno.land/x/polysql@v2.0.11/mod.ts';
+import {mysql as sql, Sql} from 'https://deno.land/x/polysql@v2.0.12/mod.ts';
 
 let s: Sql = sql`SELECT 2*2`;
 ```
@@ -411,10 +411,10 @@ let s: Sql = sql`SELECT 2*2`;
 
 ```ts
 // To download and run this example:
-// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.11/README.md' | perl -ne '$y=$1 if /^```(.)?/;  print $_ if $y&&$m;  $m=$y&&($m||m~<example-h9zl>~)' > /tmp/example-h9zl.ts
+// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.12/README.md' | perl -ne 's/^> //; $y=$1 if /^```(.)?/; print $_ if $y&&$m; $m=$y&&$m+/<example-h9zl>/' > /tmp/example-h9zl.ts
 // deno run /tmp/example-h9zl.ts
 
-import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.11/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.12/mod.ts';
 
 const id = 10;
 const s = sql`SELECT * FROM articles WHERE id='${id}'`;
@@ -428,11 +428,11 @@ s.append(sql` AND (${where})`); // append() modifies current object
 console.log('' + s); // prints the same
 ```
 
-### [Sql.encode()](generated-doc/class.Sql/README.md#-encodeputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-usebuffer-uint8array-usebufferfrompos-number0-defaultparentname-uint8array-uint8array)
+### [Sql.encode()](generated-doc/class.Sql/README.md#-encodeputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-usebuffer-uint8array-usebufferfrompos-number0-defaultparentname-uint8array-uint8arrayarraybufferlike)
 
 Also [Sql](generated-doc/class.Sql/README.md) objects can be converted to bytes.
 
-> ⚙ Sql.[encode](generated-doc/class.Sql/README.md#-encodeputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-usebuffer-uint8array-usebufferfrompos-number0-defaultparentname-uint8array-uint8array)(putParamsTo?: `unknown`\[], mysqlNoBackslashEscapes: `boolean`=false, useBuffer?: Uint8Array, useBufferFromPos: `number`=0, defaultParentName?: Uint8Array): Uint8Array
+> ⚙ Sql.[encode](generated-doc/class.Sql/README.md#-encodeputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-usebuffer-uint8array-usebufferfrompos-number0-defaultparentname-uint8array-uint8arrayarraybufferlike)(putParamsTo?: `unknown`\[], mysqlNoBackslashEscapes: `boolean`=false, useBuffer?: Uint8Array, useBufferFromPos: `number`=0, defaultParentName?: Uint8Array): Uint8Array\<ArrayBufferLike>
 
 This function converts the SQL query to `Uint8Array`, that you probably need to pass to your SQL driver.
 
@@ -441,10 +441,10 @@ and their SQL representation will be produced as `?` character.
 
 ```ts
 // To download and run this example:
-// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.11/README.md' | perl -ne '$y=$1 if /^```(.)?/;  print $_ if $y&&$m;  $m=$y&&($m||m~<example-khw0>~)' > /tmp/example-khw0.ts
+// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.12/README.md' | perl -ne 's/^> //; $y=$1 if /^```(.)?/; print $_ if $y&&$m; $m=$y&&$m+/<example-khw0>/' > /tmp/example-khw0.ts
 // deno run /tmp/example-khw0.ts
 
-import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.11/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.12/mod.ts';
 
 const message = 'a'.repeat(100);
 const params: unknown[] = [];
@@ -479,11 +479,11 @@ If `useBufferFromPos` parameter is provided together with the `useBuffer`, so th
 
 > ⚙ Sql.[toString](generated-doc/class.Sql/README.md#-tostringputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-string)(putParamsTo?: `unknown`\[], mysqlNoBackslashEscapes: `boolean`=false): `string`
 
-This function calls [Sql.encode()](generated-doc/class.Sql/README.md#-encodeputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-usebuffer-uint8array-usebufferfrompos-number0-defaultparentname-uint8array-uint8array), and then converts the result to string.
+This function calls [Sql.encode()](generated-doc/class.Sql/README.md#-encodeputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-usebuffer-uint8array-usebufferfrompos-number0-defaultparentname-uint8array-uint8arrayarraybufferlike), and then converts the result to string.
 
-### [Sql.toSqlBytesWithParamsBackslashAndBuffer()](generated-doc/class.Sql/README.md#-tosqlbyteswithparamsbackslashandbufferputparamsto-unknown--undefined-mysqlnobackslashescapes-boolean-usebuffer-uint8array-uint8array)
+### [Sql.toSqlBytesWithParamsBackslashAndBuffer()](generated-doc/class.Sql/README.md#-tosqlbyteswithparamsbackslashandbufferputparamsto-unknown--undefined-mysqlnobackslashescapes-boolean-usebuffer-uint8array-uint8arrayarraybufferlike)
 
-> ⚙ Sql.[toSqlBytesWithParamsBackslashAndBuffer](generated-doc/class.Sql/README.md#-tosqlbyteswithparamsbackslashandbufferputparamsto-unknown--undefined-mysqlnobackslashescapes-boolean-usebuffer-uint8array-uint8array)(putParamsTo: `unknown`\[] | `undefined`, mysqlNoBackslashEscapes: `boolean`, useBuffer: Uint8Array): Uint8Array
+> ⚙ Sql.[toSqlBytesWithParamsBackslashAndBuffer](generated-doc/class.Sql/README.md#-tosqlbyteswithparamsbackslashandbufferputparamsto-unknown--undefined-mysqlnobackslashescapes-boolean-usebuffer-uint8array-uint8arrayarraybufferlike)(putParamsTo: `unknown`\[] | `undefined`, mysqlNoBackslashEscapes: `boolean`, useBuffer: Uint8Array): Uint8Array\<ArrayBufferLike>
 
 This function is the same as `encode()`, but with 3 mandatory parameters.
 This is for optimal support of [this MySQL driver](https://deno.land/x/office_spirit_mysql).
@@ -496,17 +496,17 @@ This public property of [Sql](generated-doc/class.Sql/README.md) object contains
 
 If you create the [Sql](generated-doc/class.Sql/README.md) object using `mysql` template function, it's [sqlSettings.mode](generated-doc/class.SqlSettings/README.md#-readonly-mode-sqlmode) will be set to [SqlMode.MYSQL](generated-doc/enum.SqlMode/README.md#mysql--0), for `pgsql` it will be [SqlMode.PGSQL](generated-doc/enum.SqlMode/README.md#pgsql--2), etc.
 
-If you assign a different [SqlSettings](generated-doc/class.SqlSettings/README.md) object before calling [Sql.toString()](generated-doc/class.Sql/README.md#-tostringputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-string) or [Sql.encode()](generated-doc/class.Sql/README.md#-encodeputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-usebuffer-uint8array-usebufferfrompos-number0-defaultparentname-uint8array-uint8array), that different SQL dialect and policy will be used.
+If you assign a different [SqlSettings](generated-doc/class.SqlSettings/README.md) object before calling [Sql.toString()](generated-doc/class.Sql/README.md#-tostringputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-string) or [Sql.encode()](generated-doc/class.Sql/README.md#-encodeputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-usebuffer-uint8array-usebufferfrompos-number0-defaultparentname-uint8array-uint8arrayarraybufferlike), that different SQL dialect and policy will be used.
 
 The quotation policy has either a whitelist or a blacklist of allowed identifiers, that can remain unquoted.
 There're 2 separate lists for functions (any identifier that is followed by a parenthesis is considered to be a function name), and for other identifiers.
 
 ```ts
 // To download and run this example:
-// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.11/README.md' | perl -ne '$y=$1 if /^```(.)?/;  print $_ if $y&&$m;  $m=$y&&($m||m~<example-rjwg>~)' > /tmp/example-rjwg.ts
+// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.12/README.md' | perl -ne 's/^> //; $y=$1 if /^```(.)?/; print $_ if $y&&$m; $m=$y&&$m+/<example-rjwg>/' > /tmp/example-rjwg.ts
 // deno run /tmp/example-rjwg.ts
 
-import {mysql as sql, SqlSettings, SqlMode} from 'https://deno.land/x/polysql@v2.0.11/mod.ts';
+import {mysql as sql, SqlSettings, SqlMode} from 'https://deno.land/x/polysql@v2.0.12/mod.ts';
 
 const value1 = "The string is: 'name'. The backslash is: \\";
 const value2 = 123.4;
@@ -540,10 +540,10 @@ To print the default policy, you can do:
 
 ```ts
 // To download and run this example:
-// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.11/README.md' | perl -ne '$y=$1 if /^```(.)?/;  print $_ if $y&&$m;  $m=$y&&($m||m~<example-c5vl>~)' > /tmp/example-c5vl.ts
+// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.12/README.md' | perl -ne 's/^> //; $y=$1 if /^```(.)?/; print $_ if $y&&$m; $m=$y&&$m+/<example-c5vl>/' > /tmp/example-c5vl.ts
 // deno run /tmp/example-c5vl.ts
 
-import {SqlSettings, SqlMode} from 'https://deno.land/x/polysql@v2.0.11/mod.ts';
+import {SqlSettings, SqlMode} from 'https://deno.land/x/polysql@v2.0.12/mod.ts';
 
 let settings = new SqlSettings(SqlMode.MYSQL);
 
@@ -557,10 +557,10 @@ If you want to use custom policy all the time, you can write your own version of
 
 ```ts
 // To download and run this example:
-// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.11/README.md' | perl -ne '$y=$1 if /^```(.)?/;  print $_ if $y&&$m;  $m=$y&&($m||m~<example-mbya>~)' > /tmp/example-mbya.ts
+// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.12/README.md' | perl -ne 's/^> //; $y=$1 if /^```(.)?/; print $_ if $y&&$m; $m=$y&&$m+/<example-mbya>/' > /tmp/example-mbya.ts
 // deno run /tmp/example-mbya.ts
 
-import {Sql, SqlSettings, SqlMode, SqlTable} from 'https://deno.land/x/polysql@v2.0.11/mod.ts';
+import {Sql, SqlSettings, SqlMode, SqlTable} from 'https://deno.land/x/polysql@v2.0.12/mod.ts';
 
 const DEFAULT_SETTINGS = new SqlSettings(SqlMode.MYSQL, false, '!bad forbidden', 'calc_stats');
 
@@ -600,10 +600,10 @@ generate SELECT, INSERT, UPDATE, DELETE and TRUNCATE queries for this table.
 
 ```ts
 // To download and run this example:
-// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.11/README.md' | perl -ne '$y=$1 if /^```(.)?/;  print $_ if $y&&$m;  $m=$y&&($m||m~<example-y5hf>~)' > /tmp/example-y5hf.ts
+// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.12/README.md' | perl -ne 's/^> //; $y=$1 if /^```(.)?/; print $_ if $y&&$m; $m=$y&&$m+/<example-y5hf>/' > /tmp/example-y5hf.ts
 // deno run /tmp/example-y5hf.ts
 
-import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.11/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.12/mod.ts';
 
 console.log('' + sql.messages.where("id=1").select()); // prints: SELECT * FROM `messages` WHERE (`id`=1)
 ```
@@ -619,22 +619,22 @@ let table: SqlTable = sql[tableName];
 - [SqlTable.join()](generated-doc/class.SqlTable/README.md#-jointablename-string-alias-string-onexpr-string--sql-this): this
 - [SqlTable.leftJoin()](generated-doc/class.SqlTable/README.md#-leftjointablename-string-alias-string-onexpr-string--sql-this): this
 - [SqlTable.where()](generated-doc/class.SqlTable/README.md#-wherewhereexpr-string--sql-this): this
-- [SqlTable.groupBy()](generated-doc/class.SqlTable/README.md#-groupbygroupbyexprs-string--string--sql-havingexpr-string--sql-this): this
-- [SqlTable.select()](generated-doc/class.SqlTable/README.md#-selectcolumns-string--string--sql-orderby-orderby-offset-number0-limit-number0-this): this
+- [SqlTable.groupBy()](generated-doc/class.SqlTable/README.md#-groupbygroupbyexprs-string--readonlyarraystring--sql-havingexpr-string--sql-this): this
+- [SqlTable.select()](generated-doc/class.SqlTable/README.md#-selectcolumns-string--readonlyarraystring--sql-orderby-orderby-offset-number0-limit-number0-this): this
 - [SqlTable.update()](generated-doc/class.SqlTable/README.md#-updaterow-recordstring-unknown-this): this
 - [SqlTable.delete()](generated-doc/class.SqlTable/README.md#-delete-this): this
 - [SqlTable.insert()](generated-doc/class.SqlTable/README.md#-insertrows-iterablerecordstring-unknown-onconflictdo---nothing--replace--update--patch-this): this
-- [SqlTable.insertFrom()](generated-doc/class.SqlTable/README.md#-insertfromnames-string-select-sql-onconflictdo---nothing--replace-this): this
+- [SqlTable.insertFrom()](generated-doc/class.SqlTable/README.md#-insertfromnames-readonlyarraystring-select-sql-onconflictdo---nothing--replace-this): this
 - [SqlTable.truncate()](generated-doc/class.SqlTable/README.md#-truncate-this): this
 
 All these methods only log what you ask, and the actual query generation will happen when you convert the object to string or bytes.
 
 ```ts
 // To download and run this example:
-// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.11/README.md' | perl -ne '$y=$1 if /^```(.)?/;  print $_ if $y&&$m;  $m=$y&&($m||m~<example-jrt0>~)' > /tmp/example-jrt0.ts
+// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.12/README.md' | perl -ne 's/^> //; $y=$1 if /^```(.)?/; print $_ if $y&&$m; $m=$y&&$m+/<example-jrt0>/' > /tmp/example-jrt0.ts
 // deno run /tmp/example-jrt0.ts
 
-import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.11/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.12/mod.ts';
 
 let s = sql.messages.join('content', 'c', 'content_id = c.id').where("id=1").select("c.*");
 // Now s is object that remembers what joins, columns and conditions you wanted to generate
@@ -662,12 +662,12 @@ Like [join()](generated-doc/class.SqlTable/README.md#-jointablename-string-alias
 
 Adds WHERE condition for SELECT, UPDATE and DELETE queries.
 
-You can call [SqlTable.select()](generated-doc/class.SqlTable/README.md#-selectcolumns-string--string--sql-orderby-orderby-offset-number0-limit-number0-this), [SqlTable.update()](generated-doc/class.SqlTable/README.md#-updaterow-recordstring-unknown-this) and [SqlTable.delete()](generated-doc/class.SqlTable/README.md#-delete-this) only after calling [SqlTable.where()](generated-doc/class.SqlTable/README.md#-wherewhereexpr-string--sql-this), or an exception will be thrown.
+You can call [SqlTable.select()](generated-doc/class.SqlTable/README.md#-selectcolumns-string--readonlyarraystring--sql-orderby-orderby-offset-number0-limit-number0-this), [SqlTable.update()](generated-doc/class.SqlTable/README.md#-updaterow-recordstring-unknown-this) and [SqlTable.delete()](generated-doc/class.SqlTable/README.md#-delete-this) only after calling [SqlTable.where()](generated-doc/class.SqlTable/README.md#-wherewhereexpr-string--sql-this), or an exception will be thrown.
 To explicitly allow working on the whole table, call `sqlTable.where('')` (with empty condition).
 
-### [SqlTable.groupBy()](generated-doc/class.SqlTable/README.md#-groupbygroupbyexprs-string--string--sql-havingexpr-string--sql-this)
+### [SqlTable.groupBy()](generated-doc/class.SqlTable/README.md#-groupbygroupbyexprs-string--readonlyarraystring--sql-havingexpr-string--sql-this)
 
-> ⚙ SqlTable.[groupBy](generated-doc/class.SqlTable/README.md#-groupbygroupbyexprs-string--string--sql-havingexpr-string--sql-this)(groupByExprs: `string` | `string`\[] | [Sql](generated-doc/class.Sql/README.md), havingExpr: `string` | [Sql](generated-doc/class.Sql/README.md)=""): `this`
+> ⚙ SqlTable.[groupBy](generated-doc/class.SqlTable/README.md#-groupbygroupbyexprs-string--readonlyarraystring--sql-havingexpr-string--sql-this)(groupByExprs: `string` | ReadonlyArray\<`string`> | [Sql](generated-doc/class.Sql/README.md), havingExpr: `string` | [Sql](generated-doc/class.Sql/README.md)=""): `this`
 
 Adds GROUP BY expressions, and optionally a HAVING expression to the SELECT query.
 
@@ -675,9 +675,9 @@ If `groupByExprs` is a string or an `Sql` object, it will represent a safe SQL f
 
 If it's `string[]`, it will be treated as array of column names.
 
-### [SqlTable.select()](generated-doc/class.SqlTable/README.md#-selectcolumns-string--string--sql-orderby-orderby-offset-number0-limit-number0-this)
+### [SqlTable.select()](generated-doc/class.SqlTable/README.md#-selectcolumns-string--readonlyarraystring--sql-orderby-orderby-offset-number0-limit-number0-this)
 
-> ⚙ SqlTable.[select](generated-doc/class.SqlTable/README.md#-selectcolumns-string--string--sql-orderby-orderby-offset-number0-limit-number0-this)(columns: `string` | `string`\[] | [Sql](generated-doc/class.Sql/README.md)="", orderBy: [OrderBy](generated-doc/type.OrderBy/README.md)="", offset: `number`=0, limit: `number`=0): `this`
+> ⚙ SqlTable.[select](generated-doc/class.SqlTable/README.md#-selectcolumns-string--readonlyarraystring--sql-orderby-orderby-offset-number0-limit-number0-this)(columns: `string` | ReadonlyArray\<`string`> | [Sql](generated-doc/class.Sql/README.md)="", orderBy: [OrderBy](generated-doc/type.OrderBy/README.md)="", offset: `number`=0, limit: `number`=0): `this`
 
 Generates a SELECT query.
 
@@ -714,18 +714,18 @@ Generates an INSERT query.
 - `onConflictDo=='update'` is only supported for MySQL and SQLite. If duplicate key, updates the existing record with the new values.
 - `onConflictDo=='patch'` is only supported for MySQL. If duplicate key, updates only **empty** (null, 0 or '') columns of the existing record with the new values.
 
-### [SqlTable.insertFrom()](generated-doc/class.SqlTable/README.md#-insertfromnames-string-select-sql-onconflictdo---nothing--replace-this)
+### [SqlTable.insertFrom()](generated-doc/class.SqlTable/README.md#-insertfromnames-readonlyarraystring-select-sql-onconflictdo---nothing--replace-this)
 
-> ⚙ SqlTable.[insertFrom](generated-doc/class.SqlTable/README.md#-insertfromnames-string-select-sql-onconflictdo---nothing--replace-this)(names: `string`\[], select: [Sql](generated-doc/class.Sql/README.md), onConflictDo: <mark>""</mark> | <mark>"nothing"</mark> | <mark>"replace"</mark>=""): `this`
+> ⚙ SqlTable.[insertFrom](generated-doc/class.SqlTable/README.md#-insertfromnames-readonlyarraystring-select-sql-onconflictdo---nothing--replace-this)(names: ReadonlyArray\<`string`>, select: [Sql](generated-doc/class.Sql/README.md), onConflictDo: <mark>""</mark> | <mark>"nothing"</mark> | <mark>"replace"</mark>=""): `this`
 
 Generates "INSERT INTO (...) SELECT ..." query.
 
 ```ts
 // To download and run this example:
-// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.11/README.md' | perl -ne '$y=$1 if /^```(.)?/;  print $_ if $y&&$m;  $m=$y&&($m||m~<example-hwat>~)' > /tmp/example-hwat.ts
+// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.12/README.md' | perl -ne 's/^> //; $y=$1 if /^```(.)?/; print $_ if $y&&$m; $m=$y&&$m+/<example-hwat>/' > /tmp/example-hwat.ts
 // deno run /tmp/example-hwat.ts
 
-import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.11/mod.ts';
+import {mysql as sql} from 'https://deno.land/x/polysql@v2.0.12/mod.ts';
 
 let s = sql.t_log.insertFrom(['c1', 'c2'], sql.t_log_bak.where('id<=100').select(['c1', 'c2']));
 console.log('' + s); // prints: INSERT INTO `t_log` (`c1`, `c2`) SELECT `c1`, `c2` FROM `t_log_bak` WHERE (`id`<=100)
@@ -764,10 +764,10 @@ In this implementation i redefine the `sql` proxy object in the same way that th
 
 ```ts
 // To download and run this example:
-// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.11/README.md' | perl -ne '$y=$1 if /^```(.)?/;  print $_ if $y&&$m;  $m=$y&&($m||m~<example-w4qu>~)' > /tmp/example-w4qu.ts
+// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.12/README.md' | perl -ne 's/^> //; $y=$1 if /^```(.)?/; print $_ if $y&&$m; $m=$y&&$m+/<example-w4qu>/' > /tmp/example-w4qu.ts
 // deno run /tmp/example-w4qu.ts
 
-import {SqlSettings, SqlMode, SqlTable} from 'https://deno.land/x/polysql@v2.0.11/mod.ts';
+import {SqlSettings, SqlMode, SqlTable} from 'https://deno.land/x/polysql@v2.0.12/mod.ts';
 
 const SQL_SETTINGS_MYSQL = new SqlSettings(SqlMode.MYSQL);
 
@@ -801,10 +801,10 @@ Another reason for adding custom methods to [SqlTable](generated-doc/class.SqlTa
 
 ```ts
 // To download and run this example:
-// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.11/README.md' | perl -ne '$y=$1 if /^```(.)?/;  print $_ if $y&&$m;  $m=$y&&($m||m~<example-lgsn>~)' > /tmp/example-lgsn.ts
+// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.12/README.md' | perl -ne 's/^> //; $y=$1 if /^```(.)?/; print $_ if $y&&$m; $m=$y&&$m+/<example-lgsn>/' > /tmp/example-lgsn.ts
 // deno run /tmp/example-lgsn.ts
 
-import {SqlSettings, SqlMode, SqlTable} from 'https://deno.land/x/polysql@v2.0.11/mod.ts';
+import {SqlSettings, SqlMode, SqlTable} from 'https://deno.land/x/polysql@v2.0.12/mod.ts';
 
 const DEFAULT_SETTINGS = new SqlSettings(SqlMode.MYSQL);
 
@@ -900,10 +900,10 @@ CREATE TABLE transactions
 
 ```ts
 // To download and run this example:
-// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.11/README.md' | perl -ne '$y=$1 if /^```(.)?/;  print $_ if $y&&$m;  $m=$y&&($m||m~<example-wk20>~)' > /tmp/example-wk20.ts
+// curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.12/README.md' | perl -ne 's/^> //; $y=$1 if /^```(.)?/; print $_ if $y&&$m; $m=$y&&$m+/<example-wk20>/' > /tmp/example-wk20.ts
 // deno run /tmp/example-wk20.ts
 
-import {SqlSettings, SqlMode, SqlTable} from 'https://deno.land/x/polysql@v2.0.11/mod.ts';
+import {SqlSettings, SqlMode, SqlTable} from 'https://deno.land/x/polysql@v2.0.12/mod.ts';
 
 type TableInfo =
 {	foreignKeys?: Record<string, {refTable: string, onExpr: (baseAlias: string, refAlias: string) => string}>;

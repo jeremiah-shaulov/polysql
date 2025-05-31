@@ -3,7 +3,7 @@
 [Documentation Index](../README.md)
 
 ```ts
-import {Sql} from "https://deno.land/x/polysql@v2.0.11/mod.ts"
+import {Sql} from "https://deno.land/x/polysql@v2.0.12/mod.ts"
 ```
 
 ## This class has
@@ -15,9 +15,9 @@ import {Sql} from "https://deno.land/x/polysql@v2.0.11/mod.ts"
 - 5 methods:
 [concat](#-concatother-sql-sql),
 [append](#-appendother-sql-this),
-[encode](#-encodeputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-usebuffer-uint8array-usebufferfrompos-number0-defaultparentname-uint8array-uint8array),
+[encode](#-encodeputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-usebuffer-uint8array-usebufferfrompos-number0-defaultparentname-uint8array-uint8arrayarraybufferlike),
 [toString](#-tostringputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-string),
-[toSqlBytesWithParamsBackslashAndBuffer](#-tosqlbyteswithparamsbackslashandbufferputparamsto-unknown--undefined-mysqlnobackslashescapes-boolean-usebuffer-uint8array-uint8array)
+[toSqlBytesWithParamsBackslashAndBuffer](#-tosqlbyteswithparamsbackslashandbufferputparamsto-unknown--undefined-mysqlnobackslashescapes-boolean-usebuffer-uint8array-uint8arrayarraybufferlike)
 - 2 protected properties:
 [strings](#-protected-strings-string),
 [params](#-protected-params-unknown)
@@ -43,7 +43,7 @@ import {Sql} from "https://deno.land/x/polysql@v2.0.11/mod.ts"
 
 
 
-#### ⚙ encode(putParamsTo?: `unknown`\[], mysqlNoBackslashEscapes: `boolean`=false, useBuffer?: Uint8Array, useBufferFromPos: `number`=0, defaultParentName?: Uint8Array): Uint8Array
+#### ⚙ encode(putParamsTo?: `unknown`\[], mysqlNoBackslashEscapes: `boolean`=false, useBuffer?: Uint8Array, useBufferFromPos: `number`=0, defaultParentName?: Uint8Array): Uint8Array\<ArrayBufferLike>
 
 > If `useBuffer` is provided, and it has enough size, will encode to it, and return a `useBuffer.subarray(0, N)`.
 > Else, will return a subarray of a new Uint8Array.
@@ -55,7 +55,7 @@ import {Sql} from "https://deno.land/x/polysql@v2.0.11/mod.ts"
 
 
 
-#### ⚙ toSqlBytesWithParamsBackslashAndBuffer(putParamsTo: `unknown`\[] | `undefined`, mysqlNoBackslashEscapes: `boolean`, useBuffer: Uint8Array): Uint8Array
+#### ⚙ toSqlBytesWithParamsBackslashAndBuffer(putParamsTo: `unknown`\[] | `undefined`, mysqlNoBackslashEscapes: `boolean`, useBuffer: Uint8Array): Uint8Array\<ArrayBufferLike>
 
 
 
