@@ -53,7 +53,7 @@ const NUMBER_ALLOC_CHAR_LEN = Math.max((Number.MIN_SAFE_INTEGER+'').length, (Num
 const BIGINT_ALLOC_CHAR_LEN = Math.max((0x8000_0000_0000_0000n+'').length, (0x7FFF_FFFF_FFFF_FFFFn+'').length);
 const DATE_ALLOC_CHAR_LEN = '2000-01-01 00:00:00.000'.length;
 
-const EMPTY_ARRAY = new Uint8Array;
+const EMPTY_ARRAY: Uint8Array<ArrayBufferLike> = new Uint8Array;
 
 const encoder = new TextEncoder;
 const decoder = new TextDecoder;

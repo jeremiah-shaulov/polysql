@@ -3,7 +3,7 @@ import {Sql} from './sql.ts';
 import {SqlSettings, SqlMode, DEFAULT_SETTINGS_MYSQL} from './sql_settings.ts';
 
 type Join = {tableName: string, alias: string, onExpr: string|Sql, isLeft: boolean};
-export type OrderBy = string | Sql | {columns: string[], desc?: boolean};
+export type OrderBy = string | Sql | {columns: ReadonlyArray<string>, desc?: boolean};
 
 const decoder = new TextDecoder;
 
@@ -25,7 +25,7 @@ export class SqlTable extends Sql
 {	#tableAlias = '';
 	#joins = new Array<Join>;
 	#whereExprs = new Array<string|Sql>;
-	#groupByExprs: string|string[]|Sql|undefined;
+	#groupByExprs: string|ReadonlyArray<string>|Sql|undefined;
 	#havingExpr: string|Sql = '';
 
 	#foreignJoined = new Array<{parentName: string, name: string, refAlias: string}>;
@@ -34,9 +34,9 @@ export class SqlTable extends Sql
 	#operation = Operation.NONE;
 	#operationInsertRows: Iterable<Record<string, unknown>> | undefined;
 	#operationInsertOnConflictDo: ''|'nothing'|'replace'|'update'|'patch' = '';
-	#operationInsertNames: string[] | undefined;
+	#operationInsertNames: ReadonlyArray<string> | undefined;
 	#operationInsertSelect: Sql | undefined;
-	#operationSelectColumns: string|string[]|Sql = '';
+	#operationSelectColumns: string|ReadonlyArray<string>|Sql = '';
 	#operationSelectOrderBy: OrderBy = '';
 	#operationSelectOffset = 0;
 	#operationSelectLimit = 0;
@@ -173,7 +173,7 @@ export class SqlTable extends Sql
 
 	/**	Adds an INNER (if `onExpr` is given) or a CROSS join (if `onExpr` is blank).
 		This method can be called multiple times.
-		The method returns a new `SqlTable` object that has everything from the original object, plus the new join.
+		The method modifies the current object, and returns `this`.
 	 **/
 	join(tableName: string, alias='', onExpr: string|Sql='')
 	{	this.#someJoin(tableName, alias, onExpr, false);
@@ -182,7 +182,7 @@ export class SqlTable extends Sql
 
 	/**	Adds a LEFT JOIN.
 		This method can be called multiple times.
-		The method returns a new `SqlTable` object that has everything from the original object, plus the new join.
+		The method modifies the current object, and returns `this`.
 	 **/
 	leftJoin(tableName: string, alias: string, onExpr: string|Sql)
 	{	if (!onExpr)
@@ -207,9 +207,9 @@ export class SqlTable extends Sql
 
 	/**	Adds GROUP BY expressions, and optionally a HAVING expression to the SELECT query.
 		If `groupByExprs` is a string or an `Sql` object, it will represent a safe SQL fragment that contains comma-separated list of column expressions.
-		If it's `string[]`, it will be treated as array of column names.
+		If it's `readonly string[]`, it will be treated as array of column names.
 	 **/
-	groupBy(groupByExprs: string|string[]|Sql, havingExpr: string|Sql='')
+	groupBy(groupByExprs: string|ReadonlyArray<string>|Sql, havingExpr: string|Sql='')
 	{	if (this.#groupByExprs != undefined)
 		{	throw new Error(`groupBy() can be called only once`);
 		}
@@ -247,7 +247,7 @@ export class SqlTable extends Sql
 		let s = sqlTables.t_log.insertFrom(['c1', 'c2'], sqlTables.t_log_bak.where('id<=100').select(['c1', 'c2']));
 		console.log('' + s); // prints: INSERT INTO `t_log` (`c1`, `c2`) SELECT `c1`, `c2` FROM `t_log_bak` WHERE (`id`<=100)
 	 **/
-	insertFrom(names: string[], select: Sql, onConflictDo: ''|'nothing'|'replace' = '')
+	insertFrom(names: ReadonlyArray<string>, select: Sql, onConflictDo: ''|'nothing'|'replace' = '')
 	{	if (this.#joins.length)
 		{	throw new Error(`Cannot INSERT with JOIN`);
 		}
@@ -266,11 +266,11 @@ export class SqlTable extends Sql
 
 	/**	Generates a SELECT query.
 		If `columns` parameter is a string or an `Sql` object, it will represent columns as a safe SQL fragment.
-		If it's `string[]`, it will be treated as array of column names.
+		If it's `readonly string[]`, it will be treated as array of column names.
 		Empty string or array will represent `*`-wildcard (select all columns).
 		OFFSET and LIMIT without ORDER BY are not supported on Microsoft SQL Server.
 	 **/
-	select(columns: string|string[]|Sql='', orderBy: OrderBy='', offset=0, limit=0)
+	select(columns: string|ReadonlyArray<string>|Sql='', orderBy: OrderBy='', offset=0, limit=0)
 	{	this.#operation = Operation.SELECT;
 		this.#operationSelectColumns = columns;
 		this.#operationSelectOrderBy = orderBy;
