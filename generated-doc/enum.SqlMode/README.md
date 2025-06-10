@@ -3,7 +3,7 @@
 [Documentation Index](../README.md)
 
 ```ts
-import {SqlMode} from "https://deno.land/x/polysql@v2.0.12/mod.ts"
+import {SqlMode} from "https://deno.land/x/polysql@v2.0.13/mod.ts"
 ```
 
 #### MYSQL = <mark>0</mark>
