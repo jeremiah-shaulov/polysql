@@ -3,7 +3,7 @@
 [Documentation Index](../README.md)
 
 ```ts
-import {SqlTable} from "https://deno.land/x/polysql@v2.0.13/mod.ts"
+import {SqlTable} from "https://deno.land/x/polysql@v2.0.14/mod.ts"
 ```
 
 ## This class has
