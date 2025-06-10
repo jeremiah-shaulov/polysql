@@ -891,6 +891,7 @@ class Serializer
 		let curNameQt = 0;
 		let curNameValidAt = 0;
 		let lastAsAt = 0;
+		let lastAtAt = -2; // -2 means no @ at all
 L:		for (let j=from; j<pos; j++)
 		{	let c = result[j];
 			switch (c)
@@ -1149,11 +1150,16 @@ L:		for (let j=from; j<pos; j++)
 					throw new Error(`Invalid character in SQL fragment: ${param}`);
 				case C_QUEST:
 				case C_COLON:
+					if (!(param instanceof Sql))
+					{	throw new Error(`Invalid character in SQL fragment: ${param}`);
+					}
+					break;
 				case C_AT:
 					if (!(param instanceof Sql))
 					{	throw new Error(`Invalid character in SQL fragment: ${param}`);
 					}
-					// fallthrough
+					lastAtAt = j;
+					break;
 				default:
 				{	let hasNondigit = c>=C_A && c<=C_Z || c>=C_A_CAP && c<=C_Z_CAP || c==C_UNDERSCORE || c>=0x80;
 					if (hasNondigit || c>=C_ZERO && c<=C_NINE)
@@ -1208,7 +1214,7 @@ L:		for (let j=from; j<pos; j++)
 								curNameTo = jAfterIdent;
 								curNameQt = 0;
 								curNameValidAt = j;
-								if (lastAsAt!=changeFrom && parentName.length) // if not after AS keyword, and there's `parentName`
+								if (lastAsAt!=changeFrom && lastAtAt!=changeFrom-1 && parentName.length) // if not after AS keyword, and there's `parentName`
 								{	changes[changes.length] = {change: Change.QUOTE_AND_QUALIFY_COLUMN_NAME, changeFrom, changeTo: jAfterIdent, arg: EMPTY_ARRAY};
 									nAdd += !alwaysQuoteIdents ? parentName.length+3 : parentName.length+5; // !alwaysQuoteIdents ? ``. : ``.``
 								}
