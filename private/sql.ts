@@ -1140,16 +1140,16 @@ L:		for (let j=from; j<pos; j++)
 					break;
 				case 0:
 				case C_SEMICOLON:
-				case C_AT:
 				case C_DOLLAR:
 				case C_HASH:
-				case C_COLON:
 				case C_SQUARE_OPEN:
 				case C_SQUARE_CLOSE:
 				case C_BRACE_OPEN:
 				case C_BRACE_CLOSE:
 					throw new Error(`Invalid character in SQL fragment: ${param}`);
 				case C_QUEST:
+				case C_COLON:
+				case C_AT:
 					if (!(param instanceof Sql))
 					{	throw new Error(`Invalid character in SQL fragment: ${param}`);
 					}
