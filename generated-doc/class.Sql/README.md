@@ -3,15 +3,15 @@
 [Documentation Index](../README.md)
 
 ```ts
-import {Sql} from "https://deno.land/x/polysql@v2.0.15/mod.ts"
+import {Sql} from "https://deno.land/x/polysql@v2.0.16/mod.ts"
 ```
 
 ## This class has
 
-- [constructor](#-constructorsqlsettings-sqlsettings-onarrow-onarrow-strings-readonly-string-params-unknown)
+- [2 constructors](#-constructorclonefrom-sql)
 - 2 properties:
-[estimatedByteLength](#-estimatedbytelength-number),
-[sqlSettings](#-sqlsettings-sqlsettings)
+[sqlSettings](#-sqlsettings-sqlsettings),
+[estimatedByteLength](#-estimatedbytelength-number)
 - 5 methods:
 [concat](#-concatother-sql-sql),
 [append](#-appendother-sql-this),
@@ -23,15 +23,19 @@ import {Sql} from "https://deno.land/x/polysql@v2.0.15/mod.ts"
 [params](#-protected-params-unknown)
 
 
+#### 🔧 `constructor`(cloneFrom: [Sql](../class.Sql/README.md))
+
+
+
 #### 🔧 `constructor`(sqlSettings: [SqlSettings](../class.SqlSettings/README.md), onArrow?: [OnArrow](../private.type.OnArrow/README.md), strings?: readonly `string`\[], params?: `unknown`\[])
 
 
 
-#### 📄 estimatedByteLength: `number`
-
-
-
 #### 📄 sqlSettings: [SqlSettings](../class.SqlSettings/README.md)
+
+
+
+#### 📄 estimatedByteLength: `number`
 
 
 

@@ -3,17 +3,18 @@
 [Documentation Index](../README.md)
 
 ```ts
-import {SqlTable} from "https://deno.land/x/polysql@v2.0.15/mod.ts"
+import {SqlTable} from "https://deno.land/x/polysql@v2.0.16/mod.ts"
 ```
 
 ## This class has
 
 - [2 constructors](#-constructorclonefrom-sqltable)
-- 13 methods:
+- 14 methods:
 [as](#-astablealias-string-this),
 [join](#-jointablename-string-alias-string-onexpr-string--sql-this),
 [leftJoin](#-leftjointablename-string-alias-string-onexpr-string--sql-this),
 [where](#-wherewhereexpr-string--sql-this),
+[whereRawSql](#-whererawsqlwhererawsql-sql-this),
 [groupBy](#-groupbygroupbyexprs-string--readonlyarraystring--sql-havingexpr-string--sql-this),
 [insert](#-insertrows-iterablerecordstring-unknown-onconflictdo---nothing--replace--update--patch-this),
 [insertFrom](#-insertfromnames-readonlyarraystring-select-sql-onconflictdo---nothing--replace-this),
@@ -66,6 +67,12 @@ import {SqlTable} from "https://deno.land/x/polysql@v2.0.15/mod.ts"
 > The method returns a new `SqlTable` object that has everything from the original object, plus the new condition.
 > You can call `sqlTable.select()`, `sqlTable.update()` and `sqlTable.delete()` only after calling `sqlTable.where()`, or an exception will be thrown.
 > To explicitly allow working on the whole table, call `sqlTable.where('')` (with empty condition).
+
+
+
+#### ⚙ whereRawSql(whereRawSql: [Sql](../class.Sql/README.md)): `this`
+
+> Like [SqlTable.where()](../class.SqlTable/README.md#-wherewhereexpr-string--sql-this), but adds an unsafe raw SQL condition.
 
 
 
