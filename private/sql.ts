@@ -97,78 +97,94 @@ type Any = any;
 type OnArrow = (parentName: string, name: string) => string|undefined;
 
 export class Sql
-{	estimatedByteLength: number;
+{	sqlSettings: SqlSettings;
+	estimatedByteLength: number;
+
+	private onArrow?: OnArrow;
 
 	protected strings = new Array<string>;
 	protected params: unknown[];
 
-	constructor(public sqlSettings: SqlSettings, private onArrow?: OnArrow, strings?: readonly string[], params?: unknown[])
-	{	if (!strings)
-		{	strings = [''];
+	constructor(cloneFrom: Sql);
+	constructor(sqlSettings: SqlSettings, onArrow?: OnArrow, strings?: readonly string[], params?: unknown[]);
+	constructor(cloneFromOrSqlSettings: Sql|SqlSettings, onArrow?: OnArrow, strings?: readonly string[], params?: unknown[])
+	{	if (cloneFromOrSqlSettings instanceof Sql)
+		{	this.sqlSettings = cloneFromOrSqlSettings.sqlSettings;
+			this.estimatedByteLength = cloneFromOrSqlSettings.estimatedByteLength;
+			this.onArrow = cloneFromOrSqlSettings.onArrow;
+			this.strings = cloneFromOrSqlSettings.strings.slice();
+			this.params = cloneFromOrSqlSettings.params.slice();
 		}
-		if (!params)
-		{	params = [];
-		}
-		if (strings.length != params.length+1)
-		{	throw new Error('Please, pass arguments from a string template');
-		}
-		this.params = params;
-		let len = 0;
-		for (const s of strings)
-		{	len += s.length + GUESS_STRING_BYTE_LEN_LONGER; // if byte length of s is longer than s.length+GUESS_STRING_BYTE_LEN_LONGER, will realloc later
-			this.strings.push(s);
-		}
-		for (let i=0, iEnd=params.length; i<iEnd; i++)
-		{	const param = params[i];
-			if (param == null)
-			{	len += 4; // 'NULL'.length
+		else
+		{	this.sqlSettings = cloneFromOrSqlSettings;
+			this.onArrow = onArrow;
+			if (!strings)
+			{	strings = [''];
 			}
-			else if (typeof(param)=='function' || typeof(param)=='symbol')
-			{	len += 4; // 'NULL'.length
-				params[i] = null;
+			if (!params)
+			{	params = [];
 			}
-			else if (typeof(param) == 'boolean')
-			{	len += 5; // 'FALSE'.length
+			if (strings.length != params.length+1)
+			{	throw new Error('Please, pass arguments from a string template');
 			}
-			else if (typeof(param) == 'number')
-			{	len += NUMBER_ALLOC_CHAR_LEN;
+			this.params = params;
+			let len = 0;
+			for (const s of strings)
+			{	len += s.length + GUESS_STRING_BYTE_LEN_LONGER; // if byte length of s is longer than s.length+GUESS_STRING_BYTE_LEN_LONGER, will realloc later
+				this.strings.push(s);
 			}
-			else if (typeof(param) == 'bigint')
-			{	if (param<-0x8000_0000_0000_0000n || param>0x7FFF_FFFF_FFFF_FFFFn)
-				{	throw new Error(`Cannot represent such bigint: ${param}`);
+			for (let i=0, iEnd=params.length; i<iEnd; i++)
+			{	const param = params[i];
+				if (param == null)
+				{	len += 4; // 'NULL'.length
 				}
-				len += BIGINT_ALLOC_CHAR_LEN;
-			}
-			else if (typeof(param) == 'string')
-			{	len += param.length + GUESS_STRING_BYTE_LEN_LONGER; // if byte length of param is longer than param.length+GUESS_STRING_BYTE_LEN_LONGER, will realloc later
-			}
-			else if (param instanceof Date)
-			{	len += DATE_ALLOC_CHAR_LEN;
-			}
-			else if (param instanceof Sql)
-			{	len += param.estimatedByteLength;
-			}
-			else if ((param as Any).buffer instanceof ArrayBuffer)
-			{	const view = param instanceof Uint8Array ? param : new Uint8Array((param as Uint8Array).buffer, (param as Uint8Array).byteOffset, (param as Uint8Array).byteLength);
-				len += view.byteLength*2 + 3; // like x'01020304'
-			}
-			else if (param instanceof ReadableStream || typeof((param as Any).read)=='function')
-			{	// assume, will use `putParamsTo`
-			}
-			else
-			{	const prevString = strings[i];
-				const paramTypeDescriminator = prevString.charCodeAt(prevString.length-1);
-				if (paramTypeDescriminator==C_APOS || (paramTypeDescriminator==C_QUOT || paramTypeDescriminator==C_BACKTICK) && strings[i+1]?.charCodeAt(0)==paramTypeDescriminator)
-				{	const str = JSON.stringify(param);
-					len += str.length + GUESS_STRING_BYTE_LEN_LONGER; // if byte length of param is longer than param.length+GUESS_STRING_BYTE_LEN_LONGER, will realloc later
-					params[i] = str;
+				else if (typeof(param)=='function' || typeof(param)=='symbol')
+				{	len += 4; // 'NULL'.length
+					params[i] = null;
+				}
+				else if (typeof(param) == 'boolean')
+				{	len += 5; // 'FALSE'.length
+				}
+				else if (typeof(param) == 'number')
+				{	len += NUMBER_ALLOC_CHAR_LEN;
+				}
+				else if (typeof(param) == 'bigint')
+				{	if (param<-0x8000_0000_0000_0000n || param>0x7FFF_FFFF_FFFF_FFFFn)
+					{	throw new Error(`Cannot represent such bigint: ${param}`);
+					}
+					len += BIGINT_ALLOC_CHAR_LEN;
+				}
+				else if (typeof(param) == 'string')
+				{	len += param.length + GUESS_STRING_BYTE_LEN_LONGER; // if byte length of param is longer than param.length+GUESS_STRING_BYTE_LEN_LONGER, will realloc later
+				}
+				else if (param instanceof Date)
+				{	len += DATE_ALLOC_CHAR_LEN;
+				}
+				else if (param instanceof Sql)
+				{	len += param.estimatedByteLength;
+				}
+				else if ((param as Any).buffer instanceof ArrayBuffer)
+				{	const view = param instanceof Uint8Array ? param : new Uint8Array((param as Uint8Array).buffer, (param as Uint8Array).byteOffset, (param as Uint8Array).byteLength);
+					len += view.byteLength*2 + 3; // like x'01020304'
+				}
+				else if (param instanceof ReadableStream || typeof((param as Any).read)=='function')
+				{	// assume, will use `putParamsTo`
 				}
 				else
-				{	len += 30; // just guess
+				{	const prevString = strings[i];
+					const paramTypeDescriminator = prevString.charCodeAt(prevString.length-1);
+					if (paramTypeDescriminator==C_APOS || (paramTypeDescriminator==C_QUOT || paramTypeDescriminator==C_BACKTICK) && strings[i+1]?.charCodeAt(0)==paramTypeDescriminator)
+					{	const str = JSON.stringify(param);
+						len += str.length + GUESS_STRING_BYTE_LEN_LONGER; // if byte length of param is longer than param.length+GUESS_STRING_BYTE_LEN_LONGER, will realloc later
+						params[i] = str;
+					}
+					else
+					{	len += 30; // just guess
+					}
 				}
 			}
+			this.estimatedByteLength = (len | 7) + 1;
 		}
-		this.estimatedByteLength = (len | 7) + 1;
 	}
 
 	concat(other: Sql)
