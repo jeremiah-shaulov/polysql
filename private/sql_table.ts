@@ -213,6 +213,8 @@ export class SqlTable extends Sql
 		return this;
 	}
 
+	/**	Like {@link SqlTable.where()}, but adds an unsafe raw SQL condition.
+	 **/
 	whereRawSql(whereRawSql: Sql)
 	{	if (this.#groupByExprs != undefined)
 		{	throw new Error(`whereRawSql() can be called before groupBy()`);

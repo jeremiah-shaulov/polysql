@@ -587,6 +587,7 @@
 	- {@link SqlTable.join()}: this
 	- {@link SqlTable.leftJoin()}: this
 	- {@link SqlTable.where()}: this
+	- {@link SqlTable.whereRawSql()}: this
 	- {@link SqlTable.groupBy()}: this
 	- {@link SqlTable.select()}: this
 	- {@link SqlTable.update()}: this
@@ -631,6 +632,12 @@
 
 	You can call {@link SqlTable.select()}, {@link SqlTable.update()} and {@link SqlTable.delete()} only after calling {@link SqlTable.where()}, or an exception will be thrown.
 	To explicitly allow working on the whole table, call `sqlTable.where('')` (with empty condition).
+
+	### {@link SqlTable.whereRawSql()}
+
+	{@linkcode SqlTable.whereRawSql}
+
+	Like {@link SqlTable.where()}, but adds an unsafe raw SQL condition.
 
 	### {@link SqlTable.groupBy()}
 
