@@ -534,9 +534,9 @@
 	const DEFAULT_SETTINGS = new SqlSettings(SqlMode.MYSQL, false, '!bad forbidden', 'calc_stats');
 
 	const sql = new Proxy
-	(	function sql(strings: TemplateStringsArray, ...params: unknown[])
-		{	return new Sql(DEFAULT_SETTINGS, undefined, [...strings], params);
-		} as Record<string, SqlTable> & {(strings: TemplateStringsArray, ...params: unknown[]): SqlTable},
+	(	function sql(strings: readonly string[], ...params: unknown[])
+		{	return new Sql(DEFAULT_SETTINGS, undefined, strings, params);
+		} as Record<string, SqlTable> & {(strings: readonly string[], ...params: unknown[]): SqlTable},
 		{	get(_target, tableName)
 			{	if (typeof(tableName) != 'string')
 				{	throw new Error("Table name must be string");
@@ -747,9 +747,9 @@
 	}
 
 	const sql = new Proxy
-	(	function sql(strings: TemplateStringsArray, ...params: unknown[])
-		{	return new SqlTableCustom(SQL_SETTINGS_MYSQL, '', [...strings], params);
-		} as Record<string, SqlTableCustom> & {(strings: TemplateStringsArray, ...params: unknown[]): SqlTableCustom},
+	(	function sql(strings: readonly string[], ...params: unknown[])
+		{	return new SqlTableCustom(SQL_SETTINGS_MYSQL, '', strings, params);
+		} as Record<string, SqlTableCustom> & {(strings: readonly string[], ...params: unknown[]): SqlTableCustom},
 		{	get(_target, table_name)
 			{	if (typeof(table_name) != 'string')
 				{	throw new Error("Table name must be string");
@@ -792,7 +792,7 @@
 
 	// Extend `SqlTable` to add custom methods
 	class SqlTableCustom extends SqlTable
-	{	constructor(private connection: Connection, sqlSettings: SqlSettings, tableName: string, strings?: string[], params?: unknown[])
+	{	constructor(private connection: Connection, sqlSettings: SqlSettings, tableName: string, strings?: readonly string[], params?: unknown[])
 		{	super(sqlSettings, tableName, strings, params);
 		}
 
@@ -808,11 +808,11 @@
 	function connect(dsn: string)
 	{	const connection = new Connection(dsn);
 		return new Proxy
-		(	function(strings: TemplateStringsArray, ...params: unknown[])
-			{	return new SqlTableCustom(connection, DEFAULT_SETTINGS, '', [...strings], params);
+		(	function(strings: readonly string[], ...params: unknown[])
+			{	return new SqlTableCustom(connection, DEFAULT_SETTINGS, '', strings, params);
 			} as
 			Record<string, SqlTableCustom> &
-			{	(strings: TemplateStringsArray, ...params: unknown[]): SqlTableCustom;
+			{	(strings: readonly string[], ...params: unknown[]): SqlTableCustom;
 				[Symbol.asyncDispose](): Promise<void>;
 			},
 			{	get(_target, tableName)
@@ -904,9 +904,9 @@
 	const SQL_SETTINGS_MYSQL = new SqlSettings(SqlMode.MYSQL_ONLY, true);
 
 	const sql = new Proxy
-	(	function sql(strings: TemplateStringsArray, ...params: unknown[])
-		{	return new SqlTableCustom(SQL_SETTINGS_MYSQL, '', [...strings], params);
-		} as Record<string, SqlTableCustom> & {(strings: TemplateStringsArray, ...params: unknown[]): SqlTableCustom},
+	(	function sql(strings: readonly string[], ...params: unknown[])
+		{	return new SqlTableCustom(SQL_SETTINGS_MYSQL, '', strings, params);
+		} as Record<string, SqlTableCustom> & {(strings: readonly string[], ...params: unknown[]): SqlTableCustom},
 		{	get(_target, table_name)
 			{	if (typeof(table_name) != 'string')
 				{	throw new Error("Table name must be string");

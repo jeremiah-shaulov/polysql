@@ -17,8 +17,8 @@ const enum Operation
 	TRUNCATE,
 }
 
-function sql(strings: TemplateStringsArray, ...params: unknown[])
-{	return new Sql(DEFAULT_SETTINGS_MYSQL, undefined, [...strings], params);
+function sql(strings: readonly string[], ...params: unknown[])
+{	return new Sql(DEFAULT_SETTINGS_MYSQL, undefined, strings, params);
 }
 
 export class SqlTable extends Sql
@@ -43,8 +43,8 @@ export class SqlTable extends Sql
 	#operationUpdateRow: Record<string, unknown> | undefined;
 
 	constructor(cloneFrom: SqlTable);
-	constructor(sqlSettings: SqlSettings, tableName: string, strings?: string[], params?: unknown[]);
-	constructor(cloneFromOrSqlSettings: SqlTable|SqlSettings, public tableName='', strings?: string[], params?: unknown[])
+	constructor(sqlSettings: SqlSettings, tableName: string, strings?: readonly string[], params?: unknown[]);
+	constructor(cloneFromOrSqlSettings: SqlTable|SqlSettings, public tableName='', strings?: readonly string[], params?: unknown[])
 	{	const sqlSettings = cloneFromOrSqlSettings instanceof SqlTable ? cloneFromOrSqlSettings.sqlSettings : cloneFromOrSqlSettings;
 		super
 		(	sqlSettings,

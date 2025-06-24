@@ -1057,7 +1057,7 @@ Deno.test
 		let lastParentName = '';
 		let lastName = '';
 
-		function sql(strings: TemplateStringsArray, ...params: unknown[])
+		function sql(strings: readonly string[], ...params: unknown[])
 		{	return new Sql
 			(	SQL_SETTINGS_MYSQL,
 				(parentName, name) =>
@@ -1065,7 +1065,7 @@ Deno.test
 					lastName = name;
 					return `${parentName}#${name}`;
 				},
-				[...strings],
+				strings,
 				params
 			);
 		}
@@ -1200,9 +1200,9 @@ Deno.test
 		function getSql(mode: SqlMode)
 		{	const settings = new SqlSettings(mode, true);
 			return new Proxy
-			(	function sql(strings: TemplateStringsArray, ...params: unknown[])
-				{	return new SqlTableCustom(settings, '', [...strings], params);
-				} as Record<string, SqlTableCustom> & {(strings: TemplateStringsArray, ...params: unknown[]): SqlTableCustom},
+			(	function sql(strings: readonly string[], ...params: unknown[])
+				{	return new SqlTableCustom(settings, '', strings, params);
+				} as Record<string, SqlTableCustom> & {(strings: readonly string[], ...params: unknown[]): SqlTableCustom},
 				{	get(_target, table_name)
 					{	if (typeof(table_name) != 'string')
 						{	throw new Error("Table name must be string");

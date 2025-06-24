@@ -99,10 +99,10 @@ type OnArrow = (parentName: string, name: string) => string|undefined;
 export class Sql
 {	estimatedByteLength: number;
 
-	protected strings: string[];
+	protected strings = new Array<string>;
 	protected params: unknown[];
 
-	constructor(public sqlSettings: SqlSettings, private onArrow?: OnArrow, strings?: string[], params?: unknown[])
+	constructor(public sqlSettings: SqlSettings, private onArrow?: OnArrow, strings?: readonly string[], params?: unknown[])
 	{	if (!strings)
 		{	strings = [''];
 		}
@@ -112,11 +112,11 @@ export class Sql
 		if (strings.length != params.length+1)
 		{	throw new Error('Please, pass arguments from a string template');
 		}
-		this.strings = strings;
 		this.params = params;
 		let len = 0;
 		for (const s of strings)
 		{	len += s.length + GUESS_STRING_BYTE_LEN_LONGER; // if byte length of s is longer than s.length+GUESS_STRING_BYTE_LEN_LONGER, will realloc later
+			this.strings.push(s);
 		}
 		for (let i=0, iEnd=params.length; i<iEnd; i++)
 		{	const param = params[i];

@@ -7,11 +7,11 @@ import
 	DEFAULT_SETTINGS_MSSQL, DEFAULT_SETTINGS_MSSQL_ONLY,
 } from './sql_settings.ts';
 
-type SqlFactory = {(strings: TemplateStringsArray, ...params: unknown[]): Sql} & Record<string, SqlTable>;
+type SqlFactory = {(strings: readonly string[], ...params: unknown[]): Sql} & Record<string, SqlTable>;
 
 export const mysql = new Proxy
-(	function(strings: TemplateStringsArray, ...params: unknown[])
-	{	return new Sql(DEFAULT_SETTINGS_MYSQL, undefined, [...strings], params);
+(	function(strings: readonly string[], ...params: unknown[])
+	{	return new Sql(DEFAULT_SETTINGS_MYSQL, undefined, strings, params);
 	} as SqlFactory,
 	{	get(_target, tableName)
 		{	if (typeof(tableName) != 'string')
@@ -23,8 +23,8 @@ export const mysql = new Proxy
 );
 
 export const mysqlOnly = new Proxy
-(	function(strings: TemplateStringsArray, ...params: unknown[])
-	{	return new Sql(DEFAULT_SETTINGS_MYSQL_ONLY, undefined, [...strings], params);
+(	function(strings: readonly string[], ...params: unknown[])
+	{	return new Sql(DEFAULT_SETTINGS_MYSQL_ONLY, undefined, strings, params);
 	} as SqlFactory,
 	{	get(_target, tableName)
 		{	if (typeof(tableName) != 'string')
@@ -36,8 +36,8 @@ export const mysqlOnly = new Proxy
 );
 
 export const pgsql = new Proxy
-(	function(strings: TemplateStringsArray, ...params: unknown[])
-	{	return new Sql(DEFAULT_SETTINGS_PGSQL, undefined, [...strings], params);
+(	function(strings: readonly string[], ...params: unknown[])
+	{	return new Sql(DEFAULT_SETTINGS_PGSQL, undefined, strings, params);
 	} as SqlFactory,
 	{	get(_target, tableName)
 		{	if (typeof(tableName) != 'string')
@@ -49,8 +49,8 @@ export const pgsql = new Proxy
 );
 
 export const pgsqlOnly = new Proxy
-(	function(strings: TemplateStringsArray, ...params: unknown[])
-	{	return new Sql(DEFAULT_SETTINGS_PGSQL_ONLY, undefined, [...strings], params);
+(	function(strings: readonly string[], ...params: unknown[])
+	{	return new Sql(DEFAULT_SETTINGS_PGSQL_ONLY, undefined, strings, params);
 	} as SqlFactory,
 	{	get(_target, tableName)
 		{	if (typeof(tableName) != 'string')
@@ -62,8 +62,8 @@ export const pgsqlOnly = new Proxy
 );
 
 export const sqlite = new Proxy
-(	function(strings: TemplateStringsArray, ...params: unknown[])
-	{	return new Sql(DEFAULT_SETTINGS_SQLITE, undefined, [...strings], params);
+(	function(strings: readonly string[], ...params: unknown[])
+	{	return new Sql(DEFAULT_SETTINGS_SQLITE, undefined, strings, params);
 	} as SqlFactory,
 	{	get(_target, tableName)
 		{	if (typeof(tableName) != 'string')
@@ -75,8 +75,8 @@ export const sqlite = new Proxy
 );
 
 export const sqliteOnly = new Proxy
-(	function(strings: TemplateStringsArray, ...params: unknown[])
-	{	return new Sql(DEFAULT_SETTINGS_SQLITE_ONLY, undefined, [...strings], params);
+(	function(strings: readonly string[], ...params: unknown[])
+	{	return new Sql(DEFAULT_SETTINGS_SQLITE_ONLY, undefined, strings, params);
 	} as SqlFactory,
 	{	get(_target, tableName)
 		{	if (typeof(tableName) != 'string')
@@ -88,8 +88,8 @@ export const sqliteOnly = new Proxy
 );
 
 export const mssql = new Proxy
-(	function(strings: TemplateStringsArray, ...params: unknown[])
-	{	return new Sql(DEFAULT_SETTINGS_MSSQL, undefined, [...strings], params);
+(	function(strings: readonly string[], ...params: unknown[])
+	{	return new Sql(DEFAULT_SETTINGS_MSSQL, undefined, strings, params);
 	} as SqlFactory,
 	{	get(_target, tableName)
 		{	if (typeof(tableName) != 'string')
@@ -101,8 +101,8 @@ export const mssql = new Proxy
 );
 
 export const mssqlOnly = new Proxy
-(	function(strings: TemplateStringsArray, ...params: unknown[])
-	{	return new Sql(DEFAULT_SETTINGS_MSSQL_ONLY, undefined, [...strings], params);
+(	function(strings: readonly string[], ...params: unknown[])
+	{	return new Sql(DEFAULT_SETTINGS_MSSQL_ONLY, undefined, strings, params);
 	} as SqlFactory,
 	{	get(_target, tableName)
 		{	if (typeof(tableName) != 'string')
