@@ -3,7 +3,7 @@
 [Documentation Index](../README.md)
 
 ```ts
-import {SqlTable} from "https://deno.land/x/polysql@v2.0.14/mod.ts"
+import {SqlTable} from "https://deno.land/x/polysql@v2.0.15/mod.ts"
 ```
 
 ## This class has
@@ -34,7 +34,7 @@ import {SqlTable} from "https://deno.land/x/polysql@v2.0.14/mod.ts"
 
 
 
-#### 🔧 `constructor`(sqlSettings: [SqlSettings](../class.SqlSettings/README.md), tableName: `string`, strings?: `string`\[], params?: `unknown`\[])
+#### 🔧 `constructor`(sqlSettings: [SqlSettings](../class.SqlSettings/README.md), tableName: `string`, strings?: readonly `string`\[], params?: `unknown`\[])
 
 
 

@@ -3,12 +3,12 @@
 [Documentation Index](../README.md)
 
 ```ts
-import {Sql} from "https://deno.land/x/polysql@v2.0.14/mod.ts"
+import {Sql} from "https://deno.land/x/polysql@v2.0.15/mod.ts"
 ```
 
 ## This class has
 
-- [constructor](#-constructorsqlsettings-sqlsettings-onarrow-onarrow-strings-string-params-unknown)
+- [constructor](#-constructorsqlsettings-sqlsettings-onarrow-onarrow-strings-readonly-string-params-unknown)
 - 2 properties:
 [estimatedByteLength](#-estimatedbytelength-number),
 [sqlSettings](#-sqlsettings-sqlsettings)
@@ -23,7 +23,7 @@ import {Sql} from "https://deno.land/x/polysql@v2.0.14/mod.ts"
 [params](#-protected-params-unknown)
 
 
-#### 🔧 `constructor`(sqlSettings: [SqlSettings](../class.SqlSettings/README.md), onArrow?: [OnArrow](../private.type.OnArrow/README.md), strings?: `string`\[], params?: `unknown`\[])
+#### 🔧 `constructor`(sqlSettings: [SqlSettings](../class.SqlSettings/README.md), onArrow?: [OnArrow](../private.type.OnArrow/README.md), strings?: readonly `string`\[], params?: `unknown`\[])
 
 
 
