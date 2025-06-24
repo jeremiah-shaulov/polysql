@@ -127,8 +127,8 @@ Deno.test
 		}
 		assertEquals(error?.message, "Please, call where() first");
 
-		s = mysql.t_log.where('id IN (1, 2)').where("name <> ''").select("col1*2, Count(*)");
-		assertEquals(s+'', "SELECT `t`.col1*2, Count(*) FROM `t_log` AS `t` WHERE (`t`.id IN( 1, 2)) AND (`t`.name <> '')");
+		s = mysql.t_log.where('id IN (1, 2)').where("name <> ''").whereRawSql(mysql`name <> ?`).whereRawSql(mysql`(SELECT 1)`).select("col1*2, Count(*)");
+		assertEquals(s+'', "SELECT `t`.col1*2, Count(*) FROM `t_log` AS `t` WHERE (`t`.id IN( 1, 2)) AND (`t`.name <> '') AND (name <> ?) AND ((SELECT 1))");
 
 		error = undefined;
 		try

@@ -25,6 +25,7 @@ export class SqlTable extends Sql
 {	#tableAlias = '';
 	#joins = new Array<Join>;
 	#whereExprs = new Array<string|Sql>;
+	#whereRawSql = new Array<Sql>;
 	#groupByExprs: string|ReadonlyArray<string>|Sql|undefined;
 	#havingExpr: string|Sql = '';
 
@@ -77,6 +78,7 @@ export class SqlTable extends Sql
 			this.#tableAlias = cloneFromOrSqlSettings.#tableAlias;
 			this.#joins = cloneFromOrSqlSettings.#joins.slice();
 			this.#whereExprs = cloneFromOrSqlSettings.#whereExprs.slice();
+			this.#whereRawSql = cloneFromOrSqlSettings.#whereRawSql.slice();
 			this.#groupByExprs = cloneFromOrSqlSettings.#groupByExprs;
 			this.#havingExpr = cloneFromOrSqlSettings.#havingExpr;
 			this.#foreignJoined = cloneFromOrSqlSettings.#foreignJoined.slice();
@@ -89,7 +91,7 @@ export class SqlTable extends Sql
 	{	if (this.#tableAlias)
 		{	throw new Error(`as() can be called only once`);
 		}
-		if (this.#joins.length+this.#whereExprs.length || this.#groupByExprs!=undefined)
+		if (this.#joins.length+this.#whereExprs.length+this.#whereRawSql.length || this.#groupByExprs!=undefined)
 		{	throw new Error(`as() must be first call after table name`);
 		}
 		this.#tableAlias = tableAlias;
@@ -146,7 +148,7 @@ export class SqlTable extends Sql
 	}
 
 	#appendWhereExprs(baseTable: string)
-	{	if (this.#whereExprs.length == 0)
+	{	if (this.#whereExprs.length+this.#whereRawSql.length == 0)
 		{	throw new Error(`Please, call where() first`);
 		}
 		let hasWhere = false;
@@ -156,12 +158,18 @@ export class SqlTable extends Sql
 				hasWhere = true;
 			}
 		}
+		for (const whereExpr of this.#whereRawSql)
+		{	this.append(!hasWhere ? sql` WHERE (` : sql` AND (`);
+			this.append(whereExpr);
+			this.append(sql`)`);
+			hasWhere = true;
+		}
 		return hasWhere;
 	}
 
 	#someJoin(tableName: string, alias: string, onExpr: string|Sql, isLeft: boolean)
 	{	if (!this.#buildComplete)
-		{	if (this.#whereExprs.length)
+		{	if (this.#whereExprs.length+this.#whereRawSql.length != 0)
 			{	throw new Error(`join() can be called before where()`);
 			}
 			if (this.#groupByExprs != undefined)
@@ -205,6 +213,14 @@ export class SqlTable extends Sql
 		return this;
 	}
 
+	whereRawSql(whereRawSql: Sql)
+	{	if (this.#groupByExprs != undefined)
+		{	throw new Error(`whereRawSql() can be called before groupBy()`);
+		}
+		this.#whereRawSql.push(whereRawSql);
+		return this;
+	}
+
 	/**	Adds GROUP BY expressions, and optionally a HAVING expression to the SELECT query.
 		If `groupByExprs` is a string or an `Sql` object, it will represent a safe SQL fragment that contains comma-separated list of column expressions.
 		If it's `readonly string[]`, it will be treated as array of column names.
@@ -228,7 +244,7 @@ export class SqlTable extends Sql
 	{	if (this.#joins.length)
 		{	throw new Error(`Cannot INSERT with JOIN`);
 		}
-		if (this.#whereExprs.length)
+		if (this.#whereExprs.length+this.#whereRawSql.length != 0)
 		{	throw new Error(`Cannot INSERT with WHERE`);
 		}
 		if (this.#groupByExprs != undefined)
@@ -251,7 +267,7 @@ export class SqlTable extends Sql
 	{	if (this.#joins.length)
 		{	throw new Error(`Cannot INSERT with JOIN`);
 		}
-		if (this.#whereExprs.length)
+		if (this.#whereExprs.length+this.#whereRawSql.length != 0)
 		{	throw new Error(`Cannot INSERT with WHERE`);
 		}
 		if (this.#groupByExprs != undefined)
@@ -306,7 +322,7 @@ export class SqlTable extends Sql
 	{	if (this.#joins.length)
 		{	throw new Error(`Cannot TRUNCATE with JOIN`);
 		}
-		if (this.#whereExprs.length)
+		if (this.#whereExprs.length+this.#whereRawSql.length != 0)
 		{	throw new Error(`Cannot TRUNCATE with WHERE`);
 		}
 		if (this.#groupByExprs != undefined)
