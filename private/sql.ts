@@ -22,6 +22,7 @@ const C_DOT = '.'.charCodeAt(0);
 const C_ZERO = '0'.charCodeAt(0);
 const C_ONE = '1'.charCodeAt(0);
 const C_NINE = '9'.charCodeAt(0);
+const C_X_CAP = 'X'.charCodeAt(0);
 const C_X = 'x'.charCodeAt(0);
 const C_A_CAP = 'A'.charCodeAt(0);
 const C_A = 'a'.charCodeAt(0);
@@ -1178,7 +1179,7 @@ L:		for (let j=from; j<pos; j++)
 					break;
 				default:
 				{	let hasNondigit = c>=C_A && c<=C_Z || c>=C_A_CAP && c<=C_Z_CAP || c==C_UNDERSCORE || c>=0x80;
-					if (hasNondigit || c>=C_ZERO && c<=C_NINE)
+					if (!hasNondigit ? c>=C_ZERO && c<=C_NINE : !((c==C_X || c==C_X_CAP) && j<pos-1 && result[j+1]==C_APOS))
 					{	const changeFrom = j;
 						while (++j < pos)
 						{	c = result[j];
