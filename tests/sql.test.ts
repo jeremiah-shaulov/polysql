@@ -752,6 +752,21 @@ Deno.test
 );
 
 Deno.test
+(	'Multibyte char at the end of buffer',
+	() =>
+	{	// Regression test: when a multibyte char appeared at a position where fewer free bytes remained in the buffer than the char needs,
+		// but no fewer than the number of remaining UTF-16 code units, the serializer looped forever without growing the buffer.
+		const param = 'A'.repeat(40) + 'ة';
+		const expectedResult = `'${param}'`;
+		for (let size=1; size<=120; size++)
+		{	const buffer = new Uint8Array(size);
+			const result = mysql`'${param}'`.toSqlBytesWithParamsBackslashAndBuffer([], false, buffer);
+			assertEquals(decoder.decode(result), expectedResult);
+		}
+	}
+);
+
+Deno.test
 (	'SQL <${param}>',
 	() =>
 	{	const rows =

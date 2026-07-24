@@ -353,7 +353,7 @@ class Serializer
 			{	break;
 			}
 			s = s.slice(read);
-			this.ensureRoom(s.length);
+			this.ensureRoom(Math.max(s.length, 4)); // `s.length` is UTF-16 units, but room is UTF-8 bytes; guarantee room for at least 1 full char (up to 4 bytes), otherwise `encodeInto` can make no progress
 		}
 	}
 
