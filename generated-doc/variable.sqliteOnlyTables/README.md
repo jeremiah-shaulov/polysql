@@ -3,7 +3,7 @@
 [Documentation Index](../README.md)
 
 ```ts
-import {sqliteOnlyTables} from "https://cdn.jsdelivr.net/gh/jeremiah-shaulov/polysql@v2.0.20/mod.ts"
+import {sqliteOnlyTables} from "https://cdn.jsdelivr.net/gh/jeremiah-shaulov/polysql@v2.1.0/mod.ts"
 ```
 
 `const` sqliteOnlyTables: SqlFactory

@@ -3,7 +3,7 @@
 [Documentation Index](../README.md)
 
 ```ts
-import {Sql} from "https://cdn.jsdelivr.net/gh/jeremiah-shaulov/polysql@v2.0.20/mod.ts"
+import {Sql} from "https://cdn.jsdelivr.net/gh/jeremiah-shaulov/polysql@v2.1.0/mod.ts"
 ```
 
 ## This class has
