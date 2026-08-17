@@ -3,13 +3,13 @@
 [Documentation Index](../README.md)
 
 ```ts
-import {SqlTable} from "https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.19/mod.ts"
+import {SqlTable} from "https://cdn.jsdelivr.net/gh/jeremiah-shaulov/polysql@v2.0.20/mod.ts"
 ```
 
 ## This class has
 
 - [2 constructors](#-constructorclonefrom-sqltable)
-- 14 methods:
+- 15 methods:
 [as](#-astablealias-string-this),
 [join](#-jointablename-string-alias-string-onexpr-string--sql-this),
 [leftJoin](#-leftjointablename-string-alias-string-onexpr-string--sql-this),
@@ -22,13 +22,14 @@ import {SqlTable} from "https://raw.githubusercontent.com/jeremiah-shaulov/polys
 [update](#-updaterow-recordstring-unknown-this),
 [delete](#-delete-this),
 [truncate](#-truncate-this),
+[append](#-override-appendother-sql-this),
 [encode](#-override-encodeputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-usebuffer-uint8array-usebufferfrompos-number0-defaultparentname-uint8array-uint8arrayarraybufferlike),
 [toString](#-override-tostringputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-string)
 - 3 protected methods:
 [appendTableName](#-protected-appendtablenametablename-string-string),
 [genAlias](#-protected-genaliasname-string-string),
 [onJoinForeign](#-protected-onjoinforeign_tablename-string-_alias-string-_columnname-string-string)
-- 8 inherited members from [Sql](../class.Sql/README.md)
+- 7 inherited members from [Sql](../class.Sql/README.md)
 
 
 #### 🔧 `constructor`(cloneFrom: [SqlTable](../class.SqlTable/README.md))
@@ -91,6 +92,10 @@ import {SqlTable} from "https://raw.githubusercontent.com/jeremiah-shaulov/polys
 > - `onConflictDo=='replace'` is only supported for MySQL and SQLite.
 > - `onConflictDo=='update'` is only supported for MySQL. If duplicate key, updates the existing record with the new values.
 > - `onConflictDo=='patch'` is only supported for MySQL If duplicate key, updates **empty** (null, 0 or '') columns of the existing record with the new values.
+> 
+> If `rows` is not an array, but a one-shot iterable (like a generator), it will be consumed during query generation, so the query can be converted to string or bytes only once
+> (a second conversion will throw "0 rows" exception). Pass an array if you need to generate the query several times.
+> The same applies to query regeneration that happens if `onArrow()` (see [SqlSettings.useArrow](../class.SqlSettings/README.md#-usearrow-boolean)) adds a join while the query is being generated.
 
 
 
@@ -130,6 +135,12 @@ import {SqlTable} from "https://raw.githubusercontent.com/jeremiah-shaulov/polys
 
 
 #### ⚙ truncate(): `this`
+
+
+
+#### ⚙ `override` append(other: [Sql](../class.Sql/README.md)): `this`
+
+> Like [Sql.append()](../class.Sql/README.md#-appendother-sql-this), but if there's a pending operation (like `select()`), first generates its SQL, so the appended part will follow the query, not precede it.
 
 
 

@@ -3,7 +3,7 @@
 [Documentation Index](../README.md)
 
 ```ts
-import {SqlMode} from "https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.19/mod.ts"
+import {SqlMode} from "https://cdn.jsdelivr.net/gh/jeremiah-shaulov/polysql@v2.0.20/mod.ts"
 ```
 
 #### MYSQL = <mark>0</mark>
