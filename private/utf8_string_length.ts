@@ -7,7 +7,11 @@ export function utf8StringLength(str: string)
 			if (c > 0x7FF)
 			{	len++;
 				if (c>=0xD800 && c<=0xDBFF)
-				{	i++; // surrogate pair
+				{	const c2 = str.charCodeAt(i+1);
+					if (c2>=0xDC00 && c2<=0xDFFF)
+					{	i++; // surrogate pair
+					}
+					// else: a lone surrogate will be encoded as the 3-byte replacement char, and the char at `i+1` must be counted on it's own
 				}
 			}
 		}

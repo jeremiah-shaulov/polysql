@@ -74,7 +74,10 @@ export class SqlTable extends Sql
 			params
 		);
 		if (cloneFromOrSqlSettings instanceof SqlTable)
-		{	this.tableName = cloneFromOrSqlSettings.tableName;
+		{	this.strings = cloneFromOrSqlSettings.strings.slice();
+			this.params = cloneFromOrSqlSettings.params.slice();
+			this.estimatedByteLength = cloneFromOrSqlSettings.estimatedByteLength;
+			this.tableName = cloneFromOrSqlSettings.tableName;
 			this.#tableAlias = cloneFromOrSqlSettings.#tableAlias;
 			this.#joins = cloneFromOrSqlSettings.#joins.slice();
 			this.#whereExprs = cloneFromOrSqlSettings.#whereExprs.slice();
@@ -82,6 +85,17 @@ export class SqlTable extends Sql
 			this.#groupByExprs = cloneFromOrSqlSettings.#groupByExprs;
 			this.#havingExpr = cloneFromOrSqlSettings.#havingExpr;
 			this.#foreignJoined = cloneFromOrSqlSettings.#foreignJoined.slice();
+			this.#buildComplete = cloneFromOrSqlSettings.#buildComplete;
+			this.#operation = cloneFromOrSqlSettings.#operation;
+			this.#operationInsertRows = cloneFromOrSqlSettings.#operationInsertRows;
+			this.#operationInsertOnConflictDo = cloneFromOrSqlSettings.#operationInsertOnConflictDo;
+			this.#operationInsertNames = cloneFromOrSqlSettings.#operationInsertNames;
+			this.#operationInsertSelect = cloneFromOrSqlSettings.#operationInsertSelect;
+			this.#operationSelectColumns = cloneFromOrSqlSettings.#operationSelectColumns;
+			this.#operationSelectOrderBy = cloneFromOrSqlSettings.#operationSelectOrderBy;
+			this.#operationSelectOffset = cloneFromOrSqlSettings.#operationSelectOffset;
+			this.#operationSelectLimit = cloneFromOrSqlSettings.#operationSelectLimit;
+			this.#operationUpdateRow = cloneFromOrSqlSettings.#operationUpdateRow;
 		}
 	}
 
@@ -231,6 +245,9 @@ export class SqlTable extends Sql
 	{	if (this.#groupByExprs != undefined)
 		{	throw new Error(`groupBy() can be called only once`);
 		}
+		if (havingExpr && (typeof(groupByExprs)=='string' ? !groupByExprs : Array.isArray(groupByExprs) && groupByExprs.length==0))
+		{	throw new Error(`HAVING cannot be used without GROUP BY expressions`);
+		}
 		this.#groupByExprs = groupByExprs;
 		this.#havingExpr = havingExpr;
 		return this;
@@ -241,6 +258,10 @@ export class SqlTable extends Sql
 		- `onConflictDo=='replace'` is only supported for MySQL and SQLite.
 		- `onConflictDo=='update'` is only supported for MySQL. If duplicate key, updates the existing record with the new values.
 		- `onConflictDo=='patch'` is only supported for MySQL If duplicate key, updates **empty** (null, 0 or '') columns of the existing record with the new values.
+
+		If `rows` is not an array, but a one-shot iterable (like a generator), it will be consumed during query generation, so the query can be converted to string or bytes only once
+		(a second conversion will throw "0 rows" exception). Pass an array if you need to generate the query several times.
+		The same applies to query regeneration that happens if `onArrow()` (see {@link SqlSettings.useArrow}) adds a join while the query is being generated.
 	 **/
 	insert(rows: Iterable<Record<string, unknown>>, onConflictDo: ''|'nothing'|'replace'|'update'|'patch' = '')
 	{	if (this.#joins.length)
@@ -334,6 +355,15 @@ export class SqlTable extends Sql
 		return this;
 	}
 
+	/**	Like {@link Sql.append()}, but if there's a pending operation (like `select()`), first generates its SQL, so the appended part will follow the query, not precede it.
+	 **/
+	override append(other: Sql)
+	{	if (this.#operation != Operation.NONE)
+		{	this.#appendOperation();
+		}
+		return super.append(other);
+	}
+
 	override encode(putParamsTo?: unknown[], mysqlNoBackslashEscapes=false, useBuffer?: Uint8Array, useBufferFromPos=0, defaultParentName?: Uint8Array)
 	{	this.#buildComplete = true;
 		const operation = this.#operation;
@@ -411,7 +441,10 @@ export class SqlTable extends Sql
 
 		const {mode} = this.sqlSettings;
 
-		switch (this.#operation)
+		const operation = this.#operation;
+		this.#operation = Operation.NONE; // reset before the switch, because cases below call `this.append()` that would otherwise reenter this function
+
+		switch (operation)
 		{	case Operation.INSERT:
 			{	const rows = this.#operationInsertRows!;
 				const onConflictDo = this.#operationInsertOnConflictDo;
@@ -911,7 +944,6 @@ export class SqlTable extends Sql
 				break;
 			}
 		}
-		this.#operation = Operation.NONE;
 		this.#operationSelectColumns = '';
 		this.#operationSelectOrderBy = '';
 		this.#operationSelectOffset = 0;

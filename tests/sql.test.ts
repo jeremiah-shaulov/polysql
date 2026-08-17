@@ -903,9 +903,9 @@ Deno.test
 		assertEquals(pgsqlQuote("This char \\ is backslash"), "'This char \\ is backslash'");
 		assertEquals(sqliteQuote("This char \\ is backslash"), "'This char \\ is backslash'");
 
-		assertEquals(mysqlQuote(new Date(2000, 0, 1)), "2000-01-01");
-		assertEquals(mysqlQuote(new Date(2000, 0, 1, 2)), "2000-01-01 02:00:00");
-		assertEquals(mysqlQuote(new Date(2000, 0, 1, 2, 3, 4, 567)), "2000-01-01 02:03:04.567");
+		assertEquals(mysqlQuote(new Date(2000, 0, 1)), "'2000-01-01'");
+		assertEquals(mysqlQuote(new Date(2000, 0, 1, 2)), "'2000-01-01 02:00:00'");
+		assertEquals(mysqlQuote(new Date(2000, 0, 1, 2, 3, 4, 567)), "'2000-01-01 02:03:04.567'");
 
 		assertEquals(mysqlQuote(new Uint8Array([1, 2, 254, 255])), "x'0102FEFF'");
 		assertEquals(mssqlQuote(new Uint8Array([1, 2, 254, 255])), "0x0102FEFF");

@@ -26,6 +26,12 @@ const C_X_CAP = 'X'.charCodeAt(0);
 const C_X = 'x'.charCodeAt(0);
 const C_A_CAP = 'A'.charCodeAt(0);
 const C_A = 'a'.charCodeAt(0);
+const C_B_CAP = 'B'.charCodeAt(0);
+const C_B = 'b'.charCodeAt(0);
+const C_E_CAP = 'E'.charCodeAt(0);
+const C_E = 'e'.charCodeAt(0);
+const C_F_CAP = 'F'.charCodeAt(0);
+const C_F = 'f'.charCodeAt(0);
 const C_S_CAP = 'S'.charCodeAt(0);
 const C_S = 's'.charCodeAt(0);
 const C_Z_CAP = 'Z'.charCodeAt(0);
@@ -189,10 +195,7 @@ export class Sql
 	}
 
 	concat(other: Sql)
-	{	const sql: Sql = new (this.constructor as Any)(this.sqlSettings);
-		Object.assign(sql, this);
-		sql.strings = sql.strings.slice();
-		sql.params = sql.params.slice();
+	{	const sql: Sql = new (this.constructor as Any)(this); // the clone constructor, so subclass private state (like pending operation in `SqlTable`) is not lost
 		sql.append(other);
 		return sql;
 	}
@@ -434,7 +437,7 @@ class Serializer
 				break;
 			}
 			case Want.REMOVE_A_CHAR_AND_QUOT:
-			{	debugAssert(s.charCodeAt(1) == C_QUOT);
+			{	debugAssert(s.charCodeAt(1)==C_QUOT || s.charCodeAt(1)==C_BACKTICK);
 				this.appendRawString(s.slice(2));
 				break;
 			}
@@ -560,7 +563,10 @@ class Serializer
 			return Want.REMOVE_APOS_OR_BRACE_CLOSE_OR_GT;
 		}
 		if (typeof(param)=='number' || typeof(param)=='bigint')
-		{	this.pos--; // backspace '
+		{	if (typeof(param)=='number' && !Number.isFinite(param))
+			{	throw new Error(`Cannot represent such number: ${param}`);
+			}
+			this.pos--; // backspace '
 			this.appendRawString(param+'');
 			return Want.REMOVE_APOS_OR_BRACE_CLOSE_OR_GT;
 		}
@@ -1118,8 +1124,9 @@ L:		for (let j=from; j<pos; j++)
 					}
 					break;
 				case C_DOT:
+				{	const isAfterIdent = j==curNameValidAt && curNameTo!=0; // if not, this dot can be part of a numeric literal, like `.5`
 					curParentNameFrom = curNameFrom;
-					curParentNameTo = j==curNameValidAt ? curNameTo : 0;
+					curParentNameTo = isAfterIdent ? curNameTo : 0;
 					curParentNameQt = curNameQt;
 					curNameFrom = 0;
 					curNameTo = 0;
@@ -1138,7 +1145,7 @@ L:		for (let j=from; j<pos; j++)
 									}
 								}
 								if (j != curNameFrom)
-								{	if (alwaysQuoteIdents)
+								{	if (alwaysQuoteIdents && isAfterIdent)
 									{	changes[changes.length] = {change: Change.QUOTE_COLUMN_NAME, changeFrom: curNameFrom, changeTo: j, arg: EMPTY_ARRAY};
 										nAdd += 2; // ``
 									}
@@ -1156,6 +1163,7 @@ L:		for (let j=from; j<pos; j++)
 					}
 					j--; // will j++ on next iter
 					break;
+				}
 				case 0:
 				case C_SEMICOLON:
 				case C_DOLLAR:
@@ -1181,6 +1189,13 @@ L:		for (let j=from; j<pos; j++)
 				{	let hasNondigit = c>=C_A && c<=C_Z || c>=C_A_CAP && c<=C_Z_CAP || c==C_UNDERSCORE || c>=0x80;
 					if (!hasNondigit ? c>=C_ZERO && c<=C_NINE : !((c==C_X || c==C_X_CAP) && j<pos-1 && result[j+1]==C_APOS))
 					{	const changeFrom = j;
+						if (!hasNondigit)
+						{	const jNumberEnd = numberLiteralEnd(result, j, pos);
+							if (jNumberEnd != -1)
+							{	j = jNumberEnd - 1; // will j++ on next iter
+								break;
+							}
+						}
 						while (++j < pos)
 						{	c = result[j];
 							if (c>=C_A && c<=C_Z || c>=C_A_CAP && c<=C_Z_CAP || c==C_UNDERSCORE || c>=0x80)
@@ -1255,6 +1270,7 @@ L:		for (let j=from; j<pos; j++)
 		if (parenLevel > 0)
 		{	throw new Error(`Unbalanced parenthesis in SQL fragment: ${param}`);
 		}
+		this.pos = pos; // undoubling quotes (result.copyWithin above) could have shrunk the content, even if there are no `changes`
 		// 2. Add needed bytes
 		if (nAdd+nRemove > 0)
 		{	this.ensureRoom(nAdd);
@@ -1378,6 +1394,71 @@ L:		for (let j=from; j<pos; j++)
 		}
 		return text;
 	}
+}
+
+/**	If a numeric literal (like `123`, `0.5`, `1.5e-3`, `0x1F` or `0b101`) starts at `from` (the char at `from` must be a digit), returns the position after it.
+	Returns -1 if the token is not a number (like `1e` or `123abc`), so it must be treated as identifier.
+ **/
+function numberLiteralEnd(result: Uint8Array, from: number, pos: number)
+{	let j = from;
+	let c = result[j+1];
+	if (result[j]==C_ZERO && (c==C_X || c==C_X_CAP))
+	{	// hex literal, like 0x1F
+		j += 2;
+		const digitsFrom = j;
+		while (j < pos)
+		{	c = result[j];
+			if (!(c>=C_ZERO && c<=C_NINE || c>=C_A_CAP && c<=C_F_CAP || c>=C_A && c<=C_F))
+			{	break;
+			}
+			j++;
+		}
+		if (j == digitsFrom)
+		{	return -1;
+		}
+	}
+	else if (result[j]==C_ZERO && (c==C_B || c==C_B_CAP))
+	{	// binary literal, like 0b101
+		j += 2;
+		const digitsFrom = j;
+		while (j<pos && (result[j]==C_ZERO || result[j]==C_ONE))
+		{	j++;
+		}
+		if (j == digitsFrom)
+		{	return -1;
+		}
+	}
+	else
+	{	while (j<pos && result[j]>=C_ZERO && result[j]<=C_NINE)
+		{	j++;
+		}
+		if (j<pos && result[j]==C_DOT)
+		{	j++;
+			while (j<pos && result[j]>=C_ZERO && result[j]<=C_NINE)
+			{	j++;
+			}
+		}
+		if (j<pos && (result[j]==C_E || result[j]==C_E_CAP))
+		{	let k = j + 1;
+			if (k<pos && (result[k]==C_PLUS || result[k]==C_MINUS))
+			{	k++;
+			}
+			if (!(k<pos && result[k]>=C_ZERO && result[k]<=C_NINE))
+			{	return -1; // `e` not followed by digits, so the token is an identifier, like `1e`
+			}
+			j = k;
+			while (j<pos && result[j]>=C_ZERO && result[j]<=C_NINE)
+			{	j++;
+			}
+		}
+	}
+	if (j < pos)
+	{	c = result[j];
+		if (c>=C_A && c<=C_Z || c>=C_A_CAP && c<=C_Z_CAP || c==C_UNDERSCORE || c>=0x80)
+		{	return -1; // identifier chars follow the digits (like `123abc`), so the whole token is an identifier
+		}
+	}
+	return j;
 }
 
 function encodeParentName(param: unknown)

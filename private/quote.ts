@@ -2,7 +2,7 @@ import {debugAssert} from './debug_assert.ts';
 import {Sql} from './sql.ts';
 import {utf8StringLength} from './utf8_string_length.ts';
 
-const BUFFER_FOR_DATE = new Uint8Array(23);
+const BUFFER_FOR_DATE = new Uint8Array(25); // enough for '2000-01-01 00:00:00.000' with the enclosing apostrophes
 
 const C_ZERO = '0'.charCodeAt(0);
 const C_ONE = '1'.charCodeAt(0);
@@ -42,6 +42,9 @@ export function mssqlQuote(value: unknown, _unused=false)
 
 export function dateEncodeInto(date: Date, buffer: Uint8Array)
 {	let year = date.getFullYear();
+	if (!(year>=0 && year<=9999)) // also handles NaN (invalid Date)
+	{	throw new Error(`Cannot represent such date: ${date}`);
+	}
 	const month = date.getMonth() + 1;
 	const day = date.getDate();
 	const hours = date.getHours();
@@ -110,11 +113,16 @@ function quote(value: unknown, noBackslashEscapes=false, isMssql=false)
 	{	return isMssql ? '1' : 'TRUE';
 	}
 	if (typeof(value)=='number' || typeof(value)=='bigint')
-	{	return value+'';
+	{	if (typeof(value)=='number' && !Number.isFinite(value))
+		{	throw new Error(`Cannot represent such number: ${value}`);
+		}
+		return value+'';
 	}
 	if (value instanceof Date)
-	{	const len = dateEncodeInto(value, BUFFER_FOR_DATE);
-		return decoderLatin1.decode(BUFFER_FOR_DATE.subarray(0, len));
+	{	const len = dateEncodeInto(value, BUFFER_FOR_DATE.subarray(1));
+		BUFFER_FOR_DATE[0] = C_APOS;
+		BUFFER_FOR_DATE[1 + len] = C_APOS;
+		return decoderLatin1.decode(BUFFER_FOR_DATE.subarray(0, len+2));
 	}
 	if ((value as Any).buffer instanceof ArrayBuffer)
 	{	const view = value instanceof Uint8Array ? value : new Uint8Array((value as Uint8Array).buffer, (value as Uint8Array).byteOffset, (value as Uint8Array).byteLength);

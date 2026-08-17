@@ -33,8 +33,8 @@
 
 	- null, undefined, Javascript functions and Symbol objects produce `NULL` literal
 	- boolean produces `FALSE` or `TRUE` literals (`0` or `1` for Microsoft SQL Server)
-	- number and bigint is printed as is
-	- Date produces string like `2021-08-26` or `2021-08-26 10:00:00` or `2021-08-26 10:00:00.123`
+	- number and bigint is printed as is (`NaN`, `Infinity` and `-Infinity` are rejected with exception)
+	- Date produces string like `2021-08-26` or `2021-08-26 10:00:00` or `2021-08-26 10:00:00.123` (invalid dates, and dates before year 0 or after year 9999, are rejected with exception)
 	- typed arrays (like Uint8Array) produce literals like `x'00112233'` (`0x00112233` for Microsoft SQL Server)
 	- Sql object will print a string with it's query
 	- ReadableStream will be rejected with exception
@@ -341,6 +341,9 @@
 	### 11. `<${param}>` - Generate names and values for INSERT statement.
 
 	Parameter must be iterable object that contains rows to insert. Will print column names from the first row. On following rows, only columns from the first row will be used.
+
+	Parameters are serialized every time the query is converted to string or bytes, so if the parameter is a one-shot iterable (like a generator), the conversion can be done only once.
+	Pass an array if you need to convert the query several times.
 
 	```ts
 	// To run this example:
@@ -687,6 +690,9 @@
 	- `onConflictDo=='replace'` is only supported for MySQL and SQLite. If duplicate key, deletes the whole conflicting row, and inserts new in place of it.
 	- `onConflictDo=='update'` is only supported for MySQL and SQLite. If duplicate key, updates the existing record with the new values.
 	- `onConflictDo=='patch'` is only supported for MySQL. If duplicate key, updates only **empty** (null, 0 or '') columns of the existing record with the new values.
+
+	If `rows` is not an array, but a one-shot iterable (like a generator), it will be consumed during query generation, so the query can be converted to string or bytes only once.
+	Pass an array if you need to generate the query several times.
 
 	### {@link SqlTable.insertFrom()}
 
