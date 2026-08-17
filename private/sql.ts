@@ -21,6 +21,7 @@ const C_TIMES = '*'.charCodeAt(0);
 const C_DOT = '.'.charCodeAt(0);
 const C_ZERO = '0'.charCodeAt(0);
 const C_ONE = '1'.charCodeAt(0);
+const C_SEVEN = '7'.charCodeAt(0);
 const C_NINE = '9'.charCodeAt(0);
 const C_X_CAP = 'X'.charCodeAt(0);
 const C_X = 'x'.charCodeAt(0);
@@ -32,6 +33,8 @@ const C_E_CAP = 'E'.charCodeAt(0);
 const C_E = 'e'.charCodeAt(0);
 const C_F_CAP = 'F'.charCodeAt(0);
 const C_F = 'f'.charCodeAt(0);
+const C_O_CAP = 'O'.charCodeAt(0);
+const C_O = 'o'.charCodeAt(0);
 const C_S_CAP = 'S'.charCodeAt(0);
 const C_S = 's'.charCodeAt(0);
 const C_Z_CAP = 'Z'.charCodeAt(0);
@@ -83,6 +86,13 @@ const enum Want
 	CONVERT_CLOSE_TO_PAREN_CLOSE,
 	CONVERT_A_CHAR_AND_BRACE_CLOSE_TO_PAREN_CLOSE,
 	REMOVE_A_CHAR_AND_QUOT,
+}
+
+const enum Digits
+{	DEC,
+	HEX,
+	OCT,
+	BIN,
 }
 
 const enum Change
@@ -331,6 +341,7 @@ class Serializer
 	private pos: number;
 	private qtId: number;
 	private alwaysQuoteIdents: boolean;
+	private pgsqlNumbers: boolean;
 	private bufferForParentName = EMPTY_ARRAY;
 	private parentName = EMPTY_ARRAY;
 	private parentNameLeft = EMPTY_ARRAY;
@@ -346,6 +357,7 @@ class Serializer
 		}
 		this.qtId = sqlSettings.mode==SqlMode.MYSQL || sqlSettings.mode==SqlMode.MYSQL_ONLY ? C_BACKTICK : C_QUOT;
 		this.alwaysQuoteIdents = sqlSettings.mode==SqlMode.SQLITE || sqlSettings.mode==SqlMode.SQLITE_ONLY || sqlSettings.mode==SqlMode.MSSQL || sqlSettings.mode==SqlMode.MSSQL_ONLY;
+		this.pgsqlNumbers = sqlSettings.mode==SqlMode.PGSQL || sqlSettings.mode==SqlMode.PGSQL_ONLY;
 	}
 
 	private appendRawString(s: string)
@@ -898,7 +910,7 @@ class Serializer
 		}
 		// Escape chars in param
 		// 1. Find how many bytes to add
-		let {result, pos, qtId, alwaysQuoteIdents, parentName, onArrow} = this;
+		let {result, pos, qtId, alwaysQuoteIdents, pgsqlNumbers, parentName, onArrow} = this;
 		let parenLevel = 0;
 		const changes = new Array<{change: Change, changeFrom: number, changeTo: number, arg: Uint8Array}>;
 		let nAdd = 0;
@@ -1190,7 +1202,7 @@ L:		for (let j=from; j<pos; j++)
 					if (!hasNondigit ? c>=C_ZERO && c<=C_NINE : !((c==C_X || c==C_X_CAP) && j<pos-1 && result[j+1]==C_APOS))
 					{	const changeFrom = j;
 						if (!hasNondigit)
-						{	const jNumberEnd = numberLiteralEnd(result, j, pos);
+						{	const jNumberEnd = numberLiteralEnd(result, j, pos, pgsqlNumbers);
 							if (jNumberEnd != -1)
 							{	j = jNumberEnd - 1; // will j++ on next iter
 								break;
@@ -1398,67 +1410,86 @@ L:		for (let j=from; j<pos; j++)
 
 /**	If a numeric literal (like `123`, `0.5`, `1.5e-3`, `0x1F` or `0b101`) starts at `from` (the char at `from` must be a digit), returns the position after it.
 	Returns -1 if the token is not a number (like `1e` or `123abc`), so it must be treated as identifier.
+	`pgsqlNumbers` enables the syntax that PostgreSQL 16 introduced: underscore digit separators (like `1_000_000` or `0x_FF`), and octal literals (like `0o755`).
+	Other databases treat such tokens as identifiers.
  **/
-function numberLiteralEnd(result: Uint8Array, from: number, pos: number)
+function numberLiteralEnd(result: Uint8Array, from: number, pos: number, pgsqlNumbers: boolean)
 {	let j = from;
-	let c = result[j+1];
-	if (result[j]==C_ZERO && (c==C_X || c==C_X_CAP))
-	{	// hex literal, like 0x1F
-		j += 2;
-		const digitsFrom = j;
-		while (j < pos)
-		{	c = result[j];
-			if (!(c>=C_ZERO && c<=C_NINE || c>=C_A_CAP && c<=C_F_CAP || c>=C_A && c<=C_F))
-			{	break;
+	const c = result[j+1];
+	if (result[j] == C_ZERO)
+	{	// literal with radix prefix, like 0x1F, 0o755 or 0b101
+		const digits = c==C_X || c==C_X_CAP ? Digits.HEX : c==C_B || c==C_B_CAP ? Digits.BIN : pgsqlNumbers && (c==C_O || c==C_O_CAP) ? Digits.OCT : -1;
+		if (digits != -1)
+		{	let k = from + 2;
+			if (pgsqlNumbers && k<pos && result[k]==C_UNDERSCORE)
+			{	k++; // PostgreSQL allows one underscore right after the prefix, like 0x_FF
 			}
-			j++;
-		}
-		if (j == digitsFrom)
-		{	return -1;
-		}
-	}
-	else if (result[j]==C_ZERO && (c==C_B || c==C_B_CAP))
-	{	// binary literal, like 0b101
-		j += 2;
-		const digitsFrom = j;
-		while (j<pos && (result[j]==C_ZERO || result[j]==C_ONE))
-		{	j++;
-		}
-		if (j == digitsFrom)
-		{	return -1;
+			j = digitsEnd(result, k, pos, digits, pgsqlNumbers);
+			if (j == -1)
+			{	return -1;
+			}
 		}
 	}
-	else
-	{	while (j<pos && result[j]>=C_ZERO && result[j]<=C_NINE)
-		{	j++;
-		}
+	if (j == from)
+	{	// decimal literal, like 123, 0.5 or 1.5e-3
+		j = digitsEnd(result, j, pos, Digits.DEC, pgsqlNumbers); // cannot be -1, because `result[from]` is a digit
 		if (j<pos && result[j]==C_DOT)
-		{	j++;
-			while (j<pos && result[j]>=C_ZERO && result[j]<=C_NINE)
-			{	j++;
-			}
+		{	const k = digitsEnd(result, j+1, pos, Digits.DEC, pgsqlNumbers);
+			j = k!=-1 ? k : j+1; // the fractional part can be empty, like `1.`
 		}
 		if (j<pos && (result[j]==C_E || result[j]==C_E_CAP))
 		{	let k = j + 1;
 			if (k<pos && (result[k]==C_PLUS || result[k]==C_MINUS))
 			{	k++;
 			}
-			if (!(k<pos && result[k]>=C_ZERO && result[k]<=C_NINE))
+			k = digitsEnd(result, k, pos, Digits.DEC, pgsqlNumbers);
+			if (k == -1)
 			{	return -1; // `e` not followed by digits, so the token is an identifier, like `1e`
 			}
 			j = k;
-			while (j<pos && result[j]>=C_ZERO && result[j]<=C_NINE)
-			{	j++;
-			}
 		}
 	}
 	if (j < pos)
-	{	c = result[j];
-		if (c>=C_A && c<=C_Z || c>=C_A_CAP && c<=C_Z_CAP || c==C_UNDERSCORE || c>=0x80)
-		{	return -1; // identifier chars follow the digits (like `123abc`), so the whole token is an identifier
+	{	const c2 = result[j];
+		if (c2>=C_A && c2<=C_Z || c2>=C_A_CAP && c2<=C_Z_CAP || c2==C_UNDERSCORE || c2>=0x80)
+		{	return -1; // identifier chars follow the digits (like `123abc` or `1_`), so the whole token is an identifier
 		}
 	}
 	return j;
+}
+
+/**	Returns the position after a run of digits of the requested radix that starts at `from`.
+	If `allowUnderscore`, single underscores are allowed between 2 digits (like `1_000`), but not at the beginning or at the end of the run.
+	Returns -1 if there're no digits at `from`.
+ **/
+function digitsEnd(result: Uint8Array, from: number, pos: number, digits: Digits, allowUnderscore: boolean)
+{	let j = from;
+	while (j < pos)
+	{	const c = result[j];
+		if (isDigit(c, digits))
+		{	j++;
+		}
+		else if (allowUnderscore && c==C_UNDERSCORE && j>from && j+1<pos && isDigit(result[j+1], digits))
+		{	j += 2;
+		}
+		else
+		{	break;
+		}
+	}
+	return j!=from ? j : -1;
+}
+
+function isDigit(c: number, digits: Digits)
+{	switch (digits)
+	{	case Digits.DEC:
+			return c>=C_ZERO && c<=C_NINE;
+		case Digits.HEX:
+			return c>=C_ZERO && c<=C_NINE || c>=C_A_CAP && c<=C_F_CAP || c>=C_A && c<=C_F;
+		case Digits.OCT:
+			return c>=C_ZERO && c<=C_SEVEN;
+		default:
+			return c==C_ZERO || c==C_ONE;
+	}
 }
 
 function encodeParentName(param: unknown)

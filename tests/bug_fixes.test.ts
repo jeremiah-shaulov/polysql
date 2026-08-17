@@ -72,6 +72,38 @@ Deno.test
 );
 
 Deno.test
+(	'PostgreSQL 16 numeric literals in SQL fragment',
+	() =>
+	{	// underscore separators and octal literals
+		assertEquals(pgsql`SELECT (${'1_000_000'})` + '', 'SELECT (1_000_000)');
+		assertEquals(pgsql`SELECT (${'v > 1_000.000_1'})` + '', 'SELECT ("v" > 1_000.000_1)');
+		assertEquals(pgsql`SELECT (${'1_0e1_0'})` + '', 'SELECT (1_0e1_0)');
+		assertEquals(pgsql`SELECT (${'0b1000_0000'})` + '', 'SELECT (0b1000_0000)');
+		assertEquals(pgsql`SELECT (${'0x_FF'})` + '', 'SELECT (0x_FF)');
+		assertEquals(pgsql`SELECT (${'0o755'})` + '', 'SELECT (0o755)');
+		assertEquals(pgsql`SELECT (${'0O_1_000'})` + '', 'SELECT (0O_1_000)');
+
+		// misplaced underscores make the token an identifier
+		assertEquals(pgsql`SELECT (${'1__0'})` + '', 'SELECT ("1__0")');
+		assertEquals(pgsql`SELECT (${'1_'})` + '', 'SELECT ("1_")');
+		assertEquals(pgsql`SELECT (${'1e_5'})` + '', 'SELECT ("1e_5")');
+		assertEquals(pgsql`SELECT (${'0x__F'})` + '', 'SELECT ("0x__F")');
+		assertEquals(pgsql`SELECT (${'0xFF_'})` + '', 'SELECT ("0xFF_")');
+		assertEquals(pgsql`SELECT (${'0o8'})` + '', 'SELECT ("0o8")');
+
+		// other databases have no such literals, so there the same tokens are identifiers
+		assertEquals(mysql`SELECT (${'1_000_000'})` + '', 'SELECT (`1_000_000`)');
+		assertEquals(mysql`SELECT (${'0o755'})` + '', 'SELECT (`0o755`)');
+		assertEquals(mysql`SELECT (${'0x_FF'})` + '', 'SELECT (`0x_FF`)');
+		assertEquals(sqlite`SELECT (${'1_000_000'})` + '', 'SELECT ("1_000_000")');
+		assertEquals(mssql`SELECT (${'0o755'})` + '', 'SELECT ("0o755")');
+		// ... but hex and binary literals are still recognized everywhere
+		assertEquals(mysql`SELECT (${'0xFF'})` + '', 'SELECT (0xFF)');
+		assertEquals(sqlite`SELECT (${'0xFF'})` + '', 'SELECT (0xFF)');
+	}
+);
+
+Deno.test
 (	'SqlTable concat() and append()',
 	() =>
 	{	const expected = 'SELECT * FROM `t_log` AS `t` WHERE (`t`.id=1) FOR UPDATE';
