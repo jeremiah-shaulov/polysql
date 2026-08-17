@@ -346,6 +346,7 @@ class Serializer
 	private qtId: number;
 	private alwaysQuoteIdents: boolean;
 	private pgsqlNumbers: boolean;
+	private isPgsqlOnly: boolean;
 	private isMssql: boolean;
 	private bufferForParentName = EMPTY_ARRAY;
 	private parentName = EMPTY_ARRAY;
@@ -363,6 +364,7 @@ class Serializer
 		this.qtId = sqlSettings.mode==SqlMode.MYSQL || sqlSettings.mode==SqlMode.MYSQL_ONLY ? C_BACKTICK : C_QUOT;
 		this.alwaysQuoteIdents = sqlSettings.mode==SqlMode.SQLITE || sqlSettings.mode==SqlMode.SQLITE_ONLY || sqlSettings.mode==SqlMode.MSSQL || sqlSettings.mode==SqlMode.MSSQL_ONLY;
 		this.pgsqlNumbers = sqlSettings.mode==SqlMode.PGSQL || sqlSettings.mode==SqlMode.PGSQL_ONLY;
+		this.isPgsqlOnly = sqlSettings.mode==SqlMode.PGSQL_ONLY;
 		this.isMssql = sqlSettings.mode==SqlMode.MSSQL || sqlSettings.mode==SqlMode.MSSQL_ONLY;
 	}
 
@@ -921,7 +923,7 @@ class Serializer
 		}
 		// Escape chars in param
 		// 1. Find how many bytes to add
-		let {result, pos, qtId, alwaysQuoteIdents, pgsqlNumbers, parentName, onArrow} = this;
+		let {result, pos, qtId, alwaysQuoteIdents, pgsqlNumbers, isPgsqlOnly, parentName, onArrow} = this;
 		let parenLevel = 0;
 		const changes = new Array<{change: Change, changeFrom: number, changeTo: number, arg: Uint8Array}>;
 		let nAdd = 0;
@@ -1204,24 +1206,50 @@ L:		for (let j=from; j<pos; j++)
 				}
 				case 0:
 				case C_SEMICOLON:
-				case C_DOLLAR:
-				case C_HASH:
 				case C_SQUARE_OPEN:
 				case C_SQUARE_CLOSE:
 				case C_BRACE_OPEN:
 				case C_BRACE_CLOSE:
 					throw new Error(`Invalid character in SQL fragment: ${param}`);
+				case C_DOLLAR:
+				{	// On PostgreSQL, `$` can open a dollar-quoted string literal, like $$text$$ or $tag$text$tag$
+					const jStringEnd = isPgsqlOnly ? dollarQuotedStringEnd(result, j, pos) : -1;
+					if (jStringEnd == -1)
+					{	throw new Error(`Invalid character in SQL fragment: ${param}`);
+					}
+					if (jStringEnd == 0)
+					{	throw new Error(`Unterminated string literal in SQL fragment: ${param}`);
+					}
+					j = jStringEnd - 1; // will j++ on next iter
+					break;
+				}
+				case C_HASH:
+					// On PostgreSQL, `#` is part of operators like `#`, `#>`, `#>>` and `#-`
+					if (!isPgsqlOnly)
+					{	throw new Error(`Invalid character in SQL fragment: ${param}`);
+					}
+					break;
 				case C_QUEST:
+					// On PostgreSQL, `?` is part of operators like `?`, `?|` and `?&`
+					if (!(param instanceof Sql) && !isPgsqlOnly)
+					{	throw new Error(`Invalid character in SQL fragment: ${param}`);
+					}
+					break;
 				case C_COLON:
 					if (!(param instanceof Sql))
 					{	throw new Error(`Invalid character in SQL fragment: ${param}`);
 					}
 					break;
 				case C_AT:
+					// On PostgreSQL, `@` is part of operators like `@`, `@>`, `@?` and `@@`
 					if (!(param instanceof Sql))
-					{	throw new Error(`Invalid character in SQL fragment: ${param}`);
+					{	if (!isPgsqlOnly)
+						{	throw new Error(`Invalid character in SQL fragment: ${param}`);
+						}
 					}
-					lastAtAt = j;
+					else
+					{	lastAtAt = j;
+					}
 					break;
 				default:
 				{	let hasNondigit = c>=C_A && c<=C_Z || c>=C_A_CAP && c<=C_Z_CAP || c==C_UNDERSCORE || c>=0x80;
@@ -1493,6 +1521,43 @@ function numberLiteralEnd(result: Uint8Array, from: number, pos: number, pgsqlNu
 		}
 	}
 	return j;
+}
+
+/**	If a PostgreSQL dollar-quoted string literal (like `$$text$$` or `$tag$text$tag$`) starts at `from` (the char at `from` must be `$`), returns the position after it.
+	Returns -1 if there's no opening tag at `from` (like in `$1`), so the `$` char is not a string literal.
+	Returns 0 if there's an opening tag, but the closing tag is not found till `pos`.
+	The tag follows the rules of unquoted identifiers, except that it cannot contain `$`.
+ **/
+function dollarQuotedStringEnd(result: Uint8Array, from: number, pos: number)
+{	let j = from + 1;
+	if (j < pos)
+	{	let c = result[j];
+		if (c>=C_A && c<=C_Z || c>=C_A_CAP && c<=C_Z_CAP || c==C_UNDERSCORE || c>=0x80)
+		{	while (++j < pos)
+			{	c = result[j];
+				if (!(c>=C_A && c<=C_Z || c>=C_A_CAP && c<=C_Z_CAP || c>=C_ZERO && c<=C_NINE || c==C_UNDERSCORE || c>=0x80))
+				{	break;
+				}
+			}
+		}
+	}
+	if (j>=pos || result[j]!=C_DOLLAR)
+	{	return -1;
+	}
+	// `from` .. `j` (inclusive) is the opening tag; find the identical closing tag
+	const tagLen = ++j - from;
+	for (const jEnd=pos-tagLen; j<=jEnd; j++)
+	{	if (result[j] == C_DOLLAR)
+		{	let k = 1;
+			while (k<tagLen && result[j+k]==result[from+k])
+			{	k++;
+			}
+			if (k == tagLen)
+			{	return j + tagLen;
+			}
+		}
+	}
+	return 0;
 }
 
 /**	Returns the position after a run of digits of the requested radix that starts at `from`.

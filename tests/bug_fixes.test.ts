@@ -1,5 +1,5 @@
 import {utf8StringLength} from '../private/utf8_string_length.ts';
-import {mysql, pgsql, sqlite, mssql, mssqlOnly} from '../private/sql_factory.ts';
+import {mysql, pgsql, pgsqlOnly, sqlite, mssql, mssqlOnly} from '../private/sql_factory.ts';
 import {mysqlQuote, pgsqlQuote, sqliteQuote, mssqlQuote} from '../private/quote.ts';
 import {assertEquals} from 'jsr:@std/assert@1.0.7/equals';
 import {assertThrows} from 'jsr:@std/assert@1.0.7/throws';
@@ -100,6 +100,53 @@ Deno.test
 		// ... but hex and binary literals are still recognized everywhere
 		assertEquals(mysql`SELECT (${'0xFF'})` + '', 'SELECT (0xFF)');
 		assertEquals(sqlite`SELECT (${'0xFF'})` + '', 'SELECT (0xFF)');
+	}
+);
+
+Deno.test
+(	'PostgreSQL JSON operators and dollar-quoted strings in SQL fragment',
+	() =>
+	{	// jsonb operators that contain `#`
+		assertEquals(pgsqlOnly`SELECT (${"data #> '{a}'"})` + '', `SELECT ("data" #> '{a}')`);
+		assertEquals(pgsqlOnly`SELECT (${"data #>> '{a,b}'"})` + '', `SELECT ("data" #>> '{a,b}')`);
+		assertEquals(pgsqlOnly`SELECT (${"data #- '{a}'"})` + '', `SELECT ("data" #- '{a}')`);
+
+		// jsonb operators that contain `?`
+		assertEquals(pgsqlOnly`SELECT (${"data ? 'key'"})` + '', `SELECT ("data" ? 'key')`);
+		assertEquals(pgsqlOnly`SELECT (${"data ?| '{a,b}'"})` + '', `SELECT ("data" ?| '{a,b}')`);
+		assertEquals(pgsqlOnly`SELECT (${"data ?& '{a,b}'"})` + '', `SELECT ("data" ?& '{a,b}')`);
+
+		// operators that contain `@`
+		assertEquals(pgsqlOnly`SELECT (${`data @> '{"a":1}'`})` + '', `SELECT ("data" @> '{"a":1}')`);
+		assertEquals(pgsqlOnly`SELECT (${`data <@ '{"a":1}'`})` + '', `SELECT ("data" <@ '{"a":1}')`);
+		assertEquals(pgsqlOnly`SELECT (${"data @? '$.a[*]'"})` + '', `SELECT ("data" @? '$.a[*]')`);
+		assertEquals(pgsqlOnly`SELECT (${"data @@ '$.a > 1'"})` + '', `SELECT ("data" @@ '$.a > 1')`);
+
+		// identifiers around the operators are qualified as usual
+		assertEquals(pgsqlOnly`SELECT (t.${"data #>> '{a}' = 'x'"})` + '', `SELECT ("t".data #>> '{a}' = 'x')`);
+
+		// dollar-quoted string literals: the contents (identifiers, quotes, special chars) must be passed through as is
+		assertEquals(pgsqlOnly`SELECT (${'$$Hello$$'})` + '', 'SELECT ($$Hello$$)');
+		assertEquals(pgsqlOnly`SELECT (${"$$It's$$"})` + '', "SELECT ($$It's$$)");
+		assertEquals(pgsqlOnly`SELECT (${'$$ @ $ # ? ; [ { ( -- $$'})` + '', 'SELECT ($$ @ $ # ? ; [ { ( -- $$)');
+		assertEquals(pgsqlOnly`SELECT (${'$tag$ nested $$ quotes $tag$'})` + '', 'SELECT ($tag$ nested $$ quotes $tag$)');
+		assertEquals(pgsqlOnly`SELECT (${'$$a$$ = $$b$$'})` + '', 'SELECT ($$a$$ = $$b$$)');
+		assertEquals(pgsqlOnly`SELECT (${'$$$$'})` + '', 'SELECT ($$$$)');
+
+		// unterminated or mismatched dollar quotes
+		assertThrows(() => pgsqlOnly`SELECT (${'$$Hello'})` + '', Error, 'Unterminated string literal in SQL fragment: $$Hello');
+		assertThrows(() => pgsqlOnly`SELECT (${'$$'})` + '', Error, 'Unterminated string literal in SQL fragment: $$');
+		assertThrows(() => pgsqlOnly`SELECT (${'$tag$Hello$other$'})` + '', Error, 'Unterminated string literal in SQL fragment: $tag$Hello$other$');
+
+		// `$` that doesn't open a dollar-quoted string (like a positional parameter) is still invalid
+		assertThrows(() => pgsqlOnly`SELECT (${'$1'})` + '', Error, 'Invalid character in SQL fragment: $1');
+		assertThrows(() => pgsqlOnly`SELECT (${'a = $'})` + '', Error, 'Invalid character in SQL fragment: a = $');
+
+		// the portable `pgsql` mode still rejects PostgreSQL-specific chars
+		assertThrows(() => pgsql`SELECT (${"data #>> '{a,b}'"})` + '', Error, "Invalid character in SQL fragment: data #>> '{a,b}'");
+		assertThrows(() => pgsql`SELECT (${"data ? 'key'"})` + '', Error, "Invalid character in SQL fragment: data ? 'key'");
+		assertThrows(() => pgsql`SELECT (${`data @> '{"a":1}'`})` + '', Error, `Invalid character in SQL fragment: data @> '{"a":1}'`);
+		assertThrows(() => pgsql`SELECT (${'$$Hello$$'})` + '', Error, 'Invalid character in SQL fragment: $$Hello$$');
 	}
 );
 
