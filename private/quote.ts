@@ -9,6 +9,7 @@ const C_ONE = '1'.charCodeAt(0);
 const C_TWO = '2'.charCodeAt(0);
 const C_THREE = '3'.charCodeAt(0);
 const C_A_CAP = 'A'.charCodeAt(0);
+const C_N_CAP = 'N'.charCodeAt(0);
 const C_X = 'x'.charCodeAt(0);
 const C_APOS = "'".charCodeAt(0);
 const C_COLON = ':'.charCodeAt(0);
@@ -166,26 +167,36 @@ function quote(value: unknown, noBackslashEscapes=false, isMssql=false)
 	{	str = value+'';
 	}
 	let nAdd = 0;
+	let hasNonAscii = false;
 	for (let j=0, jEnd=str.length; j<jEnd; j++)
 	{	const c = str.charCodeAt(j);
 		if (c==C_APOS || c==C_BACKSLASH && !noBackslashEscapes)
 		{	nAdd++;
 		}
+		else if (c > 0x7F)
+		{	hasNonAscii = true;
+		}
 	}
+	// On MS SQL an unprefixed literal is `varchar`, so the server converts it to the database collation, losing chars that this collation cannot represent. The `N` prefix makes the literal `nvarchar`
+	const nPrefix = isMssql && hasNonAscii;
 	if (nAdd == 0)
-	{	return "'" + str + "'";
+	{	return nPrefix ? "N'"+str+"'" : "'"+str+"'";
 	}
-	const result = new Uint8Array(2 + utf8StringLength(str) + nAdd);
-	const {read, written} = encoder.encodeInto(str, result.subarray(1));
+	const prefixLen = nPrefix ? 2 : 1; // "N'" or "'"
+	const result = new Uint8Array(prefixLen + utf8StringLength(str) + nAdd + 1);
+	const {read, written} = encoder.encodeInto(str, result.subarray(prefixLen));
 	debugAssert(read == str.length);
-	result[0] = C_APOS;
-	for (let j=written, k=j+nAdd; k!=j; k--, j--)
+	if (nPrefix)
+	{	result[0] = C_N_CAP;
+	}
+	result[prefixLen - 1] = C_APOS;
+	for (let j=prefixLen+written-1, k=j+nAdd; k!=j; k--, j--)
 	{	const c = result[j];
 		if (c==C_APOS || c==C_BACKSLASH && !noBackslashEscapes)
 		{	result[k--] = c;
 		}
 		result[k] = c;
 	}
-	result[1 + written + nAdd] = C_APOS;
+	result[prefixLen + written + nAdd] = C_APOS;
 	return decoder.decode(result);
 }

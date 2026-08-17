@@ -1,6 +1,6 @@
 import {utf8StringLength} from '../private/utf8_string_length.ts';
-import {mysql, pgsql, sqlite, mssql} from '../private/sql_factory.ts';
-import {mysqlQuote, pgsqlQuote} from '../private/quote.ts';
+import {mysql, pgsql, sqlite, mssql, mssqlOnly} from '../private/sql_factory.ts';
+import {mysqlQuote, pgsqlQuote, sqliteQuote, mssqlQuote} from '../private/quote.ts';
 import {assertEquals} from 'jsr:@std/assert@1.0.7/equals';
 import {assertThrows} from 'jsr:@std/assert@1.0.7/throws';
 
@@ -138,6 +138,61 @@ Deno.test
 		const d = new Date(2000, 0, 1);
 		d.setFullYear(999);
 		assertEquals(mysqlQuote(d), "'0999-01-01'");
+	}
+);
+
+Deno.test
+(	'MS SQL Unicode string literals',
+	() =>
+	{	// non-ASCII literals must be `nvarchar` (N-prefixed), or the server converts them to the database collation
+		assertEquals(mssqlQuote('Ünicode'), "N'Ünicode'");
+		assertEquals(mssqlQuote("Привет 'Мир'"), "N'Привет ''Мир'''"); // escaping still works with the prefix
+		assertEquals(mssqlQuote('日本\\語'), "N'日本\\語'");
+		assertEquals(mssqlQuote({a: 'Ü'}), `N'{"a":"Ü"}'`); // objects are converted to JSON, then quoted
+		assertEquals(mssqlQuote('ф'.repeat(100)), "N'"+'ф'.repeat(100)+"'"); // many 2-byte chars cause buffer of guessed size to realloc
+
+		// ASCII-only literals stay `varchar`, so they don't lose index seeks on `varchar` columns
+		assertEquals(mssqlQuote('ascii'), "'ascii'");
+		assertEquals(mssqlQuote("ascii 'only'"), "'ascii ''only'''");
+
+		// other engines are not affected
+		assertEquals(mysqlQuote('Ünicode'), "'Ünicode'");
+		assertEquals(pgsqlQuote('Ünicode'), "'Ünicode'");
+		assertEquals(sqliteQuote('Ünicode'), "'Ünicode'");
+
+		// the same for '${param}' in queries
+		assertEquals(mssql`SELECT '${'Привет'}'` + '', "SELECT N'Привет'");
+		assertEquals(mssql`SELECT '${"Привет 'Мир'"}'` + '', "SELECT N'Привет ''Мир'''");
+		assertEquals(mssqlOnly`SELECT '${'ф'.repeat(100)}'` + '', "SELECT N'"+'ф'.repeat(100)+"'");
+		assertEquals(mssql`SELECT '${'ascii'}'` + '', "SELECT 'ascii'");
+		assertEquals(mysql`SELECT '${'Привет'}'` + '', "SELECT 'Привет'");
+		assertEquals(sqlite`SELECT '${'Привет'}'` + '', "SELECT 'Привет'");
+
+		// and in [${list}], <${rows}> and {${assignments}}
+		assertEquals(mssql`A[${['Ü', 'ascii']}]B` + '', "A(N'Ü','ascii')B");
+		assertEquals(mssql`INSERT INTO t <${[{a: 'Ü', b: 'x'}]}>` + '', `INSERT INTO t ("a", "b") VALUES\n(N'Ü','x')`);
+		assertEquals(mssql`SET {${{a: 'Ü', b: 'x'}}}` + '', `SET "a"=N'Ü', "b"='x'`);
+
+		// literals inside SQL fragments
+		assertEquals(mssql`SELECT (${"name = 'Привет'"})` + '', `SELECT ("name" = N'Привет')`);
+		assertEquals(mssql`SELECT (${"name = 'ascii'"})` + '', `SELECT ("name" = 'ascii')`);
+		assertEquals(mssql`SELECT (${"name = 'don''t Ü'"})` + '', `SELECT ("name" = N'don''t Ü')`);
+		assertEquals(mssql`SELECT (${"a = 'Ü' AND b = 'Ä' AND c = 'z'"})` + '', `SELECT ("a" = N'Ü' AND "b" = N'Ä' AND "c" = 'z')`);
+		assertEquals(mysql`SELECT (${"name = 'Привет'"})` + '', "SELECT (`name` = 'Привет')");
+
+		// an already prefixed literal (like one that a nested `Sql` object produced) must not be prefixed twice, and the N must not be taken for an identifier
+		assertEquals(mssql`SELECT (${mssql`a = '${'Привет'}'`})` + '', `SELECT ("a" = N'Привет')`);
+		assertEquals(mssql`SELECT (${"a = N'Привет'"})` + '', `SELECT ("a" = N'Привет')`);
+		assertEquals(mssql`SELECT (${"a = n'Ü'"})` + '', `SELECT ("a" = n'Ü')`);
+		assertEquals(mssql`SELECT (${"a = N'ascii'"})` + '', `SELECT ("a" = N'ascii')`);
+
+		// the N must not be glued to the preceding word
+		assertEquals(mssql`SELECT (${"a BETWEEN'Ю'AND'Я'"})` + '', `SELECT ("a" BETWEEN N'Ю'AND N'Я')`);
+
+		// long literals are passed as parameters, and the driver encodes them
+		const params = new Array<unknown>;
+		assertEquals(mssql`SELECT '${'Ю'.repeat(100)}'`.toString(params), 'SELECT ?');
+		assertEquals(params, ['Ю'.repeat(100)]);
 	}
 );
 

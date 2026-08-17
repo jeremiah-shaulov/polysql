@@ -33,6 +33,8 @@ const C_E_CAP = 'E'.charCodeAt(0);
 const C_E = 'e'.charCodeAt(0);
 const C_F_CAP = 'F'.charCodeAt(0);
 const C_F = 'f'.charCodeAt(0);
+const C_N_CAP = 'N'.charCodeAt(0);
+const C_N = 'n'.charCodeAt(0);
 const C_O_CAP = 'O'.charCodeAt(0);
 const C_O = 'o'.charCodeAt(0);
 const C_S_CAP = 'S'.charCodeAt(0);
@@ -97,6 +99,8 @@ const enum Digits
 
 const enum Change
 {	INSERT_BACKSLASH,
+	INSERT_N_PREFIX,
+	INSERT_SPACE_N_PREFIX,
 	INSERT_BACKTICK,
 	INSERT_QUOT,
 	INSERT_DOUBLE_BACKTICK,
@@ -342,6 +346,7 @@ class Serializer
 	private qtId: number;
 	private alwaysQuoteIdents: boolean;
 	private pgsqlNumbers: boolean;
+	private isMssql: boolean;
 	private bufferForParentName = EMPTY_ARRAY;
 	private parentName = EMPTY_ARRAY;
 	private parentNameLeft = EMPTY_ARRAY;
@@ -358,6 +363,7 @@ class Serializer
 		this.qtId = sqlSettings.mode==SqlMode.MYSQL || sqlSettings.mode==SqlMode.MYSQL_ONLY ? C_BACKTICK : C_QUOT;
 		this.alwaysQuoteIdents = sqlSettings.mode==SqlMode.SQLITE || sqlSettings.mode==SqlMode.SQLITE_ONLY || sqlSettings.mode==SqlMode.MSSQL || sqlSettings.mode==SqlMode.MSSQL_ONLY;
 		this.pgsqlNumbers = sqlSettings.mode==SqlMode.PGSQL || sqlSettings.mode==SqlMode.PGSQL_ONLY;
+		this.isMssql = sqlSettings.mode==SqlMode.MSSQL || sqlSettings.mode==SqlMode.MSSQL_ONLY;
 	}
 
 	private appendRawString(s: string)
@@ -637,6 +643,11 @@ class Serializer
 		{	this.result[this.pos - 1] = C_QUEST; // ' -> ?
 			this.putParamsTo.push(str);
 			return Want.REMOVE_APOS_OR_BRACE_CLOSE_OR_GT;
+		}
+		// On MS SQL an unprefixed literal is `varchar`, so the server converts it to the database collation, losing chars that this collation cannot represent. The `N` prefix makes the literal `nvarchar`
+		if (this.isMssql && hasNonAscii(str))
+		{	this.result[this.pos - 1] = C_N_CAP; // ' -> N
+			this.appendRawChar(C_APOS); // and reopen the literal after the N
 		}
 		// Append param, as is
 		this.appendRawString(str);
@@ -927,6 +938,7 @@ class Serializer
 		let curNameValidAt = 0;
 		let lastAsAt = 0;
 		let lastAtAt = -2; // -2 means no @ at all
+		let nPrefixAt = -1; // position of a string literal that is already prefixed with N (MS SQL only)
 L:		for (let j=from; j<pos; j++)
 		{	let c = result[j];
 			switch (c)
@@ -936,6 +948,9 @@ L:		for (let j=from; j<pos; j++)
 					}
 					break;
 				case C_APOS:
+				{	const jApos = j;
+					const changesPos = changes.length;
+					let literalHasNonAscii = false;
 					while (++j < pos)
 					{	c = result[j];
 						if (c == C_BACKSLASH)
@@ -946,12 +961,23 @@ L:		for (let j=from; j<pos; j++)
 						}
 						else if (c == C_APOS)
 						{	if (result[j+1]!=C_APOS || j+1>=pos)
-							{	continue L;
+							{	if (literalHasNonAscii && this.isMssql && jApos!=nPrefixAt)
+								{	// prefix the literal with N, so MS SQL treats it as `nvarchar`, and doesn't convert it to the database collation
+									const cBefore = result[jApos-1]; // `undefined` if the literal begins the whole query
+									const needSpace = cBefore>=C_A && cBefore<=C_Z || cBefore>=C_A_CAP && cBefore<=C_Z_CAP || cBefore>=C_ZERO && cBefore<=C_NINE || cBefore==C_UNDERSCORE || cBefore>=0x80; // like in `BETWEEN'text'`, where the N cannot be glued to the preceding word
+									changes.splice(changesPos, 0, {change: needSpace ? Change.INSERT_SPACE_N_PREFIX : Change.INSERT_N_PREFIX, changeFrom: jApos, changeTo: jApos, arg: EMPTY_ARRAY});
+									nAdd += needSpace ? 2 : 1;
+								}
+								continue L;
 							}
 							j++;
 						}
+						else if (c >= 0x80)
+						{	literalHasNonAscii = true;
+						}
 					}
 					throw new Error(`Unterminated string literal in SQL fragment: ${param}`);
+				}
 				case C_BACKTICK:
 				case C_QUOT:
 				{	const qt = c;
@@ -1199,7 +1225,11 @@ L:		for (let j=from; j<pos; j++)
 					break;
 				default:
 				{	let hasNondigit = c>=C_A && c<=C_Z || c>=C_A_CAP && c<=C_Z_CAP || c==C_UNDERSCORE || c>=0x80;
-					if (!hasNondigit ? c>=C_ZERO && c<=C_NINE : !((c==C_X || c==C_X_CAP) && j<pos-1 && result[j+1]==C_APOS))
+					const isNPrefix = this.isMssql && (c==C_N_CAP || c==C_N) && j<pos-1 && result[j+1]==C_APOS; // like N'text' on MS SQL (maybe produced by a nested `Sql` object)
+					if (isNPrefix)
+					{	nPrefixAt = j + 1; // the literal that starts at `j+1` is already prefixed
+					}
+					if (!hasNondigit ? c>=C_ZERO && c<=C_NINE : !isNPrefix && !((c==C_X || c==C_X_CAP) && j<pos-1 && result[j+1]==C_APOS))
 					{	const changeFrom = j;
 						if (!hasNondigit)
 						{	const jNumberEnd = numberLiteralEnd(result, j, pos, pgsqlNumbers);
@@ -1300,6 +1330,13 @@ L:		for (let j=from; j<pos; j++)
 					switch (change)
 					{	case Change.INSERT_BACKSLASH:
 							result[--k] = C_BACKSLASH;
+							break;
+						case Change.INSERT_N_PREFIX:
+							result[--k] = C_N_CAP;
+							break;
+						case Change.INSERT_SPACE_N_PREFIX:
+							result[--k] = C_N_CAP;
+							result[--k] = C_SPACE;
 							break;
 						case Change.INSERT_BACKTICK:
 							result[--k] = C_BACKTICK;
@@ -1490,6 +1527,17 @@ function isDigit(c: number, digits: Digits)
 		default:
 			return c==C_ZERO || c==C_ONE;
 	}
+}
+
+/**	Does the string contain chars outside of the ASCII range?
+ **/
+function hasNonAscii(str: string)
+{	for (let j=0, jEnd=str.length; j<jEnd; j++)
+	{	if (str.charCodeAt(j) > 0x7F)
+		{	return true;
+		}
+	}
+	return false;
 }
 
 function encodeParentName(param: unknown)

@@ -49,6 +49,9 @@ The "value" parameter can be one of the following types:
 - ReadableStream will be rejected with exception
 - other types will be converted to strings and printed as an SQL string literal
 
+String literals that contain non-ASCII characters are printed with the `N` prefix for Microsoft SQL Server (like `N'Ünicode'`), so the server treats them as `nvarchar`,
+and doesn't convert them to the database collation (which would corrupt the characters that this collation cannot represent).
+
 ```ts
 // To download and run this example:
 // curl 'https://raw.githubusercontent.com/jeremiah-shaulov/polysql/v2.0.20/README.md' | perl -ne 's/^> //; $y=$1 if /^```(.)?/; print $_ if $y&&$m; $m=$y&&$m+/<example-p9mn>/' > /tmp/example-p9mn.ts
