@@ -30,7 +30,7 @@ export function mysqlQuote(value: unknown, noBackslashEscapes=false)
 }
 
 export function pgsqlQuote(value: unknown, _unused=false)
-{	return quote(value, true, false);
+{	return quote(value, true, false, true);
 }
 
 export function sqliteQuote(value: unknown, _unused=false)
@@ -103,7 +103,7 @@ export function dateEncodeInto(date: Date, buffer: Uint8Array)
 	return 23;
 }
 
-function quote(value: unknown, noBackslashEscapes=false, isMssql=false)
+function quote(value: unknown, noBackslashEscapes=false, isMssql=false, isPgsql=false)
 {	if (value==null || typeof(value)=='function' || typeof(value)=='symbol')
 	{	return 'NULL';
 	}
@@ -129,17 +129,24 @@ function quote(value: unknown, noBackslashEscapes=false, isMssql=false)
 	{	const view = value instanceof Uint8Array ? value : new Uint8Array((value as Uint8Array).buffer, (value as Uint8Array).byteOffset, (value as Uint8Array).byteLength);
 		const paramLen = view.byteLength;
 		let result;
+		let pos = 2;
 		if (isMssql)
 		{	result = new Uint8Array(paramLen*2 + 2); // like 0x01020304
 			result[0] = C_ZERO;
 			result[1] = C_X;
+		}
+		else if (isPgsql)
+		{	result = new Uint8Array(paramLen*2 + 4); // like '\x01020304' - bytea hex format
+			result[0] = C_APOS;
+			result[1] = C_BACKSLASH;
+			result[2] = C_X;
+			pos = 3;
 		}
 		else
 		{	result = new Uint8Array(paramLen*2 + 3); // like x'01020304'
 			result[0] = C_X;
 			result[1] = C_APOS;
 		}
-		let pos = 2;
 		for (let j=0; j<paramLen; j++)
 		{	const byte = view[j];
 			const high = byte >> 4;

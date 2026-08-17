@@ -113,7 +113,7 @@ If it's boolean `false` or `true`, it will be substituted with `FALSE` or `TRUE`
 
 `Date` objects will be printed as SQL dates.
 
-Typed arrays will be printed like `x'0102...'` (`0x0102...` on Microsoft SQL Server).
+Typed arrays will be printed like `x'0102...'` (`0x0102...` on Microsoft SQL Server, and `'\x0102...'` bytea hex format on PostgreSQL).
 
 `ReadableStream` objects will be put to `putParamsTo` array, if it's provided to [Sql.toString()](generated-doc/class.Sql/README.md#-tostringputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-string) or [Sql.encode()](generated-doc/class.Sql/README.md#-encodeputparamsto-unknown-mysqlnobackslashescapes-booleanfalse-usebuffer-uint8array-usebufferfrompos-number0-defaultparentname-uint8array-uint8arrayarraybufferlike) - see below, and the value will be replaced with '?' character.
 If `putParamsTo` not provided, exception will be thrown.

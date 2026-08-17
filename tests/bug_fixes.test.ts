@@ -251,3 +251,27 @@ Deno.test
 		assertEquals(mysql.t_log.where('').groupBy(['a'], 'x > 1').select() + '', 'SELECT * FROM `t_log` AS `t` GROUP BY `t`.`a` HAVING (`x` > 1)');
 	}
 );
+
+Deno.test
+(	'PostgreSQL binary literals use bytea hex format',
+	() =>
+	{	// PostgreSQL treats x'0102' as a bit string, not bytea; the bytea hex format is '\x0102'
+		assertEquals(pgsql`SELECT '${new Uint8Array([1, 2, 10, 254])}'` + '', "SELECT '\\x01020AFE'");
+		assertEquals(pgsqlOnly`SELECT '${new Uint8Array([1, 2, 10, 254])}'` + '', "SELECT '\\x01020AFE'");
+		assertEquals(pgsqlQuote(new Uint8Array([1, 2, 254, 255])), "'\\x0102FEFF'");
+
+		// empty blob
+		assertEquals(pgsql`SELECT '${new Uint8Array}'` + '', "SELECT '\\x'");
+		assertEquals(pgsqlQuote(new Uint8Array), "'\\x'");
+
+		// a blob longer than INLINE_BLOB_MAX_LEN is inlined when there's no putParamsTo (exercises buffer reallocation)
+		const data = new Uint8Array(100);
+		data.fill(0xAB);
+		assertEquals(pgsql`SELECT '${data}'` + '', "SELECT '\\x" + 'AB'.repeat(100) + "'");
+
+		// other engines are not affected
+		assertEquals(mysqlQuote(new Uint8Array([1, 2, 254, 255])), "x'0102FEFF'");
+		assertEquals(sqliteQuote(new Uint8Array([1, 2, 254, 255])), "x'0102FEFF'");
+		assertEquals(mssqlQuote(new Uint8Array([1, 2, 254, 255])), "0x0102FEFF");
+	}
+);

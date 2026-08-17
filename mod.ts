@@ -102,7 +102,7 @@
 
 	`Date` objects will be printed as SQL dates.
 
-	Typed arrays will be printed like `x'0102...'` (`0x0102...` on Microsoft SQL Server).
+	Typed arrays will be printed like `x'0102...'` (`0x0102...` on Microsoft SQL Server, and `'\x0102...'` bytea hex format on PostgreSQL).
 
 	`ReadableStream` objects will be put to `putParamsTo` array, if it's provided to {@link Sql.toString()} or {@link Sql.encode()} - see below, and the value will be replaced with '?' character.
 	If `putParamsTo` not provided, exception will be thrown.

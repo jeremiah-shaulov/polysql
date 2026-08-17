@@ -39,7 +39,7 @@ Deno.test
 		assertEquals(mysql`'${new Date(2000, 0, 31, 22, 2, 5, 100)}'` + '', `'2000-01-31 22:02:05.100'`);
 
 		assertEquals(mysql`'${new Uint8Array([1, 2, 10, 254])}'` + '', `x'01020AFE'`);
-		assertEquals(pgsql`'${new Uint8Array([1, 2, 10, 254])}'` + '', `x'01020AFE'`);
+		assertEquals(pgsql`'${new Uint8Array([1, 2, 10, 254])}'` + '', `'\\x01020AFE'`);
 		assertEquals(sqlite`'${new Uint8Array([1, 2, 10, 254])}'` + '', `x'01020AFE'`);
 		assertEquals(mssql`'${new Uint8Array([1, 2, 10, 254])}'` + '', `0x01020AFE`);
 

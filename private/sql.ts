@@ -603,12 +603,19 @@ class Serializer
 				this.putParamsTo.push(view);
 				return Want.REMOVE_APOS_OR_BRACE_CLOSE_OR_GT;
 			}
+			const {mode} = this.sqlSettings;
+			const altHexLiterals = mode == SqlMode.MSSQL || mode == SqlMode.MSSQL_ONLY;
+			const isPgsql = mode == SqlMode.PGSQL || mode == SqlMode.PGSQL_ONLY;
+			this.ensureRoom(paramLen*2 + 2);
 			const {result} = this;
-			const altHexLiterals = this.sqlSettings.mode == SqlMode.MSSQL || this.sqlSettings.mode == SqlMode.MSSQL_ONLY;
-			this.ensureRoom(paramLen*2 + 1);
 			if (altHexLiterals)
 			{	// like 0x01020304
 				result[this.pos - 1] = C_ZERO; // overwrite '
+				result[this.pos++] = C_X;
+			}
+			else if (isPgsql)
+			{	// like '\x01020304' - bytea hex format (keep the opening apostrophe in place)
+				result[this.pos++] = C_BACKSLASH;
 				result[this.pos++] = C_X;
 			}
 			else
